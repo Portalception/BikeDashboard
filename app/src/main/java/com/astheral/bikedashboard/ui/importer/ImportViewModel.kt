@@ -8,7 +8,9 @@ import androidx.lifecycle.viewModelScope
 import com.astheral.bikedashboard.csv.SheetMismatch
 import com.astheral.bikedashboard.csv.SheetProblem
 import com.astheral.bikedashboard.csv.checkAgainstSheet
+import com.astheral.bikedashboard.csv.looksLikeBackup
 import com.astheral.bikedashboard.csv.looksLikeSpreadsheet
+import com.astheral.bikedashboard.csv.readBackup
 import com.astheral.bikedashboard.csv.readSpreadsheet
 import com.astheral.bikedashboard.data.AppDatabase
 import com.astheral.bikedashboard.data.Country
@@ -35,6 +37,8 @@ sealed interface ImportState {
         val mismatches: List<SheetMismatch>,
         /** Fill-ups already in the app, which the import will replace. */
         val existingCount: Int,
+        /** True for the app's own backup format, which needs no check against a spreadsheet. */
+        val isBackup: Boolean = false,
     ) : ImportState
     data object Saving : ImportState
     data class Done(val count: Int) : ImportState
@@ -61,8 +65,12 @@ class ImportViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     private suspend fun preview(fileName: String, text: String): ImportState {
+        if (looksLikeBackup(text)) return backupPreview(fileName, text)
         if (!looksLikeSpreadsheet(text)) {
-            return ImportState.Failed("This doesn't look like your fuel spreadsheet. The first row should be the sheet's column names (No, Date, Country, …).")
+            return ImportState.Failed(
+                "This doesn't look like a Bike Dashboard backup or your fuel spreadsheet. " +
+                    "The first row should be the column names.",
+            )
         }
         val result = withContext(Dispatchers.Default) { readSpreadsheet(text) }
         if (result.rows.isEmpty()) {
@@ -78,6 +86,23 @@ class ImportViewModel(application: Application) : AndroidViewModel(application) 
             problems = result.problems,
             mismatches = withContext(Dispatchers.Default) { checkAgainstSheet(result.rows) },
             existingCount = dao.getAll().size,
+        )
+    }
+
+    private suspend fun backupPreview(fileName: String, text: String): ImportState {
+        val result = withContext(Dispatchers.Default) { readBackup(text) }
+        val fillUps = result.fillUps
+        if (fillUps.isEmpty()) return ImportState.Failed("No fill-ups found in $fileName.", result.problems)
+        return ImportState.Preview(
+            fileName = fileName,
+            fillUps = fillUps,
+            firstDate = fillUps.minOf { it.date },
+            lastDate = fillUps.maxOf { it.date },
+            countByCountry = fillUps.groupingBy { it.country }.eachCount(),
+            problems = result.problems,
+            mismatches = emptyList(),
+            existingCount = dao.getAll().size,
+            isBackup = true,
         )
     }
 

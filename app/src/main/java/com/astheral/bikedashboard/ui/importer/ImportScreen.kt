@@ -73,7 +73,10 @@ fun ImportScreen(onBack: () -> Unit, viewModel: ImportViewModel = viewModel()) {
         ) {
             when (val s = state) {
                 ImportState.Idle -> {
-                    Text("Choose the CSV exported from your fuel spreadsheet. You'll see a preview before anything is saved.")
+                    Text(
+                        "Choose a Bike Dashboard backup, or the CSV exported from your fuel spreadsheet. " +
+                            "You'll see a preview before anything is saved.",
+                    )
                     Button(onClick = { pickFile.launch(CSV_TYPES) }) { Text("Choose CSV file") }
                 }
                 ImportState.Reading, ImportState.Saving -> CircularProgressIndicator()
@@ -110,10 +113,14 @@ private fun Preview(s: ImportState.Preview, onConfirm: () -> Unit, onCancel: () 
         }
     }
 
-    CheckReport(s.mismatches)
+    if (s.isBackup) {
+        Text("Bike Dashboard backup. Importing restores exactly what was exported.")
+    } else {
+        CheckReport(s.mismatches)
+    }
     if (s.problems.isNotEmpty()) {
         Text(
-            "${s.problems.size} rows couldn't be read and will be left out:",
+            "${s.problems.size} ${if (s.isBackup) "lines" else "rows"} couldn't be read and will be left out:",
             color = MaterialTheme.colorScheme.error,
         )
         ProblemList(s.problems)
@@ -162,7 +169,7 @@ private fun CheckReport(mismatches: List<SheetMismatch>) {
 @Composable
 private fun ProblemList(problems: List<SheetProblem>) {
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        problems.forEach { p -> Text(if (p.rowNumber > 0) "Row ${p.rowNumber}: ${p.message}" else p.message) }
+        problems.forEach { p -> Text(if (p.rowNumber > 0) "#${p.rowNumber}: ${p.message}" else p.message) }
     }
 }
 
