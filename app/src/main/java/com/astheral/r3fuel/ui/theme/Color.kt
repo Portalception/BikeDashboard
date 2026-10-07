@@ -1,4 +1,4 @@
-package com.example.myapplication.ui.theme
+package com.astheral.r3fuel.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

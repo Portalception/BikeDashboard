@@ -1,4 +1,4 @@
-package com.example.myapplication
+package com.astheral.r3fuel
 
 import org.junit.Test
 

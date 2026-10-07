@@ -4,14 +4,14 @@ plugins {
 }
 
 android {
-    namespace = "com.example.myapplication"
+    namespace = "com.astheral.r3fuel"
     compileSdk {
         version = release(37)
     }
 
     defaultConfig {
-        applicationId = "com.example.myapplication"
-        minSdk = 36
+        applicationId = "com.astheral.r3fuel"
+        minSdk = 26
         targetSdk = 37
         versionCode = 1
         versionName = "1.0"
