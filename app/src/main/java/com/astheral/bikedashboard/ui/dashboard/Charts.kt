@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.astheral.bikedashboard.calc.ChartData
+import com.astheral.bikedashboard.ui.theme.CountryColors
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.Zoom
 import com.patrykandpatrick.vico.compose.cartesian.axis.HorizontalAxis
@@ -44,8 +45,9 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 private val MONTH_YEAR = DateTimeFormatter.ofPattern("MMM yy", Locale.ENGLISH)
-private val EconomyColor = Color(0xFF2E7D32)
-private val SpendColor = Color(0xFF6A1B9A)
+// Economy and spend charts follow the colour theme.
+private val EconomyColor @Composable get() = MaterialTheme.colorScheme.tertiary
+private val SpendColor @Composable get() = MaterialTheme.colorScheme.primary
 
 /** Dates on the x axis are stored as day numbers; show them as "Mar 25". */
 private val DateAxis = CartesianValueFormatter { _, x, _ -> LocalDate.ofEpochDay(x.toLong()).format(MONTH_YEAR) }
@@ -99,7 +101,9 @@ fun PriceChart(data: ChartData, hasOldMixed: Boolean) {
     if (data.sgPrice.isEmpty() && data.myPrice.isEmpty()) return
     val producer = remember { CartesianChartModelProducer() }
     // Each country only gets a line if it has points; Vico needs every series to be non-empty.
-    val series = listOf(data.sgPrice to SgColor, data.myPrice to MyColor).filter { it.first.isNotEmpty() }
+    val sgColor = CountryColors.sg
+    val myColor = CountryColors.my
+    val series = listOf(data.sgPrice to sgColor, data.myPrice to myColor).filter { it.first.isNotEmpty() }
     LaunchedEffect(data) {
         producer.runTransaction {
             lineSeries {
@@ -111,7 +115,7 @@ fun PriceChart(data: ChartData, hasOldMixed: Boolean) {
     }
     ChartCard(
         "Petrol price per litre",
-        legend = listOf("Singapore" to SgColor, "Malaysia" to MyColor).filter { (name, _) ->
+        legend = listOf("Singapore" to sgColor, "Malaysia" to myColor).filter { (name, _) ->
             if (name == "Singapore") data.sgPrice.isNotEmpty() else data.myPrice.isNotEmpty()
         },
         note = if (hasOldMixed) "In SGD. Old mixed fill-ups aren't shown, because their price is a blend of both countries." else "In SGD.",

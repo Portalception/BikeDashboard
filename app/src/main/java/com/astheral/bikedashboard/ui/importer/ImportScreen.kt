@@ -34,6 +34,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.astheral.bikedashboard.csv.SheetMismatch
 import com.astheral.bikedashboard.csv.SheetProblem
 import com.astheral.bikedashboard.data.Country
+import com.astheral.bikedashboard.ui.theme.LocalDarkTheme
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -141,19 +142,21 @@ private fun Preview(s: ImportState.Preview, onConfirm: () -> Unit, onCancel: () 
 @Composable
 private fun CheckReport(mismatches: List<SheetMismatch>) {
     val ok = mismatches.isEmpty()
+    val dark = LocalDarkTheme.current
+    val okText = if (dark) Color(0xFFB7E4BC) else Color(0xFF1B5E20)
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = if (ok) Color(0xFFE3F2E5) else MaterialTheme.colorScheme.errorContainer,
+            containerColor = if (ok) (if (dark) Color(0xFF1E3A22) else Color(0xFFE3F2E5)) else MaterialTheme.colorScheme.errorContainer,
         ),
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             if (ok) {
-                Text("Check passed", style = MaterialTheme.typography.titleSmall, color = Color(0xFF1B5E20))
+                Text("Check passed", style = MaterialTheme.typography.titleSmall, color = okText)
                 Text(
                     "The app recalculated distance, days, km/L, cost per km, cost per day and price per litre " +
                         "for every row, and they all match your spreadsheet.",
-                    color = Color(0xFF1B5E20),
+                    color = okText,
                 )
             } else {
                 Text("${mismatches.size} figures don't match your spreadsheet", style = MaterialTheme.typography.titleSmall)

@@ -1,6 +1,9 @@
 package com.astheral.bikedashboard.ui.dashboard
 
 import android.app.Application
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,6 +13,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -28,10 +33,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -58,6 +65,8 @@ import com.astheral.bikedashboard.ui.short
 import com.astheral.bikedashboard.ui.sgd
 import com.astheral.bikedashboard.ui.sgdPerKm
 import com.astheral.bikedashboard.ui.sgdPerLitre
+import com.astheral.bikedashboard.ui.theme.CountryColors
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -87,10 +96,6 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
             )
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 }
-
-/** Colours for the two countries, used by both the cards and the charts. */
-val SgColor = Color(0xFFD32F2F)
-val MyColor = Color(0xFF1565C0)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -152,39 +157,53 @@ private fun Empty(onAddFillUp: () -> Unit, onImport: () -> Unit, modifier: Modif
 
 private enum class Period(val label: String) { LAST("Last fill-up"), DAYS_30("Last 30 days"), LIFETIME("Lifetime") }
 
+/** The three periods sit side by side: swipe between them or tap a tab, and the cards slide across. */
 @Composable
 private fun Summary(d: DashboardData) {
-    var selected by rememberSaveable { mutableIntStateOf(0) }
-    val period = Period.entries[selected]
-    PrimaryTabRow(selectedTabIndex = selected) {
+    val pager = rememberPagerState(pageCount = { Period.entries.size })
+    val scope = rememberCoroutineScope()
+    PrimaryTabRow(selectedTabIndex = pager.currentPage) {
         Period.entries.forEachIndexed { i, p ->
-            Tab(selected = selected == i, onClick = { selected = i }, text = { Text(p.label) })
+            Tab(
+                selected = pager.currentPage == i,
+                onClick = { scope.launch { pager.animateScrollToPage(i) } },
+                text = { Text(p.label) },
+            )
         }
     }
-    val summary = when (period) {
-        Period.LAST -> d.summary.lastFillUp
-        Period.DAYS_30 -> d.summary.last30Days
-        Period.LIFETIME -> d.summary.lifetime
+    HorizontalPager(state = pager, verticalAlignment = Alignment.Top) { page ->
+        val period = Period.entries[page]
+        val summary = when (period) {
+            Period.LAST -> d.summary.lastFillUp
+            Period.DAYS_30 -> d.summary.last30Days
+            Period.LIFETIME -> d.summary.lifetime
+        }
+        PeriodCards(period, summary, d.lastFillUp!!)
     }
+}
+
+@Composable
+private fun PeriodCards(period: Period, summary: PeriodSummary, last: FillUp) {
     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(caption(period, summary, d.lastFillUp!!), color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(caption(period, summary, last), color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (summary.fillUpCount == 0) {
             Text("No fill-ups in the last 30 days.")
             return
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Metric("Fuel economy", summary.kmPerLitre?.let(::kmPerLitre), Modifier.weight(1f))
-            Metric("Petrol price", summary.pricePerLitre?.let(::sgdPerLitre), Modifier.weight(1f))
+            Metric("Fuel economy", summary.kmPerLitre, ::kmPerLitre, Modifier.weight(1f))
+            Metric("Petrol price", summary.pricePerLitre, ::sgdPerLitre, Modifier.weight(1f))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Metric("Cost per km", summary.costPerKm?.let(::sgdPerKm), Modifier.weight(1f))
-            Metric("Cost per day", summary.costPerDay?.let { "${sgd(it)}/day" }, Modifier.weight(1f))
+            Metric("Cost per km", summary.costPerKm, ::sgdPerKm, Modifier.weight(1f))
+            Metric("Cost per day", summary.costPerDay, { "${sgd(it)}/day" }, Modifier.weight(1f))
         }
         Metric(
             "Saved by pumping in Malaysia",
-            summary.savingsSgd?.let(::sgd),
+            summary.savingsSgd,
+            ::sgd,
             Modifier.fillMaxWidth(),
-            valueColor = summary.savingsSgd?.let { if (it < 0) MaterialTheme.colorScheme.error else MyColor },
+            valueColor = summary.savingsSgd?.let { if (it < 0) MaterialTheme.colorScheme.error else CountryColors.my },
         )
     }
 }
@@ -195,14 +214,29 @@ private fun caption(period: Period, s: PeriodSummary, last: FillUp): String = wh
     else -> "${s.fillUpCount} fill-ups · ${km(s.distanceKm)} · ${sgd(s.costSgd)} spent"
 }
 
+/** A card whose number counts up to its value when it appears, and glides to a new value when it changes. */
 @Composable
-private fun Metric(label: String, value: String?, modifier: Modifier, valueColor: Color? = null) {
+private fun Metric(
+    label: String,
+    value: Double?,
+    format: (Double) -> String,
+    modifier: Modifier,
+    valueColor: Color? = null,
+) {
+    val shown = remember { Animatable(0f) }
+    // Once the count-up finishes, show the exact value (the animation runs on rounded floats).
+    var settled by remember { mutableStateOf(false) }
+    LaunchedEffect(value) {
+        settled = false
+        if (value != null) shown.animateTo(value.toFloat(), tween(durationMillis = 700, easing = FastOutSlowInEasing))
+        settled = true
+    }
     Card(modifier) {
         Column(Modifier.padding(16.dp)) {
             Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(4.dp))
             Text(
-                value ?: "—",
+                if (value == null) "—" else format(if (settled) value else shown.value.toDouble()),
                 style = MaterialTheme.typography.titleLarge,
                 color = valueColor ?: MaterialTheme.colorScheme.onSurface,
             )

@@ -4,7 +4,30 @@ import android.app.Application
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.Icon
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -41,6 +64,8 @@ import com.astheral.bikedashboard.data.Settings
 import com.astheral.bikedashboard.ui.NoInsets
 import com.astheral.bikedashboard.ui.edit.parseNumber
 import com.astheral.bikedashboard.ui.short
+import com.astheral.bikedashboard.ui.theme.ColorTheme
+import com.astheral.bikedashboard.ui.theme.ThemeMode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -55,6 +80,11 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val dao = AppDatabase.get(application).fillUpDao()
 
     val tripKm: StateFlow<Double> = settings.tripKm
+    val themeMode: StateFlow<ThemeMode> = settings.themeMode
+    val colorTheme: StateFlow<ColorTheme> = settings.colorTheme
+
+    fun setThemeMode(mode: ThemeMode) = settings.setThemeMode(mode)
+    fun setColorTheme(theme: ColorTheme) = settings.setColorTheme(theme)
 
     private val _exportMessage = MutableStateFlow<String?>(null)
     val exportMessage: StateFlow<String?> = _exportMessage.asStateFlow()
@@ -84,6 +114,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 @Composable
 fun SettingsScreen(onImport: () -> Unit, viewModel: SettingsViewModel = viewModel()) {
     val tripKm by viewModel.tripKm.collectAsState()
+    val themeMode by viewModel.themeMode.collectAsState()
+    val colorTheme by viewModel.colorTheme.collectAsState()
     val exportMessage by viewModel.exportMessage.collectAsState()
     val exportTo = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
         if (uri != null) viewModel.export(uri)
@@ -98,6 +130,11 @@ fun SettingsScreen(onImport: () -> Unit, viewModel: SettingsViewModel = viewMode
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            Section("Appearance")
+            ThemeModePicker(themeMode, viewModel::setThemeMode)
+            ColorThemePicker(colorTheme, viewModel::setColorTheme)
+
+            HorizontalDivider()
             Section("Savings offset")
             TripKmField(tripKm, viewModel::setTripKm)
 
@@ -145,6 +182,65 @@ private fun appVersion(): String {
     val context = LocalContext.current
     return remember {
         runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull().orEmpty()
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ThemeModePicker(selected: ThemeMode, onSelect: (ThemeMode) -> Unit) {
+    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+        ThemeMode.entries.forEachIndexed { i, mode ->
+            SegmentedButton(
+                selected = mode == selected,
+                onClick = { onSelect(mode) },
+                shape = SegmentedButtonDefaults.itemShape(i, ThemeMode.entries.size),
+            ) { Text(mode.label) }
+        }
+    }
+}
+
+/** A round swatch per colour theme; tap one to switch the whole app over. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ColorThemePicker(selected: ColorTheme, onSelect: (ColorTheme) -> Unit) {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        ColorTheme.available.forEach { theme ->
+            val isSelected = theme == selected
+            val ring by animateDpAsState(if (isSelected) 3.dp else 0.dp, label = "ring")
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .width(72.dp)
+                    .clickable(role = Role.RadioButton) { onSelect(theme) },
+            ) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .border(ring, MaterialTheme.colorScheme.onSurface, CircleShape)
+                        .padding(5.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (theme == ColorTheme.WALLPAPER) {
+                                Brush.sweepGradient(listOf(Color(0xFFE57373), Color(0xFFFFD54F), Color(0xFF81C784), Color(0xFF64B5F6), Color(0xFFBA68C8), Color(0xFFE57373)))
+                            } else {
+                                SolidColor(theme.seed)
+                            },
+                        ),
+                ) {
+                    if (isSelected) Icon(Icons.Filled.Check, contentDescription = null, tint = Color.White)
+                }
+                Text(
+                    theme.label,
+                    style = MaterialTheme.typography.labelSmall,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
+        }
     }
 }
 

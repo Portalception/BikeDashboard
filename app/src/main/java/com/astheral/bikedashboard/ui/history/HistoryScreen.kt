@@ -1,6 +1,14 @@
 package com.astheral.bikedashboard.ui.history
 
 import android.app.Application
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,7 +19,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -24,7 +32,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -49,16 +59,30 @@ import com.astheral.bikedashboard.ui.sgdPerLitre
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 class HistoryViewModel(application: Application) : AndroidViewModel(application) {
+    private val dao = AppDatabase.get(application).fillUpDao()
+
+    /**
+     * Rows that have already slid in. Kept here rather than in the screen so that coming back
+     * from the edit form doesn't replay the animation (and a just-deleted row can slide out).
+     */
+    val shownIds = mutableSetOf<Long>()
+
     /** Newest first. Null while loading. */
     val fillUps: StateFlow<List<FillUpStats>?> =
         combine(
-            AppDatabase.get(application).fillUpDao().observeAll(),
+            dao.observeAll(),
             Settings.get(application).tripKm,
         ) { all, tripKm -> computeStats(all, tripKm).reversed() }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    fun delete(id: Long) {
+        viewModelScope.launch { dao.getById(id)?.let { dao.delete(it) } }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -66,9 +90,14 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
 fun HistoryScreen(
     onAddFillUp: () -> Unit,
     onOpenFillUp: (Long) -> Unit,
+    /** A fill-up just deleted on the edit screen: it slides out here, then is deleted. */
+    deletingId: Long? = null,
+    onDeleteFinished: () -> Unit = {},
     viewModel: HistoryViewModel = viewModel(),
 ) {
     val fillUps by viewModel.fillUps.collectAsState()
+    // Rows slide in the first time they come into view.
+    val shownIds = viewModel.shownIds
     Scaffold(
         topBar = { TopAppBar(title = { Text("History") }) },
         floatingActionButton = {
@@ -89,12 +118,60 @@ fun HistoryScreen(
                 modifier = Modifier.fillMaxSize().padding(padding),
                 contentPadding = PaddingValues(bottom = 88.dp), // room for the + button
             ) {
-                items(list, key = { it.fillUp.id }) { stats ->
-                    FillUpRow(stats, onClick = { onOpenFillUp(stats.fillUp.id) })
-                    HorizontalDivider()
+                itemsIndexed(list, key = { _, s -> s.fillUp.id }) { index, stats ->
+                    val id = stats.fillUp.id
+                    val slideIn = remember { shownIds.add(id) } // true only the first time
+                    SlidingRow(
+                        slideIn = slideIn,
+                        delayMs = if (index < 10) index * 35 else 0,
+                        leaving = id == deletingId,
+                        onLeft = {
+                            viewModel.delete(id)
+                            onDeleteFinished()
+                        },
+                        modifier = Modifier.animateItem(),
+                    ) {
+                        FillUpRow(stats, onClick = { onOpenFillUp(id) })
+                        HorizontalDivider()
+                    }
                 }
             }
         }
+    }
+}
+
+/**
+ * Slides a row in from the right when it first appears, and out to the left (closing the
+ * gap behind it) when [leaving] becomes true. [onLeft] runs once it has gone.
+ */
+@Composable
+private fun SlidingRow(
+    slideIn: Boolean,
+    delayMs: Int,
+    leaving: Boolean,
+    onLeft: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    val visible = remember { MutableTransitionState(!slideIn) }
+    LaunchedEffect(leaving) {
+        if (leaving) {
+            delay(250) // let the edit screen finish closing so you can see the row go
+            visible.targetState = false
+        } else {
+            visible.targetState = true
+        }
+    }
+    LaunchedEffect(visible.isIdle, visible.currentState) {
+        if (leaving && visible.isIdle && !visible.currentState) onLeft()
+    }
+    AnimatedVisibility(
+        visibleState = visible,
+        modifier = modifier,
+        enter = slideInHorizontally(tween(350, delayMillis = delayMs)) { it / 3 } + fadeIn(tween(350, delayMillis = delayMs)),
+        exit = slideOutHorizontally(tween(300)) { -it } + fadeOut(tween(300)) + shrinkVertically(tween(300, delayMillis = 150)),
+    ) {
+        Column { content() }
     }
 }
 

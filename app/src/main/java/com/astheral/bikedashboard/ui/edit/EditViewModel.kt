@@ -101,14 +101,6 @@ class EditViewModel(application: Application, private val fillUpId: Long) : Andr
 
     fun dismissWarnings() = _state.update { it.copy(pendingWarnings = emptyList()) }
 
-    fun delete() {
-        val existing = base ?: return
-        viewModelScope.launch {
-            dao.delete(existing)
-            _state.update { it.copy(done = true) }
-        }
-    }
-
     private fun preview(form: FillUpForm): FormPreview {
         val fill = (form.toFillUp(base) as? FormResult.Ok)?.fillUp
         val rate = parseNumber(form.rate)

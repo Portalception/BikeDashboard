@@ -1,5 +1,15 @@
 package com.astheral.bikedashboard.ui
 
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -12,9 +22,12 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.navigation.NavBackStackEntry
+import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -48,6 +61,42 @@ private val tabs = listOf(
 /** Top-level screens have the bottom bar under them, so they don't pad for the system bars again. */
 val NoInsets = WindowInsets(0, 0, 0, 0)
 
+/** History reads this from its back-stack entry to slide a deleted fill-up out, then delete it. */
+const val DELETED_FILL_UP_ID = "deletedFillUpId"
+
+private const val SLIDE_MS = 300
+
+private fun NavDestination?.tabIndex() = tabs.indexOfFirst { this?.hasRoute(it.route::class) == true }
+private fun NavDestination?.isOverlay() = this?.hasRoute(EditRoute::class) == true || this?.hasRoute(ImportRoute::class) == true
+
+/**
+ * Switching tabs slides the screens sideways, towards the tab you picked.
+ * The add/edit form and the import screen slide up over whatever was showing.
+ */
+private fun AnimatedContentTransitionScope<NavBackStackEntry>.tabEnter(): EnterTransition {
+    val from = initialState.destination.tabIndex()
+    val to = targetState.destination.tabIndex()
+    return when {
+        initialState.destination.isOverlay() -> EnterTransition.None
+        from >= 0 && to >= 0 -> slideIntoContainer(
+            if (to > from) SlideDirection.Left else SlideDirection.Right, tween(SLIDE_MS),
+        )
+        else -> fadeIn(tween(SLIDE_MS))
+    }
+}
+
+private fun AnimatedContentTransitionScope<NavBackStackEntry>.tabExit(): ExitTransition {
+    val from = initialState.destination.tabIndex()
+    val to = targetState.destination.tabIndex()
+    return when {
+        targetState.destination.isOverlay() -> ExitTransition.KeepUntilTransitionsFinished
+        from >= 0 && to >= 0 -> slideOutOfContainer(
+            if (to > from) SlideDirection.Left else SlideDirection.Right, tween(SLIDE_MS),
+        )
+        else -> fadeOut(tween(SLIDE_MS))
+    }
+}
+
 @Composable
 fun BikeDashboardApp() {
     val nav = rememberNavController()
@@ -57,7 +106,11 @@ fun BikeDashboardApp() {
 
     Scaffold(
         bottomBar = {
-            if (showTabs) {
+            AnimatedVisibility(
+                visible = showTabs,
+                enter = slideInVertically(tween(SLIDE_MS)) { it },
+                exit = slideOutVertically(tween(SLIDE_MS)) { it },
+            ) {
                 NavigationBar {
                     tabs.forEach { tab ->
                         NavigationBarItem(
@@ -78,27 +131,52 @@ fun BikeDashboardApp() {
         },
         contentWindowInsets = NoInsets,
     ) { padding ->
-        NavHost(nav, startDestination = DashboardRoute, modifier = Modifier.padding(padding)) {
+        NavHost(
+            nav,
+            startDestination = DashboardRoute,
+            modifier = Modifier.padding(padding),
+            enterTransition = { tabEnter() },
+            exitTransition = { tabExit() },
+            popEnterTransition = { tabEnter() },
+            popExitTransition = { tabExit() },
+        ) {
             composable<DashboardRoute> {
                 DashboardScreen(
                     onAddFillUp = { nav.navigate(EditRoute()) },
                     onImport = { nav.navigate(ImportRoute) },
                 )
             }
-            composable<HistoryRoute> {
+            composable<HistoryRoute> { entry ->
+                val deletedId by entry.savedStateHandle.getStateFlow<Long?>(DELETED_FILL_UP_ID, null).collectAsState()
                 HistoryScreen(
                     onAddFillUp = { nav.navigate(EditRoute()) },
                     onOpenFillUp = { id -> nav.navigate(EditRoute(id)) },
+                    deletingId = deletedId,
+                    onDeleteFinished = { entry.savedStateHandle[DELETED_FILL_UP_ID] = null },
                 )
             }
             composable<SettingsRoute> {
                 SettingsScreen(onImport = { nav.navigate(ImportRoute) })
             }
-            composable<ImportRoute> {
+            composable<ImportRoute>(
+                enterTransition = { slideIntoContainer(SlideDirection.Up, tween(SLIDE_MS)) },
+                popExitTransition = { slideOutOfContainer(SlideDirection.Down, tween(SLIDE_MS)) },
+            ) {
                 ImportScreen(onBack = { nav.popBackStack() })
             }
-            composable<EditRoute> { entry ->
-                EditScreen(fillUpId = entry.toRoute<EditRoute>().id, onDone = { nav.popBackStack() })
+            composable<EditRoute>(
+                enterTransition = { slideIntoContainer(SlideDirection.Up, tween(SLIDE_MS)) },
+                popExitTransition = { slideOutOfContainer(SlideDirection.Down, tween(SLIDE_MS)) },
+            ) { entry ->
+                EditScreen(
+                    fillUpId = entry.toRoute<EditRoute>().id,
+                    onDone = { nav.popBackStack() },
+                    // History slides the row out and then deletes it, so you can see which one went.
+                    onDeleted = { id ->
+                        nav.previousBackStackEntry?.savedStateHandle?.set(DELETED_FILL_UP_ID, id)
+                        nav.popBackStack()
+                    },
+                )
             }
         }
     }

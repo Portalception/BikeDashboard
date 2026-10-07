@@ -61,7 +61,7 @@ import java.time.Instant
 import java.time.ZoneOffset
 
 @Composable
-fun EditScreen(fillUpId: Long, onDone: () -> Unit) {
+fun EditScreen(fillUpId: Long, onDone: () -> Unit, onDeleted: (Long) -> Unit) {
     val viewModel: EditViewModel = viewModel(key = "edit-$fillUpId") {
         EditViewModel(this[APPLICATION_KEY]!!, fillUpId)
     }
@@ -111,7 +111,7 @@ fun EditScreen(fillUpId: Long, onDone: () -> Unit) {
             title = { Text("Delete this fill-up?") },
             text = { Text("${state.form.date.long()} · ${state.form.odometer} km. This can't be undone.") },
             confirmButton = {
-                TextButton(onClick = { confirmDelete = false; viewModel.delete() }) {
+                TextButton(onClick = { confirmDelete = false; onDeleted(fillUpId) }) {
                     Text("Delete", color = MaterialTheme.colorScheme.error)
                 }
             },
