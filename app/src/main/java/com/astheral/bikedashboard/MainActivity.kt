@@ -1,4 +1,4 @@
-package com.astheral.r3fuel
+package com.astheral.bikedashboard
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -11,14 +11,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import com.astheral.r3fuel.ui.theme.R3FuelTheme
+import com.astheral.bikedashboard.ui.theme.BikeDashboardTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            R3FuelTheme {
+            BikeDashboardTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     Greeting(
                         name = "Android",
@@ -41,7 +41,7 @@ fun Greeting(name: String, modifier: Modifier = Modifier) {
 @Preview(showBackground = true)
 @Composable
 fun GreetingPreview() {
-    R3FuelTheme {
+    BikeDashboardTheme {
         Greeting("Android")
     }
 }

@@ -1,4 +1,4 @@
-package com.astheral.r3fuel.ui.theme
+package com.astheral.bikedashboard.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle

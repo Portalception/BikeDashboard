@@ -1,4 +1,4 @@
-package com.astheral.r3fuel
+package com.astheral.bikedashboard
 
 import org.junit.Test
 

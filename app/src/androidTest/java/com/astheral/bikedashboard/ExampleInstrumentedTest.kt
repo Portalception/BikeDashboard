@@ -1,4 +1,4 @@
-package com.astheral.r3fuel
+package com.astheral.bikedashboard
 
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -19,6 +19,6 @@ class ExampleInstrumentedTest {
     fun useAppContext() {
         // Context of the app under test.
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-        assertEquals("com.astheral.r3fuel", appContext.packageName)
+        assertEquals("com.astheral.bikedashboard", appContext.packageName)
     }
 }

@@ -22,5 +22,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "R3 Fuel"
+rootProject.name = "Bike Dashboard"
 include(":app")
