@@ -7,6 +7,13 @@ data class Release(val version: String, val date: LocalDate, val changes: List<S
 /** Major changes in each version, newest first. Add an entry here with every version you share. */
 val CHANGELOG = listOf(
     Release(
+        version = "0.2.1",
+        date = LocalDate.of(2026, 10, 7),
+        changes = listOf(
+            "Choose the shape of the progress line in Settings: wave, zigzag, heartbeat, bike chain, dots or straight.",
+        ),
+    ),
+    Release(
         version = "0.2",
         date = LocalDate.of(2026, 10, 7),
         changes = listOf(

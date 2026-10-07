@@ -66,7 +66,7 @@ import com.astheral.bikedashboard.ui.components.MiniBars
 import com.astheral.bikedashboard.ui.components.NumberFont
 import com.astheral.bikedashboard.ui.components.PillTabs
 import com.astheral.bikedashboard.ui.components.TileShape
-import com.astheral.bikedashboard.ui.components.WavyProgress
+import com.astheral.bikedashboard.ui.components.ProgressLine
 import com.astheral.bikedashboard.ui.components.outline
 import com.astheral.bikedashboard.ui.km
 import com.astheral.bikedashboard.ui.kmPerLitre
@@ -198,7 +198,7 @@ private fun Header(d: DashboardData?) {
             d.summary.lifetime.kmPerLitre?.let { AccentChip(String.format(Locale.ENGLISH, "%.1f km/L", it)) }
         }
         d.usualDays?.let { usual ->
-            WavyProgress(d.daysSinceLast.toFloat() / usual)
+            ProgressLine(d.daysSinceLast.toFloat() / usual)
             Text(
                 "Day ${d.daysSinceLast} of about $usual between fill-ups",
                 style = MaterialTheme.typography.bodySmall,

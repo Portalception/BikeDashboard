@@ -6,6 +6,7 @@ import androidx.compose.ui.graphics.toArgb
 import com.astheral.bikedashboard.calc.DEFAULT_TRIP_KM
 import com.astheral.bikedashboard.ui.theme.AppearanceSettings
 import com.astheral.bikedashboard.ui.theme.ColorPreset
+import com.astheral.bikedashboard.ui.theme.ProgressStyle
 import com.astheral.bikedashboard.ui.theme.ThemeMode
 import com.astheral.bikedashboard.ui.theme.WallpaperSupported
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -39,6 +40,7 @@ class Settings private constructor(context: Context) {
             .putBoolean(KEY_WALLPAPER, a.wallpaper)
             .putInt(KEY_PRIMARY, a.primary.toArgb())
             .putInt(KEY_ACCENT, a.accent.toArgb())
+            .putString(KEY_PROGRESS_STYLE, a.progressStyle.name)
             .remove(KEY_OLD_COLOR_THEME)
             .apply()
     }
@@ -54,6 +56,8 @@ class Settings private constructor(context: Context) {
             wallpaper = WallpaperSupported && prefs.getBoolean(KEY_WALLPAPER, old == "WALLPAPER"),
             primary = Color(prefs.getInt(KEY_PRIMARY, default.primary.toArgb())),
             accent = Color(prefs.getInt(KEY_ACCENT, default.accent.toArgb())),
+            progressStyle = ProgressStyle.entries.firstOrNull { it.name == prefs.getString(KEY_PROGRESS_STYLE, null) }
+                ?: ProgressStyle.WAVE,
         )
     }
 
@@ -64,6 +68,7 @@ class Settings private constructor(context: Context) {
         private const val KEY_WALLPAPER = "wallpaper_colors"
         private const val KEY_PRIMARY = "primary_color"
         private const val KEY_ACCENT = "accent_color"
+        private const val KEY_PROGRESS_STYLE = "progress_style"
         private const val KEY_OLD_COLOR_THEME = "color_theme"
 
         @Volatile

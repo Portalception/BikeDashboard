@@ -34,7 +34,16 @@ data class AppearanceSettings(
     val wallpaper: Boolean = false,
     val primary: Color = ColorPreset.YAMAHA_BLUE.primary,
     val accent: Color = ColorPreset.YAMAHA_BLUE.accent,
+    /** Shape of the progress line on the dashboard and while adding a fill-up. */
+    val progressStyle: ProgressStyle = ProgressStyle.WAVE,
 )
+
+enum class ProgressStyle(val label: String) {
+    WAVE("Wave"), ZIGZAG("Zigzag"), HEARTBEAT("Heartbeat"), CHAIN("Chain"), DOTS("Dots"), STRAIGHT("Straight"),
+}
+
+/** The progress line shape picked in Settings. */
+val LocalProgressStyle = staticCompositionLocalOf { ProgressStyle.WAVE }
 
 /** Ready-made primary + accent pairs. */
 enum class ColorPreset(val label: String, val primary: Color, val accent: Color) {
@@ -93,7 +102,7 @@ fun BikeDashboardTheme(appearance: AppearanceSettings = AppearanceSettings(), co
         }
     }
 
-    CompositionLocalProvider(LocalDarkTheme provides dark) {
+    CompositionLocalProvider(LocalDarkTheme provides dark, LocalProgressStyle provides appearance.progressStyle) {
         MaterialTheme(colorScheme = colorScheme, typography = Typography, content = content)
     }
 }

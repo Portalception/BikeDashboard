@@ -42,6 +42,8 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
@@ -50,6 +52,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.astheral.bikedashboard.ui.theme.LocalProgressStyle
+import com.astheral.bikedashboard.ui.theme.ProgressStyle
 import kotlin.math.PI
 import kotlin.math.max
 import kotlin.math.sin
@@ -261,32 +265,112 @@ fun AccentChip(text: String, modifier: Modifier = Modifier) {
     )
 }
 
-/** A progress bar whose filled part is a wave, followed by a flat track for the rest. */
+/**
+ * A progress bar: the filled part is drawn in the chosen [style] (wave, zigzag, chain …),
+ * followed by a flat track for the rest. The style comes from Settings unless given.
+ */
 @Composable
-fun WavyProgress(progress: Float, modifier: Modifier = Modifier, color: Color = MaterialTheme.colorScheme.tertiary) {
-    val shown by animateFloatAsState(progress.coerceIn(0f, 1f), tween(600), label = "wavy")
+fun ProgressLine(
+    progress: Float,
+    modifier: Modifier = Modifier,
+    color: Color = MaterialTheme.colorScheme.tertiary,
+    style: ProgressStyle = LocalProgressStyle.current,
+    animate: Boolean = true,
+) {
+    val target = progress.coerceIn(0f, 1f)
+    // Previews in Settings don't animate; the real lines glide to their new length.
+    val shown = if (animate) animateFloatAsState(target, tween(600), label = "progress").value else target
     val track = MaterialTheme.colorScheme.surfaceContainerHighest
     Canvas(modifier.fillMaxWidth().height(18.dp)) {
         val stroke = 5.dp.toPx()
-        val mid = size.height / 2
-        val amplitude = size.height / 2 - stroke / 2
-        val wavelength = 22.dp.toPx()
         val end = size.width * shown
         val gap = 8.dp.toPx()
+        val mid = size.height / 2
         if (end + gap < size.width) {
             drawLine(track, Offset(end + gap, mid), Offset(size.width, mid), strokeWidth = stroke, cap = StrokeCap.Round)
         }
-        if (end > 0f) {
+        if (end > 0f) drawProgressShape(style, end, color, stroke)
+    }
+}
+
+private fun DrawScope.drawProgressShape(style: ProgressStyle, end: Float, color: Color, stroke: Float) {
+    val mid = size.height / 2
+    val amp = size.height / 2 - stroke / 2
+    val line = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round)
+    when (style) {
+        ProgressStyle.WAVE -> {
+            val wavelength = 22.dp.toPx()
             val path = Path().apply {
                 moveTo(0f, mid)
                 var x = 0f
                 while (x <= end) {
-                    lineTo(x, mid + amplitude * sin(2 * PI * x / wavelength).toFloat())
+                    lineTo(x, mid + amp * sin(2 * PI * x / wavelength).toFloat())
                     x += 2f
                 }
             }
-            drawPath(path, color, style = Stroke(width = stroke, cap = StrokeCap.Round))
+            drawPath(path, color, style = line)
         }
+        ProgressStyle.ZIGZAG -> {
+            val half = 9.dp.toPx()
+            val path = Path().apply {
+                moveTo(0f, mid)
+                var x = half / 2
+                var up = true
+                while (x < end) {
+                    lineTo(x, if (up) mid - amp else mid + amp)
+                    up = !up
+                    x += half
+                }
+                lineTo(end, mid)
+            }
+            drawPath(path, color, style = line)
+        }
+        ProgressStyle.HEARTBEAT -> {
+            // Flat, a small bump, then a sharp spike up and down, like a heart monitor.
+            val beat = 46.dp.toPx()
+            val shape = listOf(0f to 0f, 0.30f to 0f, 0.36f to -0.25f, 0.42f to 0f, 0.48f to 0f, 0.55f to -1f, 0.62f to 1f, 0.68f to 0f, 1f to 0f)
+            val path = Path().apply {
+                moveTo(0f, mid)
+                var start = 0f
+                outer@ while (start < end) {
+                    for ((fx, fy) in shape) {
+                        val x = start + fx * beat
+                        if (x > end) { lineTo(end, mid); break@outer }
+                        lineTo(x, mid + fy * amp)
+                    }
+                    start += beat
+                }
+            }
+            drawPath(path, color, style = line)
+        }
+        ProgressStyle.CHAIN -> {
+            // Overlapping rounded links, like a bike chain: outer plates outlined, inner plates filled.
+            val link = 15.dp.toPx()
+            val pitch = 11.dp.toPx()
+            val h = size.height * 0.62f
+            val top = mid - h / 2
+            var x = 0f
+            var outer = true
+            while (x + link <= end + 1f) {
+                if (outer) {
+                    drawRoundRect(color, Offset(x, top), Size(link, h), CornerRadius(h / 2), style = Stroke(width = stroke * 0.6f))
+                } else {
+                    drawRoundRect(color, Offset(x + link * 0.18f, mid - h * 0.28f), Size(link * 0.64f, h * 0.56f), CornerRadius(h / 3))
+                }
+                outer = !outer
+                x += pitch
+            }
+        }
+        ProgressStyle.DOTS -> {
+            val r = stroke * 0.75f
+            val spacing = 11.dp.toPx()
+            var x = r
+            while (x <= end) {
+                drawCircle(color, radius = r, center = Offset(x, mid))
+                x += spacing
+            }
+        }
+        ProgressStyle.STRAIGHT -> drawLine(color, Offset(0f, mid), Offset(end, mid), strokeWidth = stroke, cap = StrokeCap.Round)
     }
 }
 

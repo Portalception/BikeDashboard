@@ -88,7 +88,7 @@ import com.astheral.bikedashboard.ui.components.GroupDivider
 import com.astheral.bikedashboard.ui.components.NumberFont
 import com.astheral.bikedashboard.ui.components.PillShape
 import com.astheral.bikedashboard.ui.components.TileShape
-import com.astheral.bikedashboard.ui.components.WavyProgress
+import com.astheral.bikedashboard.ui.components.ProgressLine
 import com.astheral.bikedashboard.ui.components.outline
 import com.astheral.bikedashboard.ui.km
 import com.astheral.bikedashboard.ui.kmPerLitre
@@ -125,7 +125,7 @@ fun EditScreen(fillUpId: Long, onDone: () -> Unit, onDeleted: (Long) -> Unit) {
             .padding(horizontal = 16.dp),
     ) {
         TopRow(state, onClose = onDone, onDelete = { confirmDelete = true })
-        WavyProgress((state.index + 1f) / state.steps.size, Modifier.padding(horizontal = 4.dp, vertical = 8.dp))
+        ProgressLine((state.index + 1f) / state.steps.size, Modifier.padding(horizontal = 4.dp, vertical = 8.dp))
 
         // Each question is its own card; moving on slides the next one in from the side.
         AnimatedContent(

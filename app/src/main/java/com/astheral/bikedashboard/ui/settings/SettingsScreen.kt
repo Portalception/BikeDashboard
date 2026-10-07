@@ -84,12 +84,14 @@ import com.astheral.bikedashboard.data.Settings
 import com.astheral.bikedashboard.ui.components.ChoiceTile
 import com.astheral.bikedashboard.ui.components.GroupCard
 import com.astheral.bikedashboard.ui.components.GroupDivider
+import com.astheral.bikedashboard.ui.components.ProgressLine
 import com.astheral.bikedashboard.ui.components.SectionHeader
 import com.astheral.bikedashboard.ui.components.SettingRow
 import com.astheral.bikedashboard.ui.edit.parseNumber
 import com.astheral.bikedashboard.ui.short
 import com.astheral.bikedashboard.ui.theme.AppearanceSettings
 import com.astheral.bikedashboard.ui.theme.ColorPreset
+import com.astheral.bikedashboard.ui.theme.ProgressStyle
 import com.astheral.bikedashboard.ui.theme.SwatchColors
 import com.astheral.bikedashboard.ui.theme.ThemeMode
 import com.astheral.bikedashboard.ui.theme.WallpaperSupported
@@ -189,6 +191,12 @@ fun SettingsScreen(onImport: () -> Unit, viewModel: SettingsViewModel = viewMode
             }
         }
 
+        Spacer(Modifier.height(12.dp))
+        GroupCard(contentPadding = 16.dp) {
+            Label("Progress line", "The line at the top of the dashboard and while adding a fill-up")
+            ProgressStylePicker(appearance.progressStyle) { style -> update { it.copy(progressStyle = style) } }
+        }
+
         AnimatedVisibility(!appearance.wallpaper) {
             Column {
                 SectionHeader(Icons.Filled.ColorLens, "Colours")
@@ -240,6 +248,44 @@ private fun Label(text: String, hint: String? = null) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(start = 4.dp, bottom = 10.dp),
         )
+    }
+}
+
+/** Each shape as a small live preview; the chosen one is outlined in the accent colour. */
+@Composable
+private fun ProgressStylePicker(selected: ProgressStyle, onPick: (ProgressStyle) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        ProgressStyle.entries.chunked(2).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                row.forEach { style ->
+                    val isSelected = style == selected
+                    Column(
+                        Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(18.dp))
+                            .background(
+                                if (isSelected) MaterialTheme.colorScheme.tertiary.copy(alpha = 0.14f)
+                                else MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f),
+                            )
+                            .border(
+                                if (isSelected) 2.dp else 1.dp,
+                                if (isSelected) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
+                                RoundedCornerShape(18.dp),
+                            )
+                            .clickable(role = Role.RadioButton) { onPick(style) }
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        ProgressLine(0.7f, style = style, animate = false)
+                        Text(
+                            style.label,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
