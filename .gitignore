@@ -42,3 +42,6 @@ Thumbs.db
 
 # --- Release signing secrets ---
 keystore.properties
+
+# --- Built app files kept for sharing ---
+/releases/
