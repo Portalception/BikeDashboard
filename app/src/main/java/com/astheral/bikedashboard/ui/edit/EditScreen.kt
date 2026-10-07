@@ -83,6 +83,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.astheral.bikedashboard.data.Country
 import com.astheral.bikedashboard.ui.components.AccentChip
 import com.astheral.bikedashboard.ui.components.ChoiceTile
+import com.astheral.bikedashboard.ui.components.CountUpText
 import com.astheral.bikedashboard.ui.components.GroupCard
 import com.astheral.bikedashboard.ui.components.GroupDivider
 import com.astheral.bikedashboard.ui.components.NumberFont
@@ -541,9 +542,9 @@ private fun ReviewCard(state: EditState, vm: EditViewModel) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         // What it works out to, as three small tiles.
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            ResultTile("Cost", p.totalCostSgd?.let(::sgd), Modifier.weight(1f))
-            ResultTile("Price", p.pricePerLitre?.let(::sgdPerLitre), Modifier.weight(1f))
-            ResultTile("Economy", p.kmPerLitre?.let(::kmPerLitre), Modifier.weight(1f))
+            ResultTile("Cost", p.totalCostSgd, ::sgd, Modifier.weight(1f))
+            ResultTile("Price", p.pricePerLitre, ::sgdPerLitre, Modifier.weight(1f))
+            ResultTile("Economy", p.kmPerLitre, ::kmPerLitre, Modifier.weight(1f))
         }
 
         if (state.warnings.isNotEmpty()) {
@@ -602,7 +603,7 @@ private fun ReviewCard(state: EditState, vm: EditViewModel) {
 }
 
 @Composable
-private fun ResultTile(label: String, value: String?, modifier: Modifier) {
+private fun ResultTile(label: String, value: Double?, format: (Double) -> String, modifier: Modifier) {
     Column(
         modifier
             .clip(TileShape)
@@ -611,7 +612,11 @@ private fun ResultTile(label: String, value: String?, modifier: Modifier) {
             .padding(12.dp),
     ) {
         Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(value ?: "—", style = MaterialTheme.typography.titleSmall, fontFamily = NumberFont, maxLines = 1)
+        if (value == null) {
+            Text("—", style = MaterialTheme.typography.titleSmall, fontFamily = NumberFont)
+        } else {
+            CountUpText(value, format, style = MaterialTheme.typography.titleSmall)
+        }
     }
 }
 

@@ -16,6 +16,8 @@ data class ChartData(
     val kmPerLitre: List<DatedValue>,
     /** Every calendar month from the first fill-up to the last, including months with no spending. */
     val monthlySpend: List<MonthlySpend>,
+    /** What each fill-up cost, for short periods where months would be just one or two bars. */
+    val fillSpend: List<DatedValue> = emptyList(),
 )
 
 fun chartData(stats: List<FillUpStats>): ChartData {
@@ -36,6 +38,7 @@ fun chartData(stats: List<FillUpStats>): ChartData {
         myPrice = stats.mapNotNull { s -> s.fillUp.myPricePerLitre?.let { DatedValue(s.fillUp.date, it) } },
         kmPerLitre = stats.mapNotNull { s -> s.kmPerLitre?.let { DatedValue(s.fillUp.date, it) } },
         monthlySpend = months,
+        fillSpend = stats.map { DatedValue(it.fillUp.date, it.fillUp.totalCostSgd) },
     )
 }
 

@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -60,6 +61,7 @@ import com.astheral.bikedashboard.data.AppDatabase
 import com.astheral.bikedashboard.data.FillUp
 import com.astheral.bikedashboard.data.Settings
 import com.astheral.bikedashboard.ui.components.AccentChip
+import com.astheral.bikedashboard.ui.components.CountUpText
 import com.astheral.bikedashboard.ui.components.DotLabel
 import com.astheral.bikedashboard.ui.components.GroupCard
 import com.astheral.bikedashboard.ui.components.MiniBars
@@ -100,7 +102,8 @@ data class TileSeries(
 data class DashboardData(
     val summary: DashboardSummary,
     val lastFillUp: FillUp?,
-    val charts: ChartData,
+    /** Chart data for each period: the last 10 fill-ups, the last 30 days, and everything. */
+    val charts: Map<Period, ChartData>,
     val hasOldMixed: Boolean,
     val tiles: TileSeries,
     /** Days since the last fill-up, and the usual number of days between fill-ups. */
@@ -122,10 +125,16 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
             val today = LocalDate.now()
             val stats = computeStats(all, tripKm)
             val gaps = stats.mapNotNull { it.days }.filter { it > 0 }.sorted()
+            val windowStart = today.minusDays(29)
             DashboardData(
                 summary = summarizeDashboard(stats, today),
                 lastFillUp = stats.lastOrNull()?.fillUp,
-                charts = chartData(stats),
+                charts = mapOf(
+                    // One fill-up makes an empty chart, so "last fill-up" shows it with the ones before it.
+                    Period.LAST to chartData(stats.takeLast(RECENT_FILL_UPS)),
+                    Period.DAYS_30 to chartData(stats.filter { !it.fillUp.date.isBefore(windowStart) }),
+                    Period.LIFETIME to chartData(stats),
+                ),
                 hasOldMixed = hasOldMixed(stats),
                 tiles = TileSeries(
                     kmPerLitre = recent(stats) { it.kmPerLitre },
@@ -141,7 +150,14 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 }
 
-private enum class Period(val label: String) { LAST("Last fill-up"), DAYS_30("30 days"), LIFETIME("Lifetime") }
+enum class Period(val label: String, val chartLabel: String) {
+    LAST("Last fill-up", "Last 10"),
+    DAYS_30("30 days", "30 days"),
+    LIFETIME("Lifetime", "All time"),
+}
+
+/** How many fill-ups the charts show on the "Last fill-up" tab. */
+private const val RECENT_FILL_UPS = 10
 
 @Composable
 fun DashboardScreen(
@@ -151,6 +167,10 @@ fun DashboardScreen(
 ) {
     val data by viewModel.data.collectAsState()
     val d = data ?: return
+    // One choice of period for the whole page: the tabs, a swipe on the tiles, and every chart follow it.
+    val pager = rememberPagerState(pageCount = { Period.entries.size })
+    val scope = rememberCoroutineScope()
+    val period = Period.entries[pager.currentPage]
     Column(
         Modifier
             .fillMaxSize()
@@ -165,10 +185,24 @@ fun DashboardScreen(
             Empty(onAddFillUp, onImport)
         } else {
             Header(d)
-            Summary(d)
-            PriceChart(d.charts, d.hasOldMixed)
-            EconomyChart(d.charts)
-            MonthlySpendChart(d.charts)
+            PillTabs(
+                listOf(
+                    Icons.Filled.LocalGasStation to Period.LAST.label,
+                    Icons.Filled.CalendarMonth to Period.DAYS_30.label,
+                    Icons.Filled.AllInclusive to Period.LIFETIME.label,
+                ),
+                selected = pager.currentPage,
+                onSelect = { scope.launch { pager.animateScrollToPage(it) } },
+            )
+            Summary(d, pager)
+            val charts = d.charts.getValue(period)
+            if (period == Period.DAYS_30 && d.summary.last30Days.fillUpCount == 0) {
+                Text("No fill-ups in the last 30 days, so there's nothing to chart.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else {
+                PriceChart(charts, d.hasOldMixed, period.chartLabel)
+                EconomyChart(charts, period.chartLabel)
+                SpendChart(charts, period.chartLabel, byMonth = period == Period.LIFETIME)
+            }
         }
     }
 }
@@ -193,9 +227,9 @@ private fun Header(d: DashboardData?) {
                 color = MaterialTheme.colorScheme.tertiary,
                 fontWeight = FontWeight.SemiBold,
             )
-            AccentChip("${d.summary.lifetime.fillUpCount} fills")
+            AccentChip(d.summary.lifetime.fillUpCount.toDouble(), { "${it.toInt()} fills" })
             Spacer(Modifier.size(8.dp))
-            d.summary.lifetime.kmPerLitre?.let { AccentChip(String.format(Locale.ENGLISH, "%.1f km/L", it)) }
+            d.summary.lifetime.kmPerLitre?.let { AccentChip(it, { v -> String.format(Locale.ENGLISH, "%.1f km/L", v) }) }
         }
         d.usualDays?.let { usual ->
             ProgressLine(d.daysSinceLast.toFloat() / usual)
@@ -225,22 +259,10 @@ private fun Empty(onAddFillUp: () -> Unit, onImport: () -> Unit) {
     }
 }
 
-/** One card holding the period tabs and the tiles; swipe sideways or tap a tab to switch. */
+/** The tiles for each period, side by side: swipe sideways to switch period. */
 @Composable
-private fun Summary(d: DashboardData) {
-    val pager = rememberPagerState(pageCount = { Period.entries.size })
-    val scope = rememberCoroutineScope()
+private fun Summary(d: DashboardData, pager: PagerState) {
     GroupCard(contentPadding = 12.dp, edge = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.45f)) {
-        PillTabs(
-            listOf(
-                Icons.Filled.LocalGasStation to Period.LAST.label,
-                Icons.Filled.CalendarMonth to Period.DAYS_30.label,
-                Icons.Filled.AllInclusive to Period.LIFETIME.label,
-            ),
-            selected = pager.currentPage,
-            onSelect = { scope.launch { pager.animateScrollToPage(it) } },
-        )
-        Spacer(Modifier.height(12.dp))
         HorizontalPager(state = pager, verticalAlignment = Alignment.Top, pageSpacing = 12.dp) { page ->
             val period = Period.entries[page]
             val summary = when (period) {
@@ -315,14 +337,6 @@ private fun StatTile(
     color: Color,
     modifier: Modifier,
 ) {
-    val shown = remember { Animatable(0f) }
-    // Once the count-up finishes, show the exact value (the animation runs on rounded floats).
-    var settled by remember { mutableStateOf(false) }
-    LaunchedEffect(value) {
-        settled = false
-        if (value != null) shown.animateTo(value.toFloat(), tween(durationMillis = 700, easing = FastOutSlowInEasing))
-        settled = true
-    }
     Surface(
         modifier,
         shape = TileShape,
@@ -331,12 +345,11 @@ private fun StatTile(
     ) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             DotLabel(label, color)
-            Text(
-                if (value == null) "—" else format(if (settled) value else shown.value.toDouble()),
-                style = MaterialTheme.typography.titleMedium,
-                fontFamily = NumberFont,
-                maxLines = 1,
-            )
+            if (value == null) {
+                Text("—", style = MaterialTheme.typography.titleMedium, fontFamily = NumberFont)
+            } else {
+                CountUpText(value, format, style = MaterialTheme.typography.titleMedium)
+            }
             Box(Modifier.padding(top = 2.dp)) { MiniBars(series.map { it.value }, highlight, color) }
         }
     }

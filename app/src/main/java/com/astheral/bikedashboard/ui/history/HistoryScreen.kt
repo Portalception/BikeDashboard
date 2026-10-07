@@ -21,6 +21,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import com.astheral.bikedashboard.data.Country
+import com.astheral.bikedashboard.ui.components.CountUpText
 import com.astheral.bikedashboard.ui.components.GroupCard
 import com.astheral.bikedashboard.ui.components.NumberFont
 import com.astheral.bikedashboard.ui.components.PillShape
@@ -121,11 +122,13 @@ fun HistoryScreen(
             Column(Modifier.padding(start = 4.dp, top = 16.dp, bottom = 4.dp)) {
                 Text("History", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
                 if (list.isNotEmpty()) {
-                    Text(
-                        "${list.size} fill-ups since ${list.last().fillUp.date.format(MONTH_YEAR)}",
-                        style = MaterialTheme.typography.titleMedium,
+                    val since = list.last().fillUp.date.format(MONTH_YEAR)
+                    CountUpText(
+                        list.size.toDouble(),
+                        { "${it.toInt()} fill-ups since $since" },
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                         color = MaterialTheme.colorScheme.tertiary,
-                        fontWeight = FontWeight.SemiBold,
+                        fontFamily = null,
                     )
                 }
             }
@@ -144,7 +147,8 @@ fun HistoryScreen(
         var index = 0
         months.forEach { (month, inMonth) ->
             item(key = "m-$month") {
-                MonthHeader(month, inMonth, Modifier.animateItem())
+                val countUp = remember { shownIds.add(-month.hashCode().toLong() - 1) } // first time only
+                MonthHeader(month, inMonth, countUp, Modifier.animateItem())
             }
             inMonth.forEach { stats ->
                 val position = index++
@@ -161,7 +165,7 @@ fun HistoryScreen(
                         },
                         modifier = Modifier.animateItem(),
                     ) {
-                        FillUpCard(stats, onClick = { onOpenFillUp(id) })
+                        FillUpCard(stats, countUp = slideIn, onClick = { onOpenFillUp(id) })
                     }
                 }
             }
@@ -174,7 +178,7 @@ private val MONTH_FULL = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.ENGLISH
 
 /** "October 2026" with that month's spend and number of fill-ups on the right. */
 @Composable
-private fun MonthHeader(month: YearMonth, inMonth: List<FillUpStats>, modifier: Modifier = Modifier) {
+private fun MonthHeader(month: YearMonth, inMonth: List<FillUpStats>, countUp: Boolean, modifier: Modifier = Modifier) {
     Row(modifier.fillMaxWidth().padding(start = 8.dp, end = 8.dp, top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
         Icon(Icons.Filled.CalendarMonth, contentDescription = null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(
@@ -183,11 +187,12 @@ private fun MonthHeader(month: YearMonth, inMonth: List<FillUpStats>, modifier: 
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Text(
-            "${sgd(inMonth.sumOf { it.fillUp.totalCostSgd })} · ${inMonth.size}",
+        CountUpText(
+            inMonth.sumOf { it.fillUp.totalCostSgd },
+            { "${sgd(it)} · ${inMonth.size}" },
             style = MaterialTheme.typography.labelLarge,
-            fontFamily = NumberFont,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            animate = countUp,
         )
     }
 }
@@ -229,7 +234,7 @@ private fun SlidingRow(
 
 /** One fill-up as a card: a tinted country badge, the main numbers, and price and economy on the right. */
 @Composable
-private fun FillUpCard(stats: FillUpStats, onClick: () -> Unit) {
+private fun FillUpCard(stats: FillUpStats, countUp: Boolean, onClick: () -> Unit) {
     val fill = stats.fillUp
     val tint = when (fill.country) {
         Country.SG -> CountryColors.sg
@@ -253,11 +258,11 @@ private fun FillUpCard(stats: FillUpStats, onClick: () -> Unit) {
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(fill.date.long(), style = MaterialTheme.typography.titleSmall)
-                Text(
-                    "${litres(fill.totalLitres)} · ${sgd(fill.totalCostSgd)}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontFamily = NumberFont,
-                )
+                Row {
+                    CountUpText(fill.totalLitres, ::litres, style = MaterialTheme.typography.bodyMedium, animate = countUp)
+                    Text(" · ", style = MaterialTheme.typography.bodyMedium, fontFamily = NumberFont)
+                    CountUpText(fill.totalCostSgd, ::sgd, style = MaterialTheme.typography.bodyMedium, animate = countUp)
+                }
                 Text(
                     km(fill.odometerKm) + (stats.distanceKm?.let { " · +${km(it)}" } ?: ""),
                     style = MaterialTheme.typography.bodySmall,
@@ -266,16 +271,17 @@ private fun FillUpCard(stats: FillUpStats, onClick: () -> Unit) {
             }
             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 stats.pricePerLitre?.let {
-                    Text(
-                        sgdPerLitre(it),
+                    CountUpText(
+                        it,
+                        ::sgdPerLitre,
                         Modifier.clip(PillShape).background(tint.copy(alpha = 0.16f)).padding(horizontal = 10.dp, vertical = 4.dp),
                         style = MaterialTheme.typography.labelMedium,
-                        fontFamily = NumberFont,
                         color = tint,
+                        animate = countUp,
                     )
                 }
                 stats.kmPerLitre?.let {
-                    Text(kmPerLitre(it), style = MaterialTheme.typography.bodySmall, fontFamily = NumberFont, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    CountUpText(it, ::kmPerLitre, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, animate = countUp)
                 }
             }
         }

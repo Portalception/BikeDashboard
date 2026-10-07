@@ -24,6 +24,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.ui.text.font.FontWeight
+import com.astheral.bikedashboard.ui.components.CountUpText
 import com.astheral.bikedashboard.ui.components.GroupCard
 import com.astheral.bikedashboard.ui.components.NumberFont
 import androidx.compose.runtime.Composable
@@ -109,7 +110,7 @@ private fun Preview(s: ImportState.Preview, onConfirm: () -> Unit, onCancel: () 
     GroupCard(contentPadding = 20.dp, edge = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.5f)) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(s.fileName, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("${s.fillUps.size} fill-ups", style = MaterialTheme.typography.headlineSmall, fontFamily = NumberFont)
+            CountUpText(s.fillUps.size.toDouble(), { "${it.toInt()} fill-ups" }, style = MaterialTheme.typography.headlineSmall)
             Text("${s.firstDate.format(DATE)} – ${s.lastDate.format(DATE)}")
             Text(
                 "SG ${s.countByCountry[Country.SG] ?: 0} · MY ${s.countByCountry[Country.MY] ?: 0} · " +

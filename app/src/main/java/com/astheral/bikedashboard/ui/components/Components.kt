@@ -1,6 +1,8 @@
 package com.astheral.bikedashboard.ui.components
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
@@ -27,12 +29,17 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -48,6 +55,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -250,6 +258,40 @@ fun PillTabs(options: List<Pair<ImageVector?, String>>, selected: Int, onSelect:
     }
 }
 
+/**
+ * A number that counts up from zero when it first appears, and glides to a new value when it
+ * changes. Once it settles it shows the exact value (the animation itself runs on floats).
+ * Pass [animate] false to show the value straight away, e.g. for a list row seen before.
+ */
+@Composable
+fun CountUpText(
+    value: Double,
+    format: (Double) -> String,
+    modifier: Modifier = Modifier,
+    style: TextStyle = LocalTextStyle.current,
+    color: Color = Color.Unspecified,
+    fontFamily: FontFamily? = NumberFont,
+    animate: Boolean = true,
+    maxLines: Int = 1,
+) {
+    val shown = remember { Animatable(if (animate) 0f else value.toFloat()) }
+    var settled by remember { mutableStateOf(!animate) }
+    LaunchedEffect(value) {
+        if (!animate && settled) return@LaunchedEffect
+        settled = false
+        shown.animateTo(value.toFloat(), tween(durationMillis = 700, easing = FastOutSlowInEasing))
+        settled = true
+    }
+    Text(
+        format(if (settled) value else shown.value.toDouble()),
+        modifier,
+        style = style,
+        color = color,
+        fontFamily = fontFamily,
+        maxLines = maxLines,
+    )
+}
+
 /** A small rounded label in the accent colour, like "117 fill-ups". */
 @Composable
 fun AccentChip(text: String, modifier: Modifier = Modifier) {
@@ -263,6 +305,21 @@ fun AccentChip(text: String, modifier: Modifier = Modifier) {
         style = MaterialTheme.typography.labelMedium,
         fontFamily = NumberFont,
         maxLines = 1,
+    )
+}
+
+/** An accent chip whose number counts up, like "117 fills". */
+@Composable
+fun AccentChip(value: Double, format: (Double) -> String, modifier: Modifier = Modifier) {
+    CountUpText(
+        value,
+        format,
+        modifier
+            .clip(PillShape)
+            .background(MaterialTheme.colorScheme.tertiaryContainer)
+            .padding(horizontal = 10.dp, vertical = 4.dp),
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onTertiaryContainer,
     )
 }
 
