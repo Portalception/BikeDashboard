@@ -1,0 +1,131 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "e1eee0d7a4ffc229f12484957886bfda",
+    "entities": [
+      {
+        "tableName": "fill_ups",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `date` INTEGER NOT NULL, `country` TEXT NOT NULL, `odometerKm` INTEGER NOT NULL, `sgLitres` REAL, `sgCostSgd` REAL, `myLitres` REAL, `myCostSgd` REAL, `rmPaid` REAL, `rmPerSgd` REAL, `rmCharged` REAL, `unsplitLitres` REAL, `unsplitCostSgd` REAL, `barsLeft` INTEGER, `reserveKm` REAL, `noSpecialTrip` INTEGER NOT NULL, `estimatedMax` REAL, `importedSavingsSgd` REAL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "country",
+            "columnName": "country",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "odometerKm",
+            "columnName": "odometerKm",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sgLitres",
+            "columnName": "sgLitres",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "sgCostSgd",
+            "columnName": "sgCostSgd",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "myLitres",
+            "columnName": "myLitres",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "myCostSgd",
+            "columnName": "myCostSgd",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "rmPaid",
+            "columnName": "rmPaid",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "rmPerSgd",
+            "columnName": "rmPerSgd",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "rmCharged",
+            "columnName": "rmCharged",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "unsplitLitres",
+            "columnName": "unsplitLitres",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "unsplitCostSgd",
+            "columnName": "unsplitCostSgd",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "barsLeft",
+            "columnName": "barsLeft",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "reserveKm",
+            "columnName": "reserveKm",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "noSpecialTrip",
+            "columnName": "noSpecialTrip",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "estimatedMax",
+            "columnName": "estimatedMax",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "importedSavingsSgd",
+            "columnName": "importedSavingsSgd",
+            "affinity": "REAL"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_fill_ups_date",
+            "unique": false,
+            "columnNames": [
+              "date"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_fill_ups_date` ON `${TABLE_NAME}` (`date`)"
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'e1eee0d7a4ffc229f12484957886bfda')"
+    ]
+  }
+}
