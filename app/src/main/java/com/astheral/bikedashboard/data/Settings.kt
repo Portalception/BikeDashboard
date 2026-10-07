@@ -1,12 +1,17 @@
 package com.astheral.bikedashboard.data
 
 import android.content.Context
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import com.astheral.bikedashboard.calc.DEFAULT_TRIP_KM
-import com.astheral.bikedashboard.ui.theme.ColorTheme
+import com.astheral.bikedashboard.ui.theme.AppearanceSettings
+import com.astheral.bikedashboard.ui.theme.ColorPreset
 import com.astheral.bikedashboard.ui.theme.ThemeMode
+import com.astheral.bikedashboard.ui.theme.WallpaperSupported
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 
 /** Small app settings, kept on the phone. */
 class Settings private constructor(context: Context) {
@@ -22,34 +27,44 @@ class Settings private constructor(context: Context) {
         _tripKm.value = km
     }
 
-    private val _themeMode = MutableStateFlow(
-        enumOrDefault(prefs.getString(KEY_THEME_MODE, null), ThemeMode.SYSTEM),
-    )
-    val themeMode: StateFlow<ThemeMode> = _themeMode.asStateFlow()
+    private val _appearance = MutableStateFlow(loadAppearance())
+    val appearance: StateFlow<AppearanceSettings> = _appearance.asStateFlow()
 
-    private val _colorTheme = MutableStateFlow(
-        enumOrDefault(prefs.getString(KEY_COLOR_THEME, null), ColorTheme.YAMAHA_BLUE)
-            .takeIf { it in ColorTheme.available } ?: ColorTheme.YAMAHA_BLUE,
-    )
-    val colorTheme: StateFlow<ColorTheme> = _colorTheme.asStateFlow()
-
-    fun setThemeMode(mode: ThemeMode) {
-        prefs.edit().putString(KEY_THEME_MODE, mode.name).apply()
-        _themeMode.value = mode
+    fun updateAppearance(change: (AppearanceSettings) -> AppearanceSettings) {
+        _appearance.update(change)
+        val a = _appearance.value
+        prefs.edit()
+            .putString(KEY_THEME_MODE, a.mode.name)
+            .putBoolean(KEY_PURE_BLACK, a.pureBlack)
+            .putBoolean(KEY_WALLPAPER, a.wallpaper)
+            .putInt(KEY_PRIMARY, a.primary.toArgb())
+            .putInt(KEY_ACCENT, a.accent.toArgb())
+            .remove(KEY_OLD_COLOR_THEME)
+            .apply()
     }
 
-    fun setColorTheme(theme: ColorTheme) {
-        prefs.edit().putString(KEY_COLOR_THEME, theme.name).apply()
-        _colorTheme.value = theme
+    private fun loadAppearance(): AppearanceSettings {
+        // Version 0.1+ had one "colour theme" setting; carry it over to the matching colours.
+        val old = prefs.getString(KEY_OLD_COLOR_THEME, null)
+        val oldPreset = ColorPreset.entries.firstOrNull { it.name == old }
+        val default = oldPreset ?: ColorPreset.YAMAHA_BLUE
+        return AppearanceSettings(
+            mode = ThemeMode.entries.firstOrNull { it.name == prefs.getString(KEY_THEME_MODE, null) } ?: ThemeMode.SYSTEM,
+            pureBlack = prefs.getBoolean(KEY_PURE_BLACK, false),
+            wallpaper = WallpaperSupported && prefs.getBoolean(KEY_WALLPAPER, old == "WALLPAPER"),
+            primary = Color(prefs.getInt(KEY_PRIMARY, default.primary.toArgb())),
+            accent = Color(prefs.getInt(KEY_ACCENT, default.accent.toArgb())),
+        )
     }
 
     companion object {
         private const val KEY_TRIP_KM = "trip_km"
         private const val KEY_THEME_MODE = "theme_mode"
-        private const val KEY_COLOR_THEME = "color_theme"
-
-        private inline fun <reified T : Enum<T>> enumOrDefault(name: String?, default: T): T =
-            enumValues<T>().firstOrNull { it.name == name } ?: default
+        private const val KEY_PURE_BLACK = "pure_black"
+        private const val KEY_WALLPAPER = "wallpaper_colors"
+        private const val KEY_PRIMARY = "primary_color"
+        private const val KEY_ACCENT = "accent_color"
+        private const val KEY_OLD_COLOR_THEME = "color_theme"
 
         @Volatile
         private var instance: Settings? = null

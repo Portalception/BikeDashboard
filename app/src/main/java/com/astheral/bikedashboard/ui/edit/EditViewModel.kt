@@ -15,7 +15,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
-/** Live figures shown under the form while typing. */
+/** Live figures shown while answering. */
 data class FormPreview(
     val distanceKm: Int?,
     val kmPerLitre: Double?,
@@ -31,12 +31,21 @@ data class EditState(
     /** The rate was filled in from the last fill-up that had one. */
     val rateFromLast: Boolean = false,
     val form: FillUpForm = FillUpForm(date = LocalDate.now(), country = Country.MY),
-    val errors: Map<Field, String> = emptyMap(),
-    /** Set when saving found things that look wrong; the screen asks whether to save anyway. */
-    val pendingWarnings: List<String> = emptyList(),
+    val step: Step = Step.WHERE,
+    /** +1 when moving forward through the cards, -1 when going back; picks the slide direction. */
+    val direction: Int = 1,
+    /** Message for the current card's answer, shown after trying to go on. */
+    val error: String? = null,
+    /** Things that look wrong, shown on the final card; saving is still allowed. */
+    val warnings: List<String> = emptyList(),
     val preview: FormPreview = FormPreview(null, null, null, null, null),
+    val previous: FillUp? = null,
+    val commonRmPaid: List<Double> = emptyList(),
     val done: Boolean = false,
-)
+) {
+    val steps: List<Step> get() = stepsFor(form)
+    val index: Int get() = steps.indexOf(step).coerceAtLeast(0)
+}
 
 class EditViewModel(application: Application, private val fillUpId: Long) : AndroidViewModel(application) {
     private val dao = AppDatabase.get(application).fillUpDao()
@@ -62,52 +71,84 @@ class EditViewModel(application: Application, private val fillUpId: Long) : Andr
                     rate = FillUpForm.rateText(dao.latestRmPerSgd()),
                 )
             }
-            _state.value = EditState(
-                loading = false,
-                isNew = existing == null,
-                rateFromLast = existing == null && form.rate.isNotEmpty(),
-                form = form,
-                preview = preview(form),
+            _state.value = refresh(
+                EditState(
+                    loading = false,
+                    isNew = existing == null,
+                    rateFromLast = existing == null && form.rate.isNotEmpty(),
+                    form = form,
+                    // Editing opens on the final check, where any answer can be tapped to change it.
+                    step = if (existing == null) Step.WHERE else Step.REVIEW,
+                    commonRmPaid = commonRmPaid(all),
+                ),
             )
         }
     }
 
-    fun edit(change: (FillUpForm) -> FillUpForm) {
-        _state.update {
-            val form = change(it.form)
-            // Clear an error once its field is being fixed.
-            it.copy(form = form, errors = it.errors.filterKeys { field -> fieldText(it.form, field) == fieldText(form, field) }, preview = preview(form))
-        }
+    fun edit(change: (FillUpForm) -> FillUpForm) = _state.update { refresh(it.copy(form = change(it.form), error = null)) }
+
+    /** Picks where you filled up and moves straight on, since that's all the first card asks. */
+    fun chooseCountry(country: Country) {
+        edit { it.withCountry(country) }
+        next()
     }
 
-    /** Saves, unless something looks wrong and [anyway] is false: then the warnings are shown first. */
-    fun save(anyway: Boolean = false) {
-        val current = _state.value
-        when (val result = current.form.toFillUp(base)) {
-            is FormResult.Invalid -> _state.update { it.copy(errors = result.errors, pendingWarnings = emptyList()) }
-            is FormResult.Ok -> {
-                val warnings = warningsFor(result.fillUp, others, LocalDate.now())
-                if (warnings.isNotEmpty() && !anyway) {
-                    _state.update { it.copy(errors = emptyMap(), pendingWarnings = warnings) }
-                    return
-                }
-                viewModelScope.launch {
-                    if (base == null) dao.insert(result.fillUp) else dao.update(result.fillUp)
-                    _state.update { it.copy(pendingWarnings = emptyList(), done = true) }
-                }
+    /** Goes to the next card, unless this card's answer is missing or not a number. */
+    fun next() {
+        val s = _state.value
+        val error = s.form.errorFor(s.step, base)
+        if (error != null) {
+            _state.update { it.copy(error = error) }
+            return
+        }
+        val nextStep = s.steps.getOrNull(s.index + 1) ?: return
+        _state.update { refresh(it.copy(step = nextStep, direction = 1, error = null)) }
+    }
+
+    /** Goes back a card; returns false on the first card so the screen can close instead. */
+    fun back(): Boolean {
+        val s = _state.value
+        if (s.index == 0) return false
+        _state.update { it.copy(step = s.steps[s.index - 1], direction = -1, error = null) }
+        return true
+    }
+
+    fun goTo(step: Step) = _state.update {
+        refresh(it.copy(step = step, direction = if (it.steps.indexOf(step) < it.index) -1 else 1, error = null))
+    }
+
+    /** Saves from the final card. Any warnings are already showing there, so this always saves. */
+    fun save() {
+        val s = _state.value
+        when (val result = s.form.toFillUp(base)) {
+            is FormResult.Invalid -> s.form.firstStepWithError(base)?.let { step ->
+                _state.update { refresh(it.copy(step = step, direction = -1, error = s.form.errorFor(step, base))) }
+            }
+            is FormResult.Ok -> viewModelScope.launch {
+                if (base == null) dao.insert(result.fillUp) else dao.update(result.fillUp)
+                _state.update { it.copy(done = true) }
             }
         }
     }
 
-    fun dismissWarnings() = _state.update { it.copy(pendingWarnings = emptyList()) }
+    private fun refresh(s: EditState): EditState {
+        val fill = (s.form.toFillUp(base) as? FormResult.Ok)?.fillUp
+        return s.copy(
+            preview = preview(s.form, fill),
+            previous = previousFor(s.form),
+            warnings = fill?.let { warningsFor(it, others, LocalDate.now()) }.orEmpty(),
+        )
+    }
 
-    private fun preview(form: FillUpForm): FormPreview {
-        val fill = (form.toFillUp(base) as? FormResult.Ok)?.fillUp
+    private fun previousFor(form: FillUpForm) =
+        others.filter { it.date <= form.date }.maxWithOrNull(compareBy({ it.date }, { it.odometerKm }))
+
+    private fun preview(form: FillUpForm, fill: FillUp?): FormPreview {
         val rate = parseNumber(form.rate)
         val charged = parseNumber(form.rmCharged)
         val myCost = if (rate != null && rate > 0 && charged != null) charged / rate else null
         val odometer = form.odometer.trim().toIntOrNull()
-        val previous = others.filter { it.date <= form.date }.maxWithOrNull(compareBy({ it.date }, { it.odometerKm }))
+        val previous = previousFor(form)
         val distance = if (odometer != null && previous != null) odometer - previous.odometerKm else null
         return FormPreview(
             distanceKm = distance,
@@ -116,20 +157,5 @@ class EditViewModel(application: Application, private val fillUpId: Long) : Andr
             pricePerLitre = fill?.let { it.totalCostSgd / it.totalLitres },
             myCostSgd = myCost,
         )
-    }
-
-    private fun fieldText(form: FillUpForm, field: Field): String = when (field) {
-        Field.ODOMETER -> form.odometer
-        Field.SG_LITRES -> form.sgLitres
-        Field.SG_COST -> form.sgCost
-        Field.MY_LITRES -> form.myLitres
-        Field.RM_PAID -> form.rmPaid
-        Field.RATE -> form.rate
-        Field.RM_CHARGED -> form.rmCharged
-        Field.LEGACY_MY_COST -> form.legacyMyCost
-        Field.UNSPLIT_LITRES -> form.unsplitLitres
-        Field.UNSPLIT_COST -> form.unsplitCost
-        Field.BARS_LEFT -> form.barsLeft
-        Field.RESERVE_KM -> form.reserveKm
     }
 }

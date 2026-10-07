@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -19,13 +18,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.astheral.bikedashboard.calc.ChartData
+import com.astheral.bikedashboard.ui.components.GroupCard
 import com.astheral.bikedashboard.ui.theme.CountryColors
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.Zoom
 import com.patrykandpatrick.vico.compose.cartesian.axis.HorizontalAxis
 import com.patrykandpatrick.vico.compose.cartesian.axis.VerticalAxis
+import com.patrykandpatrick.vico.compose.cartesian.axis.rememberAxisGuidelineComponent
+import com.patrykandpatrick.vico.compose.cartesian.axis.rememberAxisLabelComponent
 import com.patrykandpatrick.vico.compose.cartesian.data.CartesianChartModelProducer
 import com.patrykandpatrick.vico.compose.cartesian.data.CartesianValueFormatter
 import com.patrykandpatrick.vico.compose.cartesian.data.columnSeries
@@ -57,8 +61,8 @@ private fun yFormatter(digits: Int, prefix: String = "") =
 
 @Composable
 private fun ChartCard(title: String, legend: List<Pair<String, Color>> = emptyList(), note: String? = null, chart: @Composable () -> Unit) {
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    GroupCard(contentPadding = 20.dp) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(title, style = MaterialTheme.typography.titleMedium)
             if (legend.isNotEmpty()) {
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -77,6 +81,27 @@ private fun ChartCard(title: String, legend: List<Pair<String, Color>> = emptyLi
         }
     }
 }
+
+/** Axis labels and grid lines in the theme's quieter colours, so they read on light, dark and black. */
+@Composable
+private fun axisLabel() = rememberAxisLabelComponent(
+    style = TextStyle(color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp),
+)
+
+@Composable
+private fun guideline() = rememberAxisGuidelineComponent(fill = Fill(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)))
+
+@Composable
+private fun startAxis(formatter: CartesianValueFormatter) =
+    VerticalAxis.rememberStart(label = axisLabel(), guideline = guideline(), valueFormatter = formatter)
+
+@Composable
+private fun bottomAxis(formatter: CartesianValueFormatter, spacing: Int) = HorizontalAxis.rememberBottom(
+    label = axisLabel(),
+    guideline = guideline(),
+    valueFormatter = formatter,
+    itemPlacer = HorizontalAxis.ItemPlacer.aligned(spacing = { spacing }),
+)
 
 /** The whole history fits on screen: no scrolling or pinch-zooming inside the chart. */
 @Composable
@@ -123,11 +148,8 @@ fun PriceChart(data: ChartData, hasOldMixed: Boolean) {
         FittedChart(
             rememberCartesianChart(
                 rememberLineCartesianLayer(LineCartesianLayer.LineProvider.series(series.map { line(it.second) })),
-                startAxis = VerticalAxis.rememberStart(valueFormatter = yFormatter(2, "S$")),
-                bottomAxis = HorizontalAxis.rememberBottom(
-                    valueFormatter = DateAxis,
-                    itemPlacer = HorizontalAxis.ItemPlacer.aligned(spacing = { 90 }),
-                ),
+                startAxis = startAxis(yFormatter(2, "S$")),
+                bottomAxis = bottomAxis(DateAxis, 90),
             ),
             producer,
         )
@@ -147,11 +169,8 @@ fun EconomyChart(data: ChartData) {
         FittedChart(
             rememberCartesianChart(
                 rememberLineCartesianLayer(LineCartesianLayer.LineProvider.series(line(EconomyColor))),
-                startAxis = VerticalAxis.rememberStart(valueFormatter = yFormatter(0)),
-                bottomAxis = HorizontalAxis.rememberBottom(
-                    valueFormatter = DateAxis,
-                    itemPlacer = HorizontalAxis.ItemPlacer.aligned(spacing = { 90 }),
-                ),
+                startAxis = startAxis(yFormatter(0)),
+                bottomAxis = bottomAxis(DateAxis, 90),
             ),
             producer,
         )
@@ -179,11 +198,8 @@ fun MonthlySpendChart(data: ChartData) {
                         rememberLineComponent(fill = Fill(SpendColor), thickness = 8.dp),
                     ),
                 ),
-                startAxis = VerticalAxis.rememberStart(valueFormatter = yFormatter(0, "S$")),
-                bottomAxis = HorizontalAxis.rememberBottom(
-                    valueFormatter = monthAxis,
-                    itemPlacer = HorizontalAxis.ItemPlacer.aligned(spacing = { 3 }),
-                ),
+                startAxis = startAxis(yFormatter(0, "S$")),
+                bottomAxis = bottomAxis(monthAxis, 3),
             ),
             producer,
         )

@@ -16,9 +16,8 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         val settings = Settings.get(this)
         setContent {
-            val mode by settings.themeMode.collectAsState()
-            val colorTheme by settings.colorTheme.collectAsState()
-            BikeDashboardTheme(mode = mode, colorTheme = colorTheme) {
+            val appearance by settings.appearance.collectAsState()
+            BikeDashboardTheme(appearance) {
                 BikeDashboardApp()
             }
         }

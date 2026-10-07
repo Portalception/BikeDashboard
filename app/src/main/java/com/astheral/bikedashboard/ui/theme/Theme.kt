@@ -20,30 +20,41 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import com.materialkolor.hct.Hct
-import com.materialkolor.scheme.DynamicScheme
+import com.materialkolor.palettes.TonalPalette
 import com.materialkolor.scheme.SchemeFidelity
-import com.materialkolor.scheme.SchemeTonalSpot
 
-enum class ThemeMode(val label: String) { SYSTEM("Follow phone"), LIGHT("Light"), DARK("Dark") }
+enum class ThemeMode(val label: String) { SYSTEM("System"), LIGHT("Light"), DARK("Dark") }
 
-/**
- * Colour themes. Each is built from one seed colour into a full Material colour scheme,
- * in both light and dark. [vivid] keeps the main colour close to the seed.
- */
-enum class ColorTheme(val label: String, val seed: Color, val vivid: Boolean) {
-    YAMAHA_BLUE("Yamaha Blue", Color(0xFF1B3F9A), vivid = true),
-    RACING_RED("Racing Red", Color(0xFFC62828), vivid = true),
-    MIDNIGHT("Midnight", Color(0xFF3F4A7A), vivid = false),
-    FOREST("Forest", Color(0xFF2E6B3A), vivid = false),
-    WALLPAPER("Wallpaper", Color(0xFF7E57C2), vivid = false),
-    ;
+/** Everything that decides how the app looks. */
+data class AppearanceSettings(
+    val mode: ThemeMode = ThemeMode.SYSTEM,
+    /** True black backgrounds in dark mode, for AMOLED screens. */
+    val pureBlack: Boolean = false,
+    /** Use the phone's wallpaper colours instead of [primary] and [accent] (Android 12+). */
+    val wallpaper: Boolean = false,
+    val primary: Color = ColorPreset.YAMAHA_BLUE.primary,
+    val accent: Color = ColorPreset.YAMAHA_BLUE.accent,
+)
 
-    companion object {
-        /** Matching the phone's wallpaper needs Android 12 or newer. */
-        val wallpaperSupported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-        val available get() = entries.filter { it != WALLPAPER || wallpaperSupported }
-    }
+/** Ready-made primary + accent pairs. */
+enum class ColorPreset(val label: String, val primary: Color, val accent: Color) {
+    YAMAHA_BLUE("Yamaha Blue", Color(0xFF1B3F9A), Color(0xFF00B0FF)),
+    RACING_RED("Racing Red", Color(0xFFD50000), Color(0xFFFFAB00)),
+    CRIMSON("Crimson", Color(0xFFE0103A), Color(0xFFFF8A80)),
+    MIDNIGHT("Midnight", Color(0xFF3F4A7A), Color(0xFFB388FF)),
+    FOREST("Forest", Color(0xFF2E7D32), Color(0xFFFFB300)),
 }
+
+/** Colours offered for primary and accent; any other colour can be picked with "Custom". */
+val SwatchColors = listOf(
+    Color(0xFFE53935), Color(0xFFE0103A), Color(0xFFEC407A), Color(0xFF8E24AA),
+    Color(0xFF5E35B1), Color(0xFF3949AB), Color(0xFF1B3F9A), Color(0xFF1E88E5),
+    Color(0xFF00B0FF), Color(0xFF00ACC1), Color(0xFF00897B), Color(0xFF43A047),
+    Color(0xFF9E9D24), Color(0xFFFFB300), Color(0xFFFB8C00), Color(0xFF6D4C41),
+    Color(0xFF546E7A),
+)
+
+val WallpaperSupported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
 /** True when the dark colours are showing, whichever way that was chosen. */
 val LocalDarkTheme = staticCompositionLocalOf { false }
@@ -52,25 +63,23 @@ val LocalDarkTheme = staticCompositionLocalOf { false }
 object CountryColors {
     val sg: Color @Composable get() = if (LocalDarkTheme.current) Color(0xFFFF8A80) else Color(0xFFD32F2F)
     val my: Color @Composable get() = if (LocalDarkTheme.current) Color(0xFF82B1FF) else Color(0xFF1565C0)
+    val mixed: Color @Composable get() = if (LocalDarkTheme.current) Color(0xFFCE93D8) else Color(0xFF7B1FA2)
 }
 
 @Composable
-fun BikeDashboardTheme(
-    mode: ThemeMode = ThemeMode.SYSTEM,
-    colorTheme: ColorTheme = ColorTheme.YAMAHA_BLUE,
-    content: @Composable () -> Unit,
-) {
-    val dark = when (mode) {
+fun BikeDashboardTheme(appearance: AppearanceSettings = AppearanceSettings(), content: @Composable () -> Unit) {
+    val dark = when (appearance.mode) {
         ThemeMode.SYSTEM -> isSystemInDarkTheme()
         ThemeMode.LIGHT -> false
         ThemeMode.DARK -> true
     }
     val context = LocalContext.current
-    val colorScheme = when {
-        colorTheme == ColorTheme.WALLPAPER && ColorTheme.wallpaperSupported ->
-            if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        else -> remember(colorTheme, dark) { schemeFor(colorTheme, dark) }
+    val base = if (appearance.wallpaper && WallpaperSupported) {
+        if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+    } else {
+        remember(appearance.primary, appearance.accent, dark) { schemeFor(appearance.primary, appearance.accent, dark) }
     }
+    val colorScheme = if (dark && appearance.pureBlack) base.pureBlack() else base
 
     // Status bar and navigation bar icons: dark icons on light colours, light icons on dark.
     val view = LocalView.current
@@ -89,10 +98,19 @@ fun BikeDashboardTheme(
     }
 }
 
-private fun schemeFor(theme: ColorTheme, dark: Boolean): ColorScheme {
-    val seed = Hct.fromInt(theme.seed.toArgb())
-    val s: DynamicScheme = if (theme.vivid) SchemeFidelity(seed, dark, 0.0) else SchemeTonalSpot(seed, dark, 0.0)
+/**
+ * Builds a full Material colour scheme from two colours: [primary] for the main colour
+ * and [accent] for highlights (Material calls this "tertiary"). Both are kept close to the
+ * colours picked rather than toned down.
+ */
+fun schemeFor(primary: Color, accent: Color, dark: Boolean): ColorScheme {
+    val s = SchemeFidelity(Hct.fromInt(primary.toArgb()), dark, 0.0)
+    val a = TonalPalette.fromHct(Hct.fromInt(accent.toArgb()))
     fun c(argb: Int) = Color(argb)
+    val tertiary = c(a.tone(if (dark) 80 else 40))
+    val onTertiary = c(a.tone(if (dark) 20 else 100))
+    val tertiaryContainer = c(a.tone(if (dark) 30 else 90))
+    val onTertiaryContainer = c(a.tone(if (dark) 90 else 10))
     return if (dark) {
         darkColorScheme(
             primary = c(s.primary), onPrimary = c(s.onPrimary),
@@ -100,8 +118,8 @@ private fun schemeFor(theme: ColorTheme, dark: Boolean): ColorScheme {
             inversePrimary = c(s.inversePrimary),
             secondary = c(s.secondary), onSecondary = c(s.onSecondary),
             secondaryContainer = c(s.secondaryContainer), onSecondaryContainer = c(s.onSecondaryContainer),
-            tertiary = c(s.tertiary), onTertiary = c(s.onTertiary),
-            tertiaryContainer = c(s.tertiaryContainer), onTertiaryContainer = c(s.onTertiaryContainer),
+            tertiary = tertiary, onTertiary = onTertiary,
+            tertiaryContainer = tertiaryContainer, onTertiaryContainer = onTertiaryContainer,
             background = c(s.background), onBackground = c(s.onBackground),
             surface = c(s.surface), onSurface = c(s.onSurface),
             surfaceVariant = c(s.surfaceVariant), onSurfaceVariant = c(s.onSurfaceVariant),
@@ -122,8 +140,8 @@ private fun schemeFor(theme: ColorTheme, dark: Boolean): ColorScheme {
             inversePrimary = c(s.inversePrimary),
             secondary = c(s.secondary), onSecondary = c(s.onSecondary),
             secondaryContainer = c(s.secondaryContainer), onSecondaryContainer = c(s.onSecondaryContainer),
-            tertiary = c(s.tertiary), onTertiary = c(s.onTertiary),
-            tertiaryContainer = c(s.tertiaryContainer), onTertiaryContainer = c(s.onTertiaryContainer),
+            tertiary = tertiary, onTertiary = onTertiary,
+            tertiaryContainer = tertiaryContainer, onTertiaryContainer = onTertiaryContainer,
             background = c(s.background), onBackground = c(s.onBackground),
             surface = c(s.surface), onSurface = c(s.onSurface),
             surfaceVariant = c(s.surfaceVariant), onSurfaceVariant = c(s.onSurfaceVariant),
@@ -139,3 +157,16 @@ private fun schemeFor(theme: ColorTheme, dark: Boolean): ColorScheme {
         )
     }
 }
+
+/** True black background with near-black cards, for AMOLED screens. */
+private fun ColorScheme.pureBlack() = copy(
+    background = Color.Black,
+    surface = Color.Black,
+    surfaceDim = Color.Black,
+    surfaceContainerLowest = Color.Black,
+    surfaceContainerLow = Color(0xFF0E0E0E),
+    surfaceContainer = Color(0xFF141414),
+    surfaceContainerHigh = Color(0xFF1B1B1B),
+    surfaceContainerHighest = Color(0xFF232323),
+    surfaceBright = Color(0xFF2A2A2A),
+)

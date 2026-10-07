@@ -10,6 +10,26 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material3.Surface
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
+import com.astheral.bikedashboard.data.Country
+import com.astheral.bikedashboard.ui.components.GroupCard
+import com.astheral.bikedashboard.ui.components.NumberFont
+import com.astheral.bikedashboard.ui.components.PillShape
+import com.astheral.bikedashboard.ui.components.TileShape
+import com.astheral.bikedashboard.ui.components.outline
+import com.astheral.bikedashboard.ui.theme.CountryColors
+import java.time.YearMonth
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,17 +39,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
@@ -48,7 +61,6 @@ import com.astheral.bikedashboard.calc.totalCostSgd
 import com.astheral.bikedashboard.calc.totalLitres
 import com.astheral.bikedashboard.data.AppDatabase
 import com.astheral.bikedashboard.data.Settings
-import com.astheral.bikedashboard.ui.NoInsets
 import com.astheral.bikedashboard.ui.km
 import com.astheral.bikedashboard.ui.kmPerLitre
 import com.astheral.bikedashboard.ui.label
@@ -85,7 +97,6 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryScreen(
     onAddFillUp: () -> Unit,
@@ -96,34 +107,53 @@ fun HistoryScreen(
     viewModel: HistoryViewModel = viewModel(),
 ) {
     val fillUps by viewModel.fillUps.collectAsState()
-    // Rows slide in the first time they come into view.
+    // Cards slide in the first time they come into view.
     val shownIds = viewModel.shownIds
-    Scaffold(
-        topBar = { TopAppBar(title = { Text("History") }) },
-        floatingActionButton = {
-            FloatingActionButton(onClick = onAddFillUp) { Icon(Icons.Filled.Add, contentDescription = "Add fill-up") }
-        },
-        contentWindowInsets = NoInsets,
-    ) { padding ->
-        val list = fillUps
-        when {
-            list == null -> {}
-            list.isEmpty() -> Box(Modifier.fillMaxSize().padding(padding).padding(32.dp), Alignment.Center) {
-                Text(
-                    "No fill-ups yet.\nTap + to add one, or import your spreadsheet in Settings.",
-                    textAlign = TextAlign.Center,
-                )
+    val list = fillUps ?: return
+    val months = list.groupBy { YearMonth.from(it.fillUp.date) }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().statusBarsPadding(),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        item(key = "title") {
+            Column(Modifier.padding(start = 4.dp, top = 16.dp, bottom = 4.dp)) {
+                Text("History", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                if (list.isNotEmpty()) {
+                    Text(
+                        "${list.size} fill-ups since ${list.last().fillUp.date.format(MONTH_YEAR)}",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.tertiary,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
             }
-            else -> LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentPadding = PaddingValues(bottom = 88.dp), // room for the + button
-            ) {
-                itemsIndexed(list, key = { _, s -> s.fillUp.id }) { index, stats ->
+        }
+        if (list.isEmpty()) {
+            item(key = "empty") {
+                GroupCard(contentPadding = 28.dp) {
+                    Text(
+                        "No fill-ups yet. Tap + to add one, or import your spreadsheet in Settings.",
+                        Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.Center,
+                    )
+                }
+            }
+        }
+        var index = 0
+        months.forEach { (month, inMonth) ->
+            item(key = "m-$month") {
+                MonthHeader(month, inMonth, Modifier.animateItem())
+            }
+            inMonth.forEach { stats ->
+                val position = index++
+                item(key = stats.fillUp.id) {
                     val id = stats.fillUp.id
                     val slideIn = remember { shownIds.add(id) } // true only the first time
                     SlidingRow(
                         slideIn = slideIn,
-                        delayMs = if (index < 10) index * 35 else 0,
+                        delayMs = if (position < 8) position * 40 else 0,
                         leaving = id == deletingId,
                         onLeft = {
                             viewModel.delete(id)
@@ -131,12 +161,34 @@ fun HistoryScreen(
                         },
                         modifier = Modifier.animateItem(),
                     ) {
-                        FillUpRow(stats, onClick = { onOpenFillUp(id) })
-                        HorizontalDivider()
+                        FillUpCard(stats, onClick = { onOpenFillUp(id) })
                     }
                 }
             }
         }
+    }
+}
+
+private val MONTH_YEAR = DateTimeFormatter.ofPattern("MMM yyyy", Locale.ENGLISH)
+private val MONTH_FULL = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.ENGLISH)
+
+/** "October 2026" with that month's spend and number of fill-ups on the right. */
+@Composable
+private fun MonthHeader(month: YearMonth, inMonth: List<FillUpStats>, modifier: Modifier = Modifier) {
+    Row(modifier.fillMaxWidth().padding(start = 8.dp, end = 8.dp, top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(Icons.Filled.CalendarMonth, contentDescription = null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            "  ${month.format(MONTH_FULL)}",
+            Modifier.weight(1f),
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            "${sgd(inMonth.sumOf { it.fillUp.totalCostSgd })} · ${inMonth.size}",
+            style = MaterialTheme.typography.labelLarge,
+            fontFamily = NumberFont,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
@@ -175,32 +227,56 @@ private fun SlidingRow(
     }
 }
 
+/** One fill-up as a card: a tinted country badge, the main numbers, and price and economy on the right. */
 @Composable
-private fun FillUpRow(stats: FillUpStats, onClick: () -> Unit) {
+private fun FillUpCard(stats: FillUpStats, onClick: () -> Unit) {
     val fill = stats.fillUp
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(2.dp),
+    val tint = when (fill.country) {
+        Country.SG -> CountryColors.sg
+        Country.MY -> CountryColors.my
+        Country.MIXED -> CountryColors.mixed
+    }
+    Surface(
+        onClick = onClick,
+        shape = TileShape,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        border = outline(tint.copy(alpha = 0.35f)),
+        modifier = Modifier.fillMaxWidth(),
     ) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(fill.date.long(), style = MaterialTheme.typography.titleSmall)
-            Text(fill.country.label(), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-        }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("${litres(fill.totalLitres)} · ${sgd(fill.totalCostSgd)}")
-            stats.pricePerLitre?.let { Text(sgdPerLitre(it)) }
-        }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(
-                km(fill.odometerKm) + (stats.distanceKm?.let { " · +${km(it)}" } ?: ""),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            stats.kmPerLitre?.let {
-                Text(kmPerLitre(it), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier.size(48.dp).clip(RoundedCornerShape(14.dp)).background(tint.copy(alpha = 0.16f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(fill.country.label(), color = tint, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+            }
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(fill.date.long(), style = MaterialTheme.typography.titleSmall)
+                Text(
+                    "${litres(fill.totalLitres)} · ${sgd(fill.totalCostSgd)}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontFamily = NumberFont,
+                )
+                Text(
+                    km(fill.odometerKm) + (stats.distanceKm?.let { " · +${km(it)}" } ?: ""),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                stats.pricePerLitre?.let {
+                    Text(
+                        sgdPerLitre(it),
+                        Modifier.clip(PillShape).background(tint.copy(alpha = 0.16f)).padding(horizontal = 10.dp, vertical = 4.dp),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontFamily = NumberFont,
+                        color = tint,
+                    )
+                }
+                stats.kmPerLitre?.let {
+                    Text(kmPerLitre(it), style = MaterialTheme.typography.bodySmall, fontFamily = NumberFont, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         }
     }

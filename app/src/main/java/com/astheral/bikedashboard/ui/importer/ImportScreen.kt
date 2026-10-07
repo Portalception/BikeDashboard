@@ -15,8 +15,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -24,6 +22,10 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.text.font.FontWeight
+import com.astheral.bikedashboard.ui.components.GroupCard
+import com.astheral.bikedashboard.ui.components.NumberFont
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -55,9 +57,11 @@ fun ImportScreen(onBack: () -> Unit, viewModel: ImportViewModel = viewModel()) {
     }
 
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
-                title = { Text("Import CSV") },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
+                title = { Text("Import CSV", fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
                 },
@@ -102,10 +106,10 @@ fun ImportScreen(onBack: () -> Unit, viewModel: ImportViewModel = viewModel()) {
 
 @Composable
 private fun Preview(s: ImportState.Preview, onConfirm: () -> Unit, onCancel: () -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(s.fileName, style = MaterialTheme.typography.labelMedium)
-            Text("${s.fillUps.size} fill-ups", style = MaterialTheme.typography.headlineSmall)
+    GroupCard(contentPadding = 20.dp, edge = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.5f)) {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(s.fileName, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("${s.fillUps.size} fill-ups", style = MaterialTheme.typography.headlineSmall, fontFamily = NumberFont)
             Text("${s.firstDate.format(DATE)} – ${s.lastDate.format(DATE)}")
             Text(
                 "SG ${s.countByCountry[Country.SG] ?: 0} · MY ${s.countByCountry[Country.MY] ?: 0} · " +
@@ -144,13 +148,12 @@ private fun CheckReport(mismatches: List<SheetMismatch>) {
     val ok = mismatches.isEmpty()
     val dark = LocalDarkTheme.current
     val okText = if (dark) Color(0xFFB7E4BC) else Color(0xFF1B5E20)
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = if (ok) (if (dark) Color(0xFF1E3A22) else Color(0xFFE3F2E5)) else MaterialTheme.colorScheme.errorContainer,
-        ),
+    GroupCard(
+        color = if (ok) (if (dark) Color(0xFF1E3A22) else Color(0xFFE3F2E5)) else MaterialTheme.colorScheme.errorContainer,
+        edge = if (ok) okText.copy(alpha = 0.4f) else MaterialTheme.colorScheme.error.copy(alpha = 0.5f),
+        contentPadding = 20.dp,
     ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             if (ok) {
                 Text("Check passed", style = MaterialTheme.typography.titleSmall, color = okText)
                 Text(
