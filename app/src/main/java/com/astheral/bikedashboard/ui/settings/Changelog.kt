@@ -7,6 +7,26 @@ data class Release(val version: String, val date: LocalDate, val changes: List<S
 /** Major changes in each version, newest first. Add an entry here with every version you share. */
 val CHANGELOG = listOf(
     Release(
+        version = "0.2",
+        date = LocalDate.of(2026, 10, 7),
+        changes = listOf(
+            "New look: rounded cards with thin outlines, faint circles in the background, and a floating " +
+                "bottom bar with a + button for adding a fill-up.",
+            "Adding a fill-up now asks one question per card, sliding to the next: where, how much you paid, " +
+                "the rate, what the pump charged, litres, odometer and fuel left, then a final check.",
+            "Quick buttons for the amounts you usually pay, and live hints like the SGD amount and price per litre.",
+            "Editing a fill-up opens on the final check; tap any answer to change it.",
+            "Dashboard tiles show small bar charts of your recent fill-ups, and the numbers count up.",
+            "Swipe between Last fill-up, 30 days and Lifetime.",
+            "A wavy bar shows how far you are into your usual time between fill-ups.",
+            "History shows each fill-up as a card, grouped by month with that month's spend.",
+            "Themes: System, Light or Dark; pure black for AMOLED screens; pick your own primary and accent " +
+                "colours or a preset; or use your wallpaper's colours (Android 12+).",
+            "Sliding animations between screens, and when fill-ups are added or deleted.",
+            "The trip distance setting is now under \"Savings offset\".",
+        ),
+    ),
+    Release(
         version = "0.1",
         date = LocalDate.of(2026, 10, 7),
         changes = listOf(
