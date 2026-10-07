@@ -182,7 +182,7 @@ private fun Form(
                 NumberField("RM paid", form.rmPaid, errors[Field.RM_PAID], prefix = "RM") { v -> edit { it.copy(rmPaid = v) } }
                 NumberField(
                     "Rate", form.rate, errors[Field.RATE], suffix = "RM per S$1",
-                    hint = if (state.isNew) "Your last rate. Change it if the bank's is different today." else null,
+                    hint = if (state.rateFromLast) "Your last rate. Change it if the bank's is different today." else null,
                 ) { v -> edit { it.copy(rate = v) } }
                 NumberField(
                     "Pump charged", form.rmCharged, errors[Field.RM_CHARGED], prefix = "RM",

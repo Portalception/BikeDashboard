@@ -28,6 +28,8 @@ data class FormPreview(
 data class EditState(
     val loading: Boolean = true,
     val isNew: Boolean = true,
+    /** The rate was filled in from the last fill-up that had one. */
+    val rateFromLast: Boolean = false,
     val form: FillUpForm = FillUpForm(date = LocalDate.now(), country = Country.MY),
     val errors: Map<Field, String> = emptyMap(),
     /** Set when saving found things that look wrong; the screen asks whether to save anyway. */
@@ -60,7 +62,13 @@ class EditViewModel(application: Application, private val fillUpId: Long) : Andr
                     rate = FillUpForm.rateText(dao.latestRmPerSgd()),
                 )
             }
-            _state.value = EditState(loading = false, isNew = existing == null, form = form, preview = preview(form))
+            _state.value = EditState(
+                loading = false,
+                isNew = existing == null,
+                rateFromLast = existing == null && form.rate.isNotEmpty(),
+                form = form,
+                preview = preview(form),
+            )
         }
     }
 
