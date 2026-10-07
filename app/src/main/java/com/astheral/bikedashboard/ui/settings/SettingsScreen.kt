@@ -98,7 +98,7 @@ fun SettingsScreen(onImport: () -> Unit, viewModel: SettingsViewModel = viewMode
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Section("Savings")
+            Section("Savings offset")
             TripKmField(tripKm, viewModel::setTripKm)
 
             HorizontalDivider()
