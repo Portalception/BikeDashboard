@@ -10,7 +10,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -43,13 +47,22 @@ private val DATE = DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ImportScreen(viewModel: ImportViewModel = viewModel()) {
+fun ImportScreen(onBack: () -> Unit, viewModel: ImportViewModel = viewModel()) {
     val state by viewModel.state.collectAsState()
     val pickFile = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) viewModel.fileChosen(uri)
     }
 
-    Scaffold(topBar = { TopAppBar(title = { Text("Import spreadsheet") }) }) { padding ->
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Import CSV") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+                },
+            )
+        },
+    ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -71,7 +84,7 @@ fun ImportScreen(viewModel: ImportViewModel = viewModel()) {
                 )
                 is ImportState.Done -> {
                     Text("Imported ${s.count} fill-ups.", style = MaterialTheme.typography.titleMedium)
-                    OutlinedButton(onClick = viewModel::reset) { Text("Done") }
+                    Button(onClick = onBack) { Text("Done") }
                 }
                 is ImportState.Failed -> {
                     Text(s.message, color = MaterialTheme.colorScheme.error)

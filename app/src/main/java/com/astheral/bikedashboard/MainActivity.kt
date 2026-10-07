@@ -4,7 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import com.astheral.bikedashboard.ui.importer.ImportScreen
+import com.astheral.bikedashboard.ui.BikeDashboardApp
 import com.astheral.bikedashboard.ui.theme.BikeDashboardTheme
 
 class MainActivity : ComponentActivity() {
@@ -13,8 +13,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             BikeDashboardTheme {
-                // Temporary: the import screen is the only screen until navigation is added (step 8).
-                ImportScreen()
+                BikeDashboardApp()
             }
         }
     }
