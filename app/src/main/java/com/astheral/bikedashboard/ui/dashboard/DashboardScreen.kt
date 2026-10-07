@@ -57,9 +57,11 @@ import com.astheral.bikedashboard.calc.chartData
 import com.astheral.bikedashboard.calc.computeStats
 import com.astheral.bikedashboard.calc.hasOldMixed
 import com.astheral.bikedashboard.calc.summarizeDashboard
-import com.astheral.bikedashboard.data.AppDatabase
+import com.astheral.bikedashboard.calc.DEFAULT_TRIP_KM
 import com.astheral.bikedashboard.data.FillUp
-import com.astheral.bikedashboard.data.Settings
+import com.astheral.bikedashboard.data.Profile
+import com.astheral.bikedashboard.ui.profile.ProfileTitle
+import com.astheral.bikedashboard.data.Profiles
 import com.astheral.bikedashboard.ui.components.AccentChip
 import com.astheral.bikedashboard.ui.components.CountUpText
 import com.astheral.bikedashboard.ui.components.DotLabel
@@ -80,7 +82,7 @@ import com.astheral.bikedashboard.ui.short
 import com.astheral.bikedashboard.ui.theme.CountryColors
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -118,12 +120,9 @@ private fun recent(stats: List<FillUpStats>, value: (FillUpStats) -> Double?) =
 class DashboardViewModel(application: Application) : AndroidViewModel(application) {
     /** Null while loading. */
     val data: StateFlow<DashboardData?> =
-        combine(
-            AppDatabase.get(application).fillUpDao().observeAll(),
-            Settings.get(application).tripKm,
-        ) { all, tripKm ->
+        Profiles.get(application).activeFillUps.map { (profile, all) ->
             val today = LocalDate.now()
-            val stats = computeStats(all, tripKm)
+            val stats = computeStats(all, profile?.tripKm ?: DEFAULT_TRIP_KM)
             val gaps = stats.mapNotNull { it.days }.filter { it > 0 }.sorted()
             val windowStart = today.minusDays(29)
             DashboardData(
@@ -161,6 +160,8 @@ private const val RECENT_FILL_UPS = 10
 
 @Composable
 fun DashboardScreen(
+    profile: Profile?,
+    onProfileClick: () -> Unit,
     onAddFillUp: () -> Unit,
     onImport: () -> Unit,
     viewModel: DashboardViewModel = viewModel(),
@@ -181,10 +182,10 @@ fun DashboardScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         if (d.lastFillUp == null) {
-            Header(null)
+            Header(null, profile, onProfileClick)
             Empty(onAddFillUp, onImport)
         } else {
-            Header(d)
+            Header(d, profile, onProfileClick)
             PillTabs(
                 listOf(
                     Icons.Filled.LocalGasStation to Period.LAST.label,
@@ -209,9 +210,9 @@ fun DashboardScreen(
 
 /** Title, a line about the last fill-up in the accent colour, a couple of chips and the wavy bar. */
 @Composable
-private fun Header(d: DashboardData?) {
+private fun Header(d: DashboardData?, profile: Profile?, onProfileClick: () -> Unit) {
     Column(Modifier.padding(top = 16.dp, start = 4.dp, end = 4.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("Bike Dashboard", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+        ProfileTitle(profile, onProfileClick)
         val last = d?.lastFillUp ?: return@Column
         Row(verticalAlignment = Alignment.CenterVertically) {
             val ago = when (d.daysSinceLast) {

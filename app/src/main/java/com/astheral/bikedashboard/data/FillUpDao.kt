@@ -8,19 +8,20 @@ import androidx.room.Transaction
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
+/** Fill-ups always belong to one bike profile; every list is for a single [profileId]. */
 @Dao
 interface FillUpDao {
     /** Oldest first, which is the order the calculations need. */
-    @Query("SELECT * FROM fill_ups ORDER BY date, odometerKm")
-    fun observeAll(): Flow<List<FillUp>>
+    @Query("SELECT * FROM fill_ups WHERE profileId = :profileId ORDER BY date, odometerKm")
+    fun observeAll(profileId: Long): Flow<List<FillUp>>
 
-    @Query("SELECT * FROM fill_ups ORDER BY date, odometerKm")
-    suspend fun getAll(): List<FillUp>
+    @Query("SELECT * FROM fill_ups WHERE profileId = :profileId ORDER BY date, odometerKm")
+    suspend fun getAll(profileId: Long): List<FillUp>
 
     @Query("SELECT * FROM fill_ups WHERE id = :id")
     suspend fun getById(id: Long): FillUp?
 
-    /** Most recent exchange rate, used as the default for the next MY fill-up. */
+    /** Most recent exchange rate on any bike, used as the default for the next MY fill-up. */
     @Query("SELECT rmPerSgd FROM fill_ups WHERE rmPerSgd IS NOT NULL ORDER BY date DESC, odometerKm DESC LIMIT 1")
     suspend fun latestRmPerSgd(): Double?
 
@@ -36,13 +37,16 @@ interface FillUpDao {
     @Delete
     suspend fun delete(fillUp: FillUp)
 
-    @Query("DELETE FROM fill_ups")
-    suspend fun deleteAll()
+    @Query("DELETE FROM fill_ups WHERE profileId = :profileId")
+    suspend fun deleteAll(profileId: Long)
 
-    /** Wipes everything and loads [fillUps] in one go, so a failed import leaves the old data untouched. */
+    /**
+     * Wipes this bike's fill-ups and loads [fillUps] for it in one go, so a failed import leaves
+     * the old data untouched. Other bikes aren't affected.
+     */
     @Transaction
-    suspend fun replaceAll(fillUps: List<FillUp>) {
-        deleteAll()
-        insertAll(fillUps)
+    suspend fun replaceAll(profileId: Long, fillUps: List<FillUp>) {
+        deleteAll(profileId)
+        insertAll(fillUps.map { it.copy(id = 0, profileId = profileId) })
     }
 }

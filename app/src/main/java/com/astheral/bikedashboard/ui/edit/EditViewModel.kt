@@ -7,7 +7,10 @@ import com.astheral.bikedashboard.calc.totalCostSgd
 import com.astheral.bikedashboard.calc.totalLitres
 import com.astheral.bikedashboard.data.AppDatabase
 import com.astheral.bikedashboard.data.Country
+import com.astheral.bikedashboard.data.DEFAULT_TANK_LITRES
 import com.astheral.bikedashboard.data.FillUp
+import com.astheral.bikedashboard.data.Profile
+import com.astheral.bikedashboard.data.Profiles
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -49,6 +52,8 @@ data class EditState(
 
 class EditViewModel(application: Application, private val fillUpId: Long) : AndroidViewModel(application) {
     private val dao = AppDatabase.get(application).fillUpDao()
+    private val profiles = Profiles.get(application)
+    private var profile: Profile? = null
     private var base: FillUp? = null
     private var others: List<FillUp> = emptyList()
 
@@ -57,9 +62,11 @@ class EditViewModel(application: Application, private val fillUpId: Long) : Andr
 
     init {
         viewModelScope.launch {
-            val all = dao.getAll()
+            val existing = dao.getById(fillUpId)
+            // An existing fill-up stays on its own bike; a new one goes on the bike being shown.
+            profile = existing?.let { profiles.get(it.profileId) } ?: profiles.activeNow()
+            val all = profile?.let { dao.getAll(it.id) }.orEmpty()
             others = all.filter { it.id != fillUpId }
-            val existing = all.firstOrNull { it.id == fillUpId }
             base = existing
             val form = if (existing != null) {
                 FillUpForm.from(existing)
@@ -125,7 +132,11 @@ class EditViewModel(application: Application, private val fillUpId: Long) : Andr
                 _state.update { refresh(it.copy(step = step, direction = -1, error = s.form.errorFor(step, base))) }
             }
             is FormResult.Ok -> viewModelScope.launch {
-                if (base == null) dao.insert(result.fillUp) else dao.update(result.fillUp)
+                if (base == null) {
+                    dao.insert(result.fillUp.copy(profileId = profile?.id ?: 1))
+                } else {
+                    dao.update(result.fillUp)
+                }
                 _state.update { it.copy(done = true) }
             }
         }
@@ -136,7 +147,9 @@ class EditViewModel(application: Application, private val fillUpId: Long) : Andr
         return s.copy(
             preview = preview(s.form, fill),
             previous = previousFor(s.form),
-            warnings = fill?.let { warningsFor(it, others, LocalDate.now()) }.orEmpty(),
+            warnings = fill?.let {
+                warningsFor(it, others, LocalDate.now(), profile?.tankLitres ?: DEFAULT_TANK_LITRES)
+            }.orEmpty(),
         )
     }
 

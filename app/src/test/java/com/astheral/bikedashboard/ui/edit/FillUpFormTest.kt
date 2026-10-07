@@ -170,7 +170,16 @@ class FillUpFormTest {
 
     @Test
     fun tooManyLitres() {
-        assertTrue(warnings(ok(myForm.copy(myLitres = "16"))).any { "more than the tank" in it })
+        assertTrue(warnings(ok(myForm.copy(myLitres = "16"))).any { "14.0 L tank holds" in it })
+    }
+
+    @Test
+    fun tankSizeComesFromTheBike() {
+        val fill = ok(myForm.copy(myLitres = "16"))
+        assertTrue(warningsFor(fill, listOf(previous), today, tankLitres = 17.0).none { "tank" in it })
+        assertTrue(warningsFor(fill, listOf(previous), today, tankLitres = 12.0).any { "12.0 L tank holds" in it })
+        // A full tank can take a little extra when squeezed.
+        assertTrue(warningsFor(ok(myForm.copy(myLitres = "14.4")), listOf(previous), today, tankLitres = 14.0).none { "tank" in it })
     }
 
     @Test

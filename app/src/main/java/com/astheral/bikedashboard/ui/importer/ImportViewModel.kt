@@ -15,6 +15,7 @@ import com.astheral.bikedashboard.csv.readSpreadsheet
 import com.astheral.bikedashboard.data.AppDatabase
 import com.astheral.bikedashboard.data.Country
 import com.astheral.bikedashboard.data.FillUp
+import com.astheral.bikedashboard.data.Profiles
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -35,8 +36,9 @@ sealed interface ImportState {
         val countByCountry: Map<Country, Int>,
         val problems: List<SheetProblem>,
         val mismatches: List<SheetMismatch>,
-        /** Fill-ups already in the app, which the import will replace. */
+        /** Fill-ups already on this bike, which the import will replace. */
         val existingCount: Int,
+        val profileName: String = "",
         /** True for the app's own backup format, which needs no check against a spreadsheet. */
         val isBackup: Boolean = false,
     ) : ImportState
@@ -47,6 +49,7 @@ sealed interface ImportState {
 
 class ImportViewModel(application: Application) : AndroidViewModel(application) {
     private val dao = AppDatabase.get(application).fillUpDao()
+    private val profiles = Profiles.get(application)
 
     private val _state = MutableStateFlow<ImportState>(ImportState.Idle)
     val state: StateFlow<ImportState> = _state.asStateFlow()
@@ -85,7 +88,8 @@ class ImportViewModel(application: Application) : AndroidViewModel(application) 
             countByCountry = fillUps.groupingBy { it.country }.eachCount(),
             problems = result.problems,
             mismatches = withContext(Dispatchers.Default) { checkAgainstSheet(result.rows) },
-            existingCount = dao.getAll().size,
+            existingCount = profiles.activeNow()?.let { dao.getAll(it.id).size } ?: 0,
+            profileName = profiles.activeNow()?.name.orEmpty(),
         )
     }
 
@@ -101,7 +105,8 @@ class ImportViewModel(application: Application) : AndroidViewModel(application) 
             countByCountry = fillUps.groupingBy { it.country }.eachCount(),
             problems = result.problems,
             mismatches = emptyList(),
-            existingCount = dao.getAll().size,
+            existingCount = profiles.activeNow()?.let { dao.getAll(it.id).size } ?: 0,
+            profileName = profiles.activeNow()?.name.orEmpty(),
             isBackup = true,
         )
     }
@@ -111,7 +116,8 @@ class ImportViewModel(application: Application) : AndroidViewModel(application) 
         val preview = _state.value as? ImportState.Preview ?: return
         _state.value = ImportState.Saving
         viewModelScope.launch {
-            dao.replaceAll(preview.fillUps)
+            val profile = profiles.activeNow() ?: return@launch
+            dao.replaceAll(profile.id, preview.fillUps)
             _state.value = ImportState.Done(preview.fillUps.size)
         }
     }

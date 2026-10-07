@@ -21,6 +21,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import com.astheral.bikedashboard.data.Country
+import com.astheral.bikedashboard.data.Profile
+import com.astheral.bikedashboard.ui.profile.ProfileTitle
 import com.astheral.bikedashboard.ui.components.CountUpText
 import com.astheral.bikedashboard.ui.components.GroupCard
 import com.astheral.bikedashboard.ui.components.NumberFont
@@ -61,7 +63,8 @@ import com.astheral.bikedashboard.calc.computeStats
 import com.astheral.bikedashboard.calc.totalCostSgd
 import com.astheral.bikedashboard.calc.totalLitres
 import com.astheral.bikedashboard.data.AppDatabase
-import com.astheral.bikedashboard.data.Settings
+import com.astheral.bikedashboard.calc.DEFAULT_TRIP_KM
+import com.astheral.bikedashboard.data.Profiles
 import com.astheral.bikedashboard.ui.km
 import com.astheral.bikedashboard.ui.kmPerLitre
 import com.astheral.bikedashboard.ui.label
@@ -71,7 +74,7 @@ import com.astheral.bikedashboard.ui.sgd
 import com.astheral.bikedashboard.ui.sgdPerLitre
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -87,10 +90,8 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
 
     /** Newest first. Null while loading. */
     val fillUps: StateFlow<List<FillUpStats>?> =
-        combine(
-            dao.observeAll(),
-            Settings.get(application).tripKm,
-        ) { all, tripKm -> computeStats(all, tripKm).reversed() }
+        Profiles.get(application).activeFillUps
+            .map { (profile, all) -> computeStats(all, profile?.tripKm ?: DEFAULT_TRIP_KM).reversed() }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     fun delete(id: Long) {
@@ -100,6 +101,8 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
 
 @Composable
 fun HistoryScreen(
+    profile: Profile?,
+    onProfileClick: () -> Unit,
     onAddFillUp: () -> Unit,
     onOpenFillUp: (Long) -> Unit,
     /** A fill-up just deleted on the edit screen: it slides out here, then is deleted. */
@@ -120,12 +123,14 @@ fun HistoryScreen(
     ) {
         item(key = "title") {
             Column(Modifier.padding(start = 4.dp, top = 16.dp, bottom = 4.dp)) {
-                Text("History", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-                if (list.isNotEmpty()) {
+                ProfileTitle(profile, onProfileClick)
+                if (list.isEmpty()) {
+                    Text("History", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.tertiary, fontWeight = FontWeight.SemiBold)
+                } else {
                     val since = list.last().fillUp.date.format(MONTH_YEAR)
                     CountUpText(
                         list.size.toDouble(),
-                        { "${it.toInt()} fill-ups since $since" },
+                        { "History · ${it.toInt()} fill-ups since $since" },
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                         color = MaterialTheme.colorScheme.tertiary,
                         fontFamily = null,

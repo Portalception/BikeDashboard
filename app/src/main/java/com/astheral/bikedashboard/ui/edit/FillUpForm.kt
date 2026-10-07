@@ -5,6 +5,7 @@ import com.astheral.bikedashboard.calc.sgPricePerLitre
 import com.astheral.bikedashboard.calc.totalCostSgd
 import com.astheral.bikedashboard.calc.totalLitres
 import com.astheral.bikedashboard.data.Country
+import com.astheral.bikedashboard.data.DEFAULT_TANK_LITRES
 import com.astheral.bikedashboard.data.FillUp
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -170,14 +171,14 @@ fun FillUpForm.toFillUp(base: FillUp?): FormResult {
     return FormResult.Ok(fill)
 }
 
-/** Largest a full tank should take, with room for squeezing in extra. */
-const val TANK_LITRES = 14.5
+/** Extra a full tank can take when you squeeze fuel in, on top of its stated size. */
+const val SQUEEZE_LITRES = 0.5
 
 /**
  * Things that look wrong but might be right. The form shows these and lets you save anyway.
  * [others] is every other fill-up in the app (not the one being edited).
  */
-fun warningsFor(fill: FillUp, others: List<FillUp>, today: LocalDate): List<String> {
+fun warningsFor(fill: FillUp, others: List<FillUp>, today: LocalDate, tankLitres: Double = DEFAULT_TANK_LITRES): List<String> {
     val warnings = mutableListOf<String>()
     val sorted = others.sortedWith(compareBy({ it.date }, { it.odometerKm }))
     // On the same day there may be two fill-ups; the latest one already saved counts as "previous".
@@ -205,7 +206,9 @@ fun warningsFor(fill: FillUp, others: List<FillUp>, today: LocalDate): List<Stri
         warnings += "The odometer is higher than the next fill-up (${next.odometerKm} km on ${next.date.format(DAY)})."
     }
 
-    if (fill.totalLitres > TANK_LITRES) warnings += "${fmt(2, fill.totalLitres)} L is more than the tank holds."
+    if (fill.totalLitres > tankLitres + SQUEEZE_LITRES) {
+        warnings += "${fmt(2, fill.totalLitres)} L is more than the ${fmt(1, tankLitres)} L tank holds."
+    }
     fill.sgPricePerLitre?.let {
         if (it < 1.5 || it > 4.0) warnings += "Singapore price works out to S$${fmt(2, it)}/L, which is unusual."
     }

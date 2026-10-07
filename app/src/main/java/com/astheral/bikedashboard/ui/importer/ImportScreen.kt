@@ -134,7 +134,7 @@ private fun Preview(s: ImportState.Preview, onConfirm: () -> Unit, onCancel: () 
 
     if (s.existingCount > 0) {
         Text(
-            "This replaces the ${s.existingCount} fill-ups already in the app.",
+            "This replaces the ${s.existingCount} fill-ups already on ${s.profileName}.",
             color = MaterialTheme.colorScheme.error,
         )
     }

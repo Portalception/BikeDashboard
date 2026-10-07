@@ -53,7 +53,7 @@ class FillUpDaoTest {
     @Test
     fun listIsOldestFirst() = runBlocking {
         dao.insertAll(listOf(myFill, sgFill, olderMyFill))
-        val dates = dao.observeAll().first().map { it.date }
+        val dates = dao.observeAll(1).first().map { it.date }
         assertEquals(listOf(olderMyFill.date, sgFill.date, myFill.date), dates)
     }
 
@@ -67,10 +67,31 @@ class FillUpDaoTest {
     @Test
     fun replaceAllSwapsOutEverything() = runBlocking {
         dao.insertAll(listOf(sgFill, myFill))
-        dao.replaceAll(listOf(olderMyFill))
-        val all = dao.getAll()
+        dao.replaceAll(1, listOf(olderMyFill))
+        val all = dao.getAll(1)
         assertEquals(1, all.size)
         assertEquals(olderMyFill.odometerKm, all.single().odometerKm)
+    }
+
+    @Test
+    fun eachBikeKeepsItsOwnFillUps() = runBlocking {
+        val profiles = db.profileDao()
+        val r3 = profiles.insert(Profile(name = "Yamaha R3"))
+        val rental = profiles.insert(Profile(name = "Rental", kind = ProfileKind.RENTAL))
+        dao.insertAll(listOf(sgFill.copy(profileId = r3), myFill.copy(profileId = r3), olderMyFill.copy(profileId = rental)))
+        assertEquals(2, dao.getAll(r3).size)
+        assertEquals(1, dao.getAll(rental).size)
+
+        // Importing into one bike leaves the other alone.
+        dao.replaceAll(rental, listOf(sgFill, myFill))
+        assertEquals(2, dao.getAll(rental).size)
+        assertEquals(2, dao.getAll(r3).size)
+
+        // Deleting a bike deletes its fill-ups too.
+        profiles.deleteWithFillUps(profiles.getAll().first { it.id == rental })
+        assertEquals(0, dao.getAll(rental).size)
+        assertEquals(listOf(r3), profiles.getAll().map { it.id })
+        assertEquals(mapOf(r3 to 2), profiles.observeCounts().first().associate { it.profileId to it.count })
     }
 
     @Test

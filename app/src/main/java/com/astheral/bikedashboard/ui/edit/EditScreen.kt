@@ -74,6 +74,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
@@ -214,7 +215,7 @@ private fun BottomButtons(state: EditState, viewModel: EditViewModel, onClose: (
 }
 
 @Composable
-private fun PillButton(text: String, icon: androidx.compose.ui.graphics.vector.ImageVector, filled: Boolean, modifier: Modifier, onClick: () -> Unit) {
+internal fun PillButton(text: String, icon: androidx.compose.ui.graphics.vector.ImageVector, filled: Boolean, modifier: Modifier, onClick: () -> Unit) {
     val bg = if (filled) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.surfaceContainerHigh
     val fg = if (filled) MaterialTheme.colorScheme.onTertiary else MaterialTheme.colorScheme.onSurface
     Row(
@@ -333,7 +334,7 @@ private fun litreHint(localCost: Double?, sgdCost: Double?, litres: Double?, cur
 }
 
 @Composable
-private fun QuestionCard(part: String?, question: String, content: @Composable ColumnScope.() -> Unit) {
+internal fun QuestionCard(part: String?, question: String, content: @Composable ColumnScope.() -> Unit) {
     GroupCard(contentPadding = 22.dp, edge = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.5f)) {
         part?.let {
             Text(it.uppercase(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.tertiary)
@@ -348,7 +349,7 @@ private fun QuestionCard(part: String?, question: String, content: @Composable C
 /** A question with one big number box. The keyboard opens straight away and "next" moves on. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun NumberCard(
+internal fun NumberCard(
     question: String,
     hint: String,
     value: String,
@@ -361,6 +362,8 @@ private fun NumberCard(
     whole: Boolean = false,
     quick: List<Pair<String, String>> = emptyList(),
     selectAll: Boolean = false,
+    /** A word answer (like a name) rather than a number. */
+    text: Boolean = false,
 ) {
     val focus = remember { FocusRequester() }
     // Keep the cursor position while typing; a pre-filled rate starts fully selected so typing replaces it.
@@ -374,7 +377,7 @@ private fun NumberCard(
             value = field,
             onValueChange = { field = it; onChange(it.text) },
             modifier = Modifier.fillMaxWidth().focusRequester(focus),
-            textStyle = MaterialTheme.typography.headlineMedium.copy(fontFamily = NumberFont, fontSize = 34.sp),
+            textStyle = if (text) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.headlineMedium.copy(fontFamily = NumberFont, fontSize = 34.sp),
             prefix = prefix?.let { { Text("$it ", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurfaceVariant) } },
             suffix = suffix?.let { { Text(it, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) } },
             singleLine = true,
@@ -384,7 +387,15 @@ private fun NumberCard(
                 focusedBorderColor = MaterialTheme.colorScheme.tertiary,
                 cursorColor = MaterialTheme.colorScheme.tertiary,
             ),
-            keyboardOptions = KeyboardOptions(keyboardType = if (whole) KeyboardType.Number else KeyboardType.Decimal, imeAction = ImeAction.Next),
+            keyboardOptions = KeyboardOptions(
+                keyboardType = when {
+                    text -> KeyboardType.Text
+                    whole -> KeyboardType.Number
+                    else -> KeyboardType.Decimal
+                },
+                capitalization = if (text) KeyboardCapitalization.Words else KeyboardCapitalization.None,
+                imeAction = ImeAction.Next,
+            ),
             keyboardActions = KeyboardActions(onNext = { onNext() }),
         )
         Spacer(Modifier.height(10.dp))
@@ -405,7 +416,7 @@ private fun NumberCard(
 }
 
 @Composable
-private fun QuickChip(label: String, onClick: () -> Unit) {
+internal fun QuickChip(label: String, onClick: () -> Unit) {
     Text(
         label,
         Modifier

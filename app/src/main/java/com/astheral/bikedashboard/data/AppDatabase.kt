@@ -6,6 +6,8 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import java.time.LocalDate
 
 class Converters {
@@ -20,12 +22,38 @@ class Converters {
 
     @TypeConverter
     fun nameToCountry(name: String): Country = Country.valueOf(name)
+
+    @TypeConverter
+    fun kindToName(kind: ProfileKind): String = kind.name
+
+    @TypeConverter
+    fun nameToKind(name: String): ProfileKind = ProfileKind.valueOf(name)
 }
 
-@Database(entities = [FillUp::class], version = 1)
+/**
+ * Version 2 adds bike profiles. Everything already in the app becomes the first profile,
+ * "My bike", keeping the trip distance that was set in Settings.
+ */
+fun migration1To2(tripKm: Double) = object : Migration(1, 2) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `profiles` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`name` TEXT NOT NULL, `kind` TEXT NOT NULL, `tankLitres` REAL NOT NULL, `tripKm` REAL NOT NULL)",
+        )
+        db.execSQL(
+            "INSERT INTO `profiles` (`id`, `name`, `kind`, `tankLitres`, `tripKm`) VALUES (1, 'My bike', 'OWN', ?, ?)",
+            arrayOf<Any>(DEFAULT_TANK_LITRES, tripKm),
+        )
+        db.execSQL("ALTER TABLE `fill_ups` ADD COLUMN `profileId` INTEGER NOT NULL DEFAULT 1")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_fill_ups_profileId` ON `fill_ups` (`profileId`)")
+    }
+}
+
+@Database(entities = [FillUp::class, Profile::class], version = 2)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun fillUpDao(): FillUpDao
+    abstract fun profileDao(): ProfileDao
 
     companion object {
         @Volatile
@@ -37,7 +65,10 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "bike_dashboard.db",
-                ).build().also { instance = it }
+                )
+                    .addMigrations(migration1To2(Settings.get(context).legacyTripKm))
+                    .build()
+                    .also { instance = it }
             }
     }
 }

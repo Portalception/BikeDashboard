@@ -1,0 +1,62 @@
+package com.astheral.bikedashboard.data
+
+import androidx.room.Dao
+import androidx.room.Delete
+import androidx.room.Entity
+import androidx.room.Insert
+import androidx.room.PrimaryKey
+import androidx.room.Query
+import androidx.room.Transaction
+import androidx.room.Update
+import com.astheral.bikedashboard.calc.DEFAULT_TRIP_KM
+import kotlinx.coroutines.flow.Flow
+
+enum class ProfileKind(val label: String) { OWN("Own bike"), RENTAL("Rental") }
+
+/** Usual size of a sports bike tank, e.g. the Yamaha R3's 14 L. */
+const val DEFAULT_TANK_LITRES = 14.0
+
+/** A bike whose fill-ups are tracked separately: your own, or a rental. */
+@Entity(tableName = "profiles")
+data class Profile(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    val kind: ProfileKind = ProfileKind.OWN,
+    /** Used to warn when a fill-up is more than the tank holds. */
+    val tankLitres: Double = DEFAULT_TANK_LITRES,
+    /** Round trip into Malaysia to pump, taken off the savings. */
+    val tripKm: Double = DEFAULT_TRIP_KM,
+)
+
+data class ProfileCount(val profileId: Long, val count: Int)
+
+@Dao
+interface ProfileDao {
+    @Query("SELECT * FROM profiles ORDER BY id")
+    fun observeAll(): Flow<List<Profile>>
+
+    @Query("SELECT * FROM profiles ORDER BY id")
+    suspend fun getAll(): List<Profile>
+
+    @Query("SELECT profileId, COUNT(*) AS count FROM fill_ups GROUP BY profileId")
+    fun observeCounts(): Flow<List<ProfileCount>>
+
+    @Insert
+    suspend fun insert(profile: Profile): Long
+
+    @Update
+    suspend fun update(profile: Profile)
+
+    @Delete
+    suspend fun delete(profile: Profile)
+
+    @Query("DELETE FROM fill_ups WHERE profileId = :profileId")
+    suspend fun deleteFillUps(profileId: Long)
+
+    /** Removes the bike and all of its fill-ups together. */
+    @Transaction
+    suspend fun deleteWithFillUps(profile: Profile) {
+        deleteFillUps(profile.id)
+        delete(profile)
+    }
+}

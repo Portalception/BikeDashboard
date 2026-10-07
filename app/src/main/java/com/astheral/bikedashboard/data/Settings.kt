@@ -18,14 +18,27 @@ import kotlinx.coroutines.flow.update
 class Settings private constructor(context: Context) {
     private val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
 
-    private val _tripKm = MutableStateFlow(prefs.getFloat(KEY_TRIP_KM, DEFAULT_TRIP_KM.toFloat()).toDouble())
+    /** The trip distance from before profiles; it now lives on each profile. Only read when upgrading. */
+    val legacyTripKm: Double get() = prefs.getFloat(KEY_TRIP_KM, DEFAULT_TRIP_KM.toFloat()).toDouble()
 
-    /** Round-trip distance of a special ride into Malaysia to pump. */
-    val tripKm: StateFlow<Double> = _tripKm.asStateFlow()
+    private val _activeProfileId = MutableStateFlow(prefs.getLong(KEY_ACTIVE_PROFILE, NO_PROFILE))
 
-    fun setTripKm(km: Double) {
-        prefs.edit().putFloat(KEY_TRIP_KM, km.toFloat()).apply()
-        _tripKm.value = km
+    /** The bike being shown. [NO_PROFILE] means "the first one". */
+    val activeProfileId: StateFlow<Long> = _activeProfileId.asStateFlow()
+
+    fun setActiveProfile(id: Long) {
+        prefs.edit().putLong(KEY_ACTIVE_PROFILE, id).apply()
+        _activeProfileId.value = id
+    }
+
+    private val _ideasUnlocked = MutableStateFlow(prefs.getBoolean(KEY_IDEAS_UNLOCKED, false))
+
+    /** The hidden ideas notebook shows in Settings once found. */
+    val ideasUnlocked: StateFlow<Boolean> = _ideasUnlocked.asStateFlow()
+
+    fun unlockIdeas() {
+        prefs.edit().putBoolean(KEY_IDEAS_UNLOCKED, true).apply()
+        _ideasUnlocked.value = true
     }
 
     private val _appearance = MutableStateFlow(loadAppearance())
@@ -67,7 +80,10 @@ class Settings private constructor(context: Context) {
     }
 
     companion object {
+        const val NO_PROFILE = -1L
         private const val KEY_TRIP_KM = "trip_km"
+        private const val KEY_ACTIVE_PROFILE = "active_profile"
+        private const val KEY_IDEAS_UNLOCKED = "ideas_unlocked"
         private const val KEY_THEME_MODE = "theme_mode"
         private const val KEY_PURE_BLACK = "pure_black"
         private const val KEY_WALLPAPER = "wallpaper_colors"

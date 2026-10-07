@@ -44,6 +44,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.astheral.bikedashboard.ui.profile.ProfileSetupScreen
+import com.astheral.bikedashboard.ui.profile.ProfileSwitcherSheet
+import com.astheral.bikedashboard.ui.profile.ProfilesViewModel
+import com.astheral.bikedashboard.ui.settings.IdeasScreen
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.NavBackStackEntry
@@ -70,6 +78,11 @@ import kotlinx.serialization.Serializable
 /** Add a fill-up when [id] is 0, otherwise edit the fill-up with that id. */
 @Serializable data class EditRoute(val id: Long = 0)
 
+/** Add a bike when [id] is 0, otherwise edit that bike. */
+@Serializable data class ProfileSetupRoute(val id: Long = 0)
+
+@Serializable object IdeasRoute
+
 private data class Tab(val route: Any, val label: String, val icon: ImageVector)
 
 private val tabs = listOf(
@@ -87,7 +100,7 @@ const val DELETED_FILL_UP_ID = "deletedFillUpId"
 private const val SLIDE_MS = 300
 
 private fun NavDestination?.tabIndex() = tabs.indexOfFirst { this?.hasRoute(it.route::class) == true }
-private fun NavDestination?.isOverlay() = this?.hasRoute(EditRoute::class) == true || this?.hasRoute(ImportRoute::class) == true
+private fun NavDestination?.isOverlay() = this != null && !hasRoute(DashboardRoute::class) && !hasRoute(HistoryRoute::class) && !hasRoute(SettingsRoute::class)
 
 /**
  * Switching tabs slides the screens sideways, towards the tab you picked.
@@ -118,8 +131,18 @@ private fun AnimatedContentTransitionScope<NavBackStackEntry>.tabExit(): ExitTra
 }
 
 @Composable
-fun BikeDashboardApp() {
+fun BikeDashboardApp(profilesViewModel: ProfilesViewModel = viewModel()) {
+    val profiles by profilesViewModel.state.collectAsState()
+    val all = profiles.all ?: return // still loading
+    if (all.isEmpty()) {
+        // First launch: set up a bike before anything else.
+        AppBackground { ProfileSetupScreen(profileId = 0, onDone = {}) }
+        return
+    }
     val nav = rememberNavController()
+    var switching by remember { mutableStateOf(false) }
+    val profile = profiles.active
+    val openSwitcher = { switching = true }
     val backStack by nav.currentBackStackEntryAsState()
     val destination = backStack?.destination
     val showTabs = tabs.any { tab -> destination?.hasRoute(tab.route::class) == true }
@@ -159,6 +182,8 @@ fun BikeDashboardApp() {
             ) {
                 composable<DashboardRoute> {
                     DashboardScreen(
+                        profile = profile,
+                        onProfileClick = openSwitcher,
                         onAddFillUp = { nav.navigate(EditRoute()) },
                         onImport = { nav.navigate(ImportRoute) },
                     )
@@ -166,6 +191,8 @@ fun BikeDashboardApp() {
                 composable<HistoryRoute> { entry ->
                     val deletedId by entry.savedStateHandle.getStateFlow<Long?>(DELETED_FILL_UP_ID, null).collectAsState()
                     HistoryScreen(
+                        profile = profile,
+                        onProfileClick = openSwitcher,
                         onAddFillUp = { nav.navigate(EditRoute()) },
                         onOpenFillUp = { id -> nav.navigate(EditRoute(id)) },
                         deletingId = deletedId,
@@ -173,7 +200,26 @@ fun BikeDashboardApp() {
                     )
                 }
                 composable<SettingsRoute> {
-                    SettingsScreen(onImport = { nav.navigate(ImportRoute) })
+                    SettingsScreen(
+                        onImport = { nav.navigate(ImportRoute) },
+                        onProfileClick = openSwitcher,
+                        onEditProfile = { id -> nav.navigate(ProfileSetupRoute(id)) },
+                        onOpenIdeas = { nav.navigate(IdeasRoute) },
+                    )
+                }
+                composable<ProfileSetupRoute>(
+                    enterTransition = { slideIntoContainer(SlideDirection.Up, tween(SLIDE_MS)) },
+                    popExitTransition = { slideOutOfContainer(SlideDirection.Down, tween(SLIDE_MS)) },
+                ) { entry ->
+                    AppBackground {
+                        ProfileSetupScreen(profileId = entry.toRoute<ProfileSetupRoute>().id, onDone = { nav.popBackStack() })
+                    }
+                }
+                composable<IdeasRoute>(
+                    enterTransition = { slideIntoContainer(SlideDirection.Up, tween(SLIDE_MS)) },
+                    popExitTransition = { slideOutOfContainer(SlideDirection.Down, tween(SLIDE_MS)) },
+                ) {
+                    AppBackground { IdeasScreen(onBack = { nav.popBackStack() }) }
                 }
                 composable<ImportRoute>(
                     enterTransition = { slideIntoContainer(SlideDirection.Up, tween(SLIDE_MS)) },
@@ -199,6 +245,16 @@ fun BikeDashboardApp() {
                 }
             }
         }
+    }
+
+    if (switching) {
+        ProfileSwitcherSheet(
+            state = profiles,
+            onPick = { profilesViewModel.switchTo(it.id); switching = false },
+            onEdit = { switching = false; nav.navigate(ProfileSetupRoute(it.id)) },
+            onAdd = { switching = false; nav.navigate(ProfileSetupRoute()) },
+            onDismiss = { switching = false },
+        )
     }
 }
 

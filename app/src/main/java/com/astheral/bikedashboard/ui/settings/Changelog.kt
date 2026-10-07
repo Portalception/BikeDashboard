@@ -7,6 +7,23 @@ data class Release(val version: String, val date: LocalDate, val changes: List<S
 /** Major changes in each version, newest first. Add an entry here with every version you share. */
 val CHANGELOG = listOf(
     Release(
+        version = "0.2.2",
+        date = LocalDate.of(2026, 10, 7),
+        changes = listOf(
+            "Bike profiles: keep separate fill-ups for each of your bikes or a rental. Tap the bike's name at " +
+                "the top of any page to switch, add or edit one. Each bike has its own tank size and trip distance.",
+            "A setup page, one question per card, for each new bike. Your existing fill-ups are now on \"My bike\"; " +
+                "rename it in Settings > Bike.",
+            "The Last fill-up / 30 days / Lifetime tabs now change every card on the dashboard, charts included.",
+            "Numbers count up on History, the import preview and the final check of a new fill-up too.",
+            "Progress lines inspired by motorcycles and racing: roller chain (the new default), kerb, chequered " +
+                "flag, tyre tread and rev counter, plus the wave.",
+            "Monochrome is the new default look, with colour presets from Yamaha, Honda, Kawasaki, Suzuki, Ducati, " +
+                "BMW, KTM, Aprilia, MV Agusta and Triumph's flagship sports bikes.",
+            "Backups and imports are for the bike you're looking at.",
+        ),
+    ),
+    Release(
         version = "0.2.1",
         date = LocalDate.of(2026, 10, 7),
         changes = listOf(
