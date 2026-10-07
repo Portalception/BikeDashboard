@@ -1,0 +1,41 @@
+# --- Gradle ---
+.gradle/
+build/
+.kotlin/
+
+# --- Local machine settings (SDK path, secrets) — never commit ---
+local.properties
+
+# --- Android Studio / IntelliJ ---
+*.iml
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+/.idea/deploymentTargetSelector.xml
+/.idea/deploymentTargetDropDown.xml
+/.idea/other.xml
+/captures
+
+# --- Native (C/C++) build output ---
+.externalNativeBuild
+.cxx/
+
+# --- Build artifacts ---
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+/app/release/
+
+# --- Signing keys — keep these private ---
+*.jks
+*.keystore
+
+# --- Logs & OS junk ---
+*.log
+.DS_Store
+Thumbs.db
