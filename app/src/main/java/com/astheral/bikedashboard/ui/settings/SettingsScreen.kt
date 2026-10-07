@@ -6,6 +6,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -28,6 +29,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.AndroidViewModel
@@ -38,6 +40,7 @@ import com.astheral.bikedashboard.data.AppDatabase
 import com.astheral.bikedashboard.data.Settings
 import com.astheral.bikedashboard.ui.NoInsets
 import com.astheral.bikedashboard.ui.edit.parseNumber
+import com.astheral.bikedashboard.ui.short
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -112,7 +115,36 @@ fun SettingsScreen(onImport: () -> Unit, viewModel: SettingsViewModel = viewMode
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+
+            HorizontalDivider()
+            Section("About")
+            Text("Bike Dashboard ${appVersion()}")
+            Text("Changelog", style = MaterialTheme.typography.titleSmall)
+            CHANGELOG.forEach { release ->
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        "Version ${release.version} · ${release.date.short()}",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    release.changes.forEach { change ->
+                        Row {
+                            Text("•  ")
+                            Text(change, style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                }
+            }
         }
+    }
+}
+
+/** The versionName set in app/build.gradle.kts. */
+@Composable
+private fun appVersion(): String {
+    val context = LocalContext.current
+    return remember {
+        runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull().orEmpty()
     }
 }
 
