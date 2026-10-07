@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -201,7 +202,7 @@ fun SettingsScreen(onImport: () -> Unit, viewModel: SettingsViewModel = viewMode
             Column {
                 SectionHeader(Icons.Filled.ColorLens, "Colours")
                 GroupCard(contentPadding = 16.dp) {
-                    Label("Presets")
+                    Label("Presets", "Monochrome, or colours from each maker's flagship sports bike")
                     PresetRow(appearance) { preset -> update { it.copy(primary = preset.primary, accent = preset.accent) } }
                     Spacer(Modifier.height(18.dp))
                     Label("Primary colour", "Buttons, the bottom bar and charts")
@@ -301,19 +302,20 @@ private fun same(a: Color, b: Color) = a.toArgb() == b.toArgb()
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun PresetRow(appearance: AppearanceSettings, onPick: (ColorPreset) -> Unit) {
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         ColorPreset.entries.forEach { preset ->
             val selected = same(preset.primary, appearance.primary) && same(preset.accent, appearance.accent)
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.clip(RoundedCornerShape(12.dp)).clickable(role = Role.RadioButton) { onPick(preset) }.padding(4.dp),
+                modifier = Modifier.width(80.dp).clip(RoundedCornerShape(12.dp)).clickable(role = Role.RadioButton) { onPick(preset) }.padding(4.dp),
             ) {
                 Swatch(
                     Brush.horizontalGradient(0.5f to preset.primary, 0.5f to preset.accent),
                     selected,
                     checkTint = Color.White,
                 )
-                Text(preset.label, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(top = 4.dp))
+                Text(preset.brand, style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = 4.dp), maxLines = 1, softWrap = false)
+                Text(preset.model, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, softWrap = false)
             }
         }
     }

@@ -43,6 +43,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -296,8 +297,99 @@ fun ProgressLine(
 private fun DrawScope.drawProgressShape(style: ProgressStyle, end: Float, color: Color, stroke: Float) {
     val mid = size.height / 2
     val amp = size.height / 2 - stroke / 2
-    val line = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round)
+    // A darker shade of the colour for depth (holes, inner plates) that works on any background.
+    val shade = lerp(color, Color.Black, 0.45f)
     when (style) {
+        ProgressStyle.CHAIN -> {
+            // A motorcycle roller chain seen from the side: rollers joined by plates, with outer
+            // plates (outlined) and inner plates (solid) taking turns, and a pin in each roller.
+            val pitch = 12.dp.toPx()
+            val plateH = size.height * 0.78f
+            val innerH = size.height * 0.56f
+            val roller = size.height * 0.27f
+            val count = ((end - pitch / 2) / pitch).toInt()
+            for (i in 0 until count) {
+                val x0 = pitch / 2 + i * pitch
+                if (i % 2 == 0) {
+                    drawRoundRect(shade, Offset(x0 - roller, mid - plateH / 2), Size(pitch + roller * 2, plateH), CornerRadius(plateH / 2))
+                    drawRoundRect(color, Offset(x0 - roller, mid - plateH / 2), Size(pitch + roller * 2, plateH), CornerRadius(plateH / 2), style = Stroke(stroke * 0.5f))
+                } else {
+                    drawRoundRect(color.copy(alpha = 0.85f), Offset(x0 - roller * 0.6f, mid - innerH / 2), Size(pitch + roller * 1.2f, innerH), CornerRadius(innerH / 2))
+                }
+            }
+            for (i in 0..count) {
+                val x = pitch / 2 + i * pitch
+                if (x - roller > end) break
+                drawCircle(color, radius = roller, center = Offset(x, mid))
+                drawCircle(shade, radius = roller * 0.42f, center = Offset(x, mid))
+            }
+        }
+        ProgressStyle.KERB -> {
+            // Racing kerb: slanted blocks taking turns between the colour and white.
+            val block = 10.dp.toPx()
+            val h = size.height * 0.7f
+            val top = mid - h / 2
+            val slant = h * 0.45f
+            var x = 0f
+            var i = 0
+            while (x < end) {
+                val w = minOf(block, end - x)
+                val path = Path().apply {
+                    moveTo(x + slant, top)
+                    lineTo(x + w + slant, top)
+                    lineTo(x + w, top + h)
+                    lineTo(x, top + h)
+                    close()
+                }
+                drawPath(path, if (i % 2 == 0) color else Color.White.copy(alpha = 0.9f))
+                x += block
+                i++
+            }
+        }
+        ProgressStyle.CHECKERED -> {
+            // Chequered flag: two rows of squares.
+            val sq = size.height * 0.4f
+            val top = mid - sq
+            var col = 0
+            var x = 0f
+            while (x < end) {
+                val w = minOf(sq, end - x)
+                for (row in 0..1) {
+                    val dark = (col + row) % 2 == 0
+                    drawRect(if (dark) color else Color.White.copy(alpha = 0.9f), Offset(x, top + row * sq), Size(w, sq))
+                }
+                x += sq
+                col++
+            }
+        }
+        ProgressStyle.TREAD -> {
+            // Tyre tread: a row of chevrons, like the grooves on a sports tyre.
+            val pitch = 10.dp.toPx()
+            val line = Stroke(width = stroke * 0.8f, cap = StrokeCap.Round, join = StrokeJoin.Round)
+            var x = 0f
+            while (x + pitch * 0.6f <= end) {
+                val path = Path().apply {
+                    moveTo(x, mid - amp)
+                    lineTo(x + pitch * 0.6f, mid)
+                    lineTo(x, mid + amp)
+                }
+                drawPath(path, color, style = line)
+                x += pitch
+            }
+        }
+        ProgressStyle.REV -> {
+            // Rev counter: bars that grow towards the end of the bar, turning red near the redline.
+            val pitch = 6.dp.toPx()
+            val barW = pitch * 0.55f
+            var x = 0f
+            while (x + barW <= end) {
+                val frac = (x / size.width).coerceIn(0f, 1f)
+                val h = size.height * (0.3f + 0.7f * frac)
+                val c = if (frac > 0.85f) Color(0xFFFF3B30) else color
+                drawRoundRect(c, Offset(x, size.height - h), Size(barW, h), CornerRadius(barW / 2))
+                x += pitch
+            }
+        }
         ProgressStyle.WAVE -> {
             val wavelength = 22.dp.toPx()
             val path = Path().apply {
@@ -308,69 +400,8 @@ private fun DrawScope.drawProgressShape(style: ProgressStyle, end: Float, color:
                     x += 2f
                 }
             }
-            drawPath(path, color, style = line)
+            drawPath(path, color, style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
         }
-        ProgressStyle.ZIGZAG -> {
-            val half = 9.dp.toPx()
-            val path = Path().apply {
-                moveTo(0f, mid)
-                var x = half / 2
-                var up = true
-                while (x < end) {
-                    lineTo(x, if (up) mid - amp else mid + amp)
-                    up = !up
-                    x += half
-                }
-                lineTo(end, mid)
-            }
-            drawPath(path, color, style = line)
-        }
-        ProgressStyle.HEARTBEAT -> {
-            // Flat, a small bump, then a sharp spike up and down, like a heart monitor.
-            val beat = 46.dp.toPx()
-            val shape = listOf(0f to 0f, 0.30f to 0f, 0.36f to -0.25f, 0.42f to 0f, 0.48f to 0f, 0.55f to -1f, 0.62f to 1f, 0.68f to 0f, 1f to 0f)
-            val path = Path().apply {
-                moveTo(0f, mid)
-                var start = 0f
-                outer@ while (start < end) {
-                    for ((fx, fy) in shape) {
-                        val x = start + fx * beat
-                        if (x > end) { lineTo(end, mid); break@outer }
-                        lineTo(x, mid + fy * amp)
-                    }
-                    start += beat
-                }
-            }
-            drawPath(path, color, style = line)
-        }
-        ProgressStyle.CHAIN -> {
-            // Overlapping rounded links, like a bike chain: outer plates outlined, inner plates filled.
-            val link = 15.dp.toPx()
-            val pitch = 11.dp.toPx()
-            val h = size.height * 0.62f
-            val top = mid - h / 2
-            var x = 0f
-            var outer = true
-            while (x + link <= end + 1f) {
-                if (outer) {
-                    drawRoundRect(color, Offset(x, top), Size(link, h), CornerRadius(h / 2), style = Stroke(width = stroke * 0.6f))
-                } else {
-                    drawRoundRect(color, Offset(x + link * 0.18f, mid - h * 0.28f), Size(link * 0.64f, h * 0.56f), CornerRadius(h / 3))
-                }
-                outer = !outer
-                x += pitch
-            }
-        }
-        ProgressStyle.DOTS -> {
-            val r = stroke * 0.75f
-            val spacing = 11.dp.toPx()
-            var x = r
-            while (x <= end) {
-                drawCircle(color, radius = r, center = Offset(x, mid))
-                x += spacing
-            }
-        }
-        ProgressStyle.STRAIGHT -> drawLine(color, Offset(0f, mid), Offset(end, mid), strokeWidth = stroke, cap = StrokeCap.Round)
     }
 }
 

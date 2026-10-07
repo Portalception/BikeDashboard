@@ -48,8 +48,13 @@ class Settings private constructor(context: Context) {
     private fun loadAppearance(): AppearanceSettings {
         // Version 0.1+ had one "colour theme" setting; carry it over to the matching colours.
         val old = prefs.getString(KEY_OLD_COLOR_THEME, null)
-        val oldPreset = ColorPreset.entries.firstOrNull { it.name == old }
-        val default = oldPreset ?: ColorPreset.YAMAHA_BLUE
+        val default = when (old) {
+            "YAMAHA_BLUE" -> ColorPreset.YAMAHA
+            "RACING_RED" -> ColorPreset.HONDA
+            "MIDNIGHT" -> ColorPreset.SUZUKI
+            "FOREST" -> ColorPreset.KAWASAKI
+            else -> ColorPreset.MONOCHROME
+        }
         return AppearanceSettings(
             mode = ThemeMode.entries.firstOrNull { it.name == prefs.getString(KEY_THEME_MODE, null) } ?: ThemeMode.SYSTEM,
             pureBlack = prefs.getBoolean(KEY_PURE_BLACK, false),
@@ -57,7 +62,7 @@ class Settings private constructor(context: Context) {
             primary = Color(prefs.getInt(KEY_PRIMARY, default.primary.toArgb())),
             accent = Color(prefs.getInt(KEY_ACCENT, default.accent.toArgb())),
             progressStyle = ProgressStyle.entries.firstOrNull { it.name == prefs.getString(KEY_PROGRESS_STYLE, null) }
-                ?: ProgressStyle.WAVE,
+                ?: ProgressStyle.CHAIN,
         )
     }
 
