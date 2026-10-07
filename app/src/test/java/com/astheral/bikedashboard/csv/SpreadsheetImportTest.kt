@@ -1,6 +1,5 @@
 package com.astheral.bikedashboard.csv
 
-import com.astheral.bikedashboard.calc.computeStats
 import com.astheral.bikedashboard.data.Country
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -10,7 +9,6 @@ import org.junit.Assume.assumeTrue
 import org.junit.Test
 import java.io.File
 import java.time.LocalDate
-import kotlin.math.abs
 
 class SpreadsheetImportTest {
 
@@ -163,22 +161,18 @@ class SpreadsheetImportTest {
 
     @Test
     fun appCalculationsMatchRealSpreadsheet() {
-        val rows = real().rows
-        val stats = computeStats(rows.map { it.fillUp })
-        val mismatches = rows.zip(stats).flatMap { (row, s) ->
-            val sheet = row.sheet
-            listOfNotNull(
-                "distance".takeIf { sheet.distanceKm != s.distanceKm },
-                "days".takeIf { sheet.days != s.days },
-                "km/L".takeIf { differs(sheet.kmPerLitre, s.kmPerLitre, 0.005) },
-                "cost/km".takeIf { differs(sheet.costPerKm, s.costPerKm, 0.00005) },
-                "cost/day".takeIf { differs(sheet.costPerDay, s.costPerDay, 0.0051) },
-                "price/L".takeIf { differs(sheet.pricePerLitre, s.pricePerLitre, 0.005) },
-            ).map { "row ${row.rowNumber}: $it" }
-        }
+        val mismatches = checkAgainstSheet(real().rows)
         assertTrue(mismatches.joinToString("\n"), mismatches.isEmpty())
     }
 
-    private fun differs(sheet: Double?, app: Double?, tolerance: Double) =
-        if (sheet == null || app == null) sheet != app else abs(sheet - app) > tolerance
+    @Test
+    fun checkReportsWhereSheetDiffers() {
+        // The sample skips rows, so its distances already differ; only look at what the edit adds.
+        val rows = readSpreadsheet(sample).rows.toMutableList()
+        val before = checkAgainstSheet(rows)
+        rows[2] = rows[2].copy(sheet = rows[2].sheet.copy(kmPerLitre = 40.0)) // row 27 is 31.19 in the sheet
+        val mismatch = (checkAgainstSheet(rows) - before.toSet()).single()
+        assertEquals(27, mismatch.rowNumber)
+        assertEquals("Km/L", mismatch.figure)
+    }
 }
