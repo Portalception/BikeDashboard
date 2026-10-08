@@ -55,6 +55,9 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.astheral.bikedashboard.csv.writeBackup
 import com.astheral.bikedashboard.data.AppDatabase
+import com.astheral.bikedashboard.data.BackupJson
+import com.astheral.bikedashboard.data.Backups
+import com.astheral.bikedashboard.data.FullBackup
 import com.astheral.bikedashboard.calc.DEFAULT_TRIP_KM
 import com.astheral.bikedashboard.data.Profile
 import com.astheral.bikedashboard.data.Profiles
@@ -96,6 +99,26 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun unlockIdeas() = settings.unlockIdeas()
 
+    /** Saves everything (all bikes, settings and the ideas notebook) to one file. */
+    fun exportAll(uri: Uri, appVersion: String) {
+        viewModelScope.launch {
+            _exportMessage.value = try {
+                val backup = Backups(getApplication()).create(appVersion)
+                withContext(Dispatchers.IO) {
+                    val out = getApplication<Application>().contentResolver.openOutputStream(uri, "wt")
+                        ?: throw IOException("couldn't open the file")
+                    out.bufferedWriter(Charsets.UTF_8).use { it.write(BackupJson.encodeToString(FullBackup.serializer(), backup)) }
+                }
+                val fills = backup.bikes.sumOf { it.fillUps.size }
+                "Backed up ${backup.bikes.size} ${if (backup.bikes.size == 1) "bike" else "bikes"}, $fills fill-ups and your settings."
+            } catch (e: IOException) {
+                "Backup failed: ${e.message}"
+            } catch (e: SecurityException) {
+                "Backup failed: ${e.message}"
+            }
+        }
+    }
+
     fun export(uri: Uri) {
         viewModelScope.launch {
             _exportMessage.value = try {
@@ -131,6 +154,10 @@ fun SettingsScreen(
     val exportMessage by viewModel.exportMessage.collectAsState()
     val exportTo = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
         if (uri != null) viewModel.export(uri)
+    }
+    val version = appVersion()
+    val backupTo = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        if (uri != null) viewModel.exportAll(uri, version)
     }
 
     Column(
@@ -183,16 +210,23 @@ fun SettingsScreen(
         SectionHeader(Icons.Filled.Save, "Backup")
         GroupCard {
             SettingRow(
+                Icons.Filled.Save,
+                "Back up everything",
+                exportMessage ?: "Every bike, fill-up and detail, your personalisation and the ideas notebook, in one file",
+                onClick = { backupTo.launch("bike-dashboard-backup-${LocalDate.now()}.json") },
+            ) { Chevron() }
+            GroupDivider()
+            SettingRow(
                 Icons.Filled.Upload,
-                "Export CSV",
-                exportMessage ?: "Save every fill-up to a file you choose, e.g. Downloads or Google Drive",
+                "Export fill-ups as CSV",
+                "${profile?.name ?: "This bike"}'s fill-ups, for a spreadsheet",
                 onClick = { exportTo.launch("bike-dashboard-${fileSafe(profile?.name)}-${LocalDate.now()}.csv") },
             ) { Chevron() }
             GroupDivider()
             SettingRow(
                 Icons.Filled.Download,
-                "Import CSV",
-                "Restore a backup, or load your old spreadsheet. Replaces everything in the app",
+                "Import or restore",
+                "Restore a full backup, or load fill-ups from a CSV or your old spreadsheet",
                 onClick = onImport,
             ) { Chevron() }
         }

@@ -46,14 +46,7 @@ class Settings private constructor(context: Context) {
         _ideasUnlocked.value = true
     }
 
-    private val _units = MutableStateFlow(
-        Units(
-            economy = enumOr(KEY_UNIT_ECONOMY, EconomyUnit.KM_PER_L),
-            distanceCost = enumOr(KEY_UNIT_DISTANCE_COST, DistanceCostUnit.PER_KM),
-            timeCost = enumOr(KEY_UNIT_TIME_COST, TimeCostUnit.PER_DAY),
-            price = enumOr(KEY_UNIT_PRICE, PriceUnit.SGD_PER_L),
-        ),
-    )
+    private val _units = MutableStateFlow(loadUnits())
 
     /** The unit picked for each number on the dashboard; tap a tile to change it. */
     val units: StateFlow<Units> = _units.asStateFlow()
@@ -68,6 +61,13 @@ class Settings private constructor(context: Context) {
             .putString(KEY_UNIT_PRICE, u.price.name)
             .apply()
     }
+
+    private fun loadUnits() = Units(
+        economy = enumOr(KEY_UNIT_ECONOMY, EconomyUnit.KM_PER_L),
+        distanceCost = enumOr(KEY_UNIT_DISTANCE_COST, DistanceCostUnit.PER_KM),
+        timeCost = enumOr(KEY_UNIT_TIME_COST, TimeCostUnit.PER_DAY),
+        price = enumOr(KEY_UNIT_PRICE, PriceUnit.SGD_PER_L),
+    )
 
     private inline fun <reified E : Enum<E>> enumOr(key: String, default: E): E =
         enumValues<E>().firstOrNull { it.name == prefs.getString(key, null) } ?: default
@@ -108,6 +108,40 @@ class Settings private constructor(context: Context) {
             progressStyle = ProgressStyle.entries.firstOrNull { it.name == prefs.getString(KEY_PROGRESS_STYLE, null) }
                 ?: ProgressStyle.CHAIN,
         )
+    }
+
+    /** Every saved setting, for a full backup. */
+    fun backup(): SettingsBackup = SettingsBackup(
+        prefs.all.mapNotNull { (key, value) ->
+            when (value) {
+                is Boolean -> key to "b:$value"
+                is Int -> key to "i:$value"
+                is Long -> key to "l:$value"
+                is Float -> key to "f:$value"
+                is String -> key to "s:$value"
+                else -> null
+            }
+        }.toMap(),
+    )
+
+    /** Replaces every setting with the backup's, and shows them straight away. */
+    fun restore(backup: SettingsBackup) {
+        val edit = prefs.edit().clear()
+        backup.values.forEach { (key, coded) ->
+            val value = coded.drop(2)
+            when (coded.take(2)) {
+                "b:" -> edit.putBoolean(key, value.toBoolean())
+                "i:" -> value.toIntOrNull()?.let { edit.putInt(key, it) }
+                "l:" -> value.toLongOrNull()?.let { edit.putLong(key, it) }
+                "f:" -> value.toFloatOrNull()?.let { edit.putFloat(key, it) }
+                "s:" -> edit.putString(key, value)
+            }
+        }
+        edit.commit()
+        _activeProfileId.value = prefs.getLong(KEY_ACTIVE_PROFILE, NO_PROFILE)
+        _ideasUnlocked.value = prefs.getBoolean(KEY_IDEAS_UNLOCKED, false)
+        _units.value = loadUnits()
+        _appearance.value = loadAppearance()
     }
 
     companion object {

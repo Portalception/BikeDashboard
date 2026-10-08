@@ -4,6 +4,7 @@ import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
 import java.time.LocalDate
 
 enum class Country { SG, MY, MIXED }
@@ -17,12 +18,13 @@ enum class Country { SG, MY, MIXED }
  * - Unsplit part: only for old mixed fill-ups from the spreadsheet, which recorded
  *   one total for both countries.
  */
+@Serializable
 @Entity(tableName = "fill_ups", indices = [Index("date"), Index("profileId")])
 data class FillUp(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     /** The bike this fill-up belongs to. Fill-ups from before profiles existed belong to profile 1. */
     @ColumnInfo(defaultValue = "1") val profileId: Long = 1,
-    val date: LocalDate,
+    @Serializable(with = LocalDateSerializer::class) val date: LocalDate,
     val country: Country,
     val odometerKm: Int,
 

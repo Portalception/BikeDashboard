@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.astheral.bikedashboard.data.ideasFile
 import com.astheral.bikedashboard.ui.components.AccentChip
 import com.astheral.bikedashboard.ui.components.NumberFont
 import kotlinx.coroutines.Dispatchers
@@ -47,11 +48,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
 
 /** The notebook is a plain text file in the app's own storage, saved shortly after you stop typing. */
 class IdeasViewModel(application: Application) : AndroidViewModel(application) {
-    private val file = File(application.filesDir, "ideas.txt")
+    private val file = ideasFile(application)
     private var pendingSave: Job? = null
 
     private val _text = MutableStateFlow<String?>(null)

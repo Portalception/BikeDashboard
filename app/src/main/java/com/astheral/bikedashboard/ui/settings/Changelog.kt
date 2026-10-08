@@ -7,6 +7,14 @@ data class Release(val version: String, val date: LocalDate, val changes: List<S
 /** Major changes in each version, newest first. Add an entry here with every version you share. */
 val CHANGELOG = listOf(
     Release(
+        version = "0.3.8",
+        date = LocalDate.of(2026, 10, 9),
+        changes = listOf(
+            "Back up everything to one file (Settings > Backup): every bike with its fill-ups and details, your personalisation and units, and the ideas notebook. Restore it from Import or restore.",
+            "Export fill-ups as CSV is still there for spreadsheets.",
+        ),
+    ),
+    Release(
         version = "0.3.7",
         date = LocalDate.of(2026, 10, 8),
         changes = listOf(

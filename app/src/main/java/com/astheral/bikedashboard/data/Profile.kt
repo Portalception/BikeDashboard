@@ -10,6 +10,7 @@ import androidx.room.Transaction
 import androidx.room.Update
 import com.astheral.bikedashboard.calc.DEFAULT_TRIP_KM
 import kotlinx.coroutines.flow.Flow
+import kotlinx.serialization.Serializable
 
 enum class ProfileKind(val label: String) { OWN("Own bike"), RENTAL("Rental") }
 
@@ -17,6 +18,7 @@ enum class ProfileKind(val label: String) { OWN("Own bike"), RENTAL("Rental") }
 const val DEFAULT_TANK_LITRES = 14.0
 
 /** A bike whose fill-ups are tracked separately: your own, or a rental. */
+@Serializable
 @Entity(tableName = "profiles")
 data class Profile(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,

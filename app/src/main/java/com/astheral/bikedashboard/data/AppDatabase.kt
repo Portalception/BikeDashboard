@@ -61,6 +61,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun fillUpDao(): FillUpDao
     abstract fun profileDao(): ProfileDao
     abstract fun bikeDetailsDao(): BikeDetailsDao
+    abstract fun backupDao(): BackupDao
 
     companion object {
         @Volatile

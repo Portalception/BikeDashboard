@@ -6,12 +6,14 @@ import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
+import kotlinx.serialization.Serializable
 import java.time.LocalDate
 
 /**
  * Paperwork for one bike, as kept on the spreadsheet's dashboard: what it is, what it cost,
  * and when the COE, road tax, inspection and insurance run out. Everything is optional.
  */
+@Serializable
 @Entity(tableName = "bike_details")
 data class BikeDetails(
     @PrimaryKey val profileId: Long,
@@ -30,11 +32,11 @@ data class BikeDetails(
     /** The odometer reading when you got the bike, so you can see how far you've ridden it. */
     val startOdometerKm: Int? = null,
 
-    val coeExpiry: LocalDate? = null,
+    @Serializable(with = LocalDateSerializer::class) val coeExpiry: LocalDate? = null,
     val coeNumber: String? = null,
-    val roadTaxExpiry: LocalDate? = null,
-    val inspectionExpiry: LocalDate? = null,
-    val insuranceExpiry: LocalDate? = null,
+    @Serializable(with = LocalDateSerializer::class) val roadTaxExpiry: LocalDate? = null,
+    @Serializable(with = LocalDateSerializer::class) val inspectionExpiry: LocalDate? = null,
+    @Serializable(with = LocalDateSerializer::class) val insuranceExpiry: LocalDate? = null,
     val insurancePolicy: String? = null,
 
     val notes: String? = null,

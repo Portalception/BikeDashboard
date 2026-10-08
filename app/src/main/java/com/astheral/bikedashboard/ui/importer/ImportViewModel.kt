@@ -15,7 +15,12 @@ import com.astheral.bikedashboard.csv.readSpreadsheet
 import com.astheral.bikedashboard.data.AppDatabase
 import com.astheral.bikedashboard.data.Country
 import com.astheral.bikedashboard.data.FillUp
+import com.astheral.bikedashboard.data.Backups
+import com.astheral.bikedashboard.data.FullBackup
 import com.astheral.bikedashboard.data.Profiles
+import com.astheral.bikedashboard.data.looksLikeFullBackup
+import com.astheral.bikedashboard.data.readFullBackup
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -42,8 +47,16 @@ sealed interface ImportState {
         /** True for the app's own backup format, which needs no check against a spreadsheet. */
         val isBackup: Boolean = false,
     ) : ImportState
+    /** A full backup: restoring it replaces every bike and setting. */
+    data class FullPreview(
+        val fileName: String,
+        val backup: FullBackup,
+        val fillUpCount: Int,
+        val existingBikes: Int,
+        val existingFillUps: Int,
+    ) : ImportState
     data object Saving : ImportState
-    data class Done(val count: Int) : ImportState
+    data class Done(val count: Int, val restoredAll: Boolean = false) : ImportState
     data class Failed(val message: String, val problems: List<SheetProblem> = emptyList()) : ImportState
 }
 
@@ -68,6 +81,7 @@ class ImportViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     private suspend fun preview(fileName: String, text: String): ImportState {
+        if (looksLikeFullBackup(text)) return fullPreview(fileName, text)
         if (looksLikeBackup(text)) return backupPreview(fileName, text)
         if (!looksLikeSpreadsheet(text)) {
             return ImportState.Failed(
@@ -109,6 +123,32 @@ class ImportViewModel(application: Application) : AndroidViewModel(application) 
             profileName = profiles.activeNow()?.name.orEmpty(),
             isBackup = true,
         )
+    }
+
+    private suspend fun fullPreview(fileName: String, text: String): ImportState {
+        val backup = try {
+            withContext(Dispatchers.Default) { readFullBackup(text) }
+        } catch (e: IllegalArgumentException) {
+            return ImportState.Failed(e.message ?: "Couldn't read the backup.")
+        }
+        val bikes = profiles.all.first()
+        return ImportState.FullPreview(
+            fileName = fileName,
+            backup = backup,
+            fillUpCount = backup.bikes.sumOf { it.fillUps.size },
+            existingBikes = bikes.size,
+            existingFillUps = bikes.sumOf { dao.getAll(it.id).size },
+        )
+    }
+
+    /** Replaces every bike, setting and the ideas notebook with the backup's. */
+    fun confirmFull() {
+        val preview = _state.value as? ImportState.FullPreview ?: return
+        _state.value = ImportState.Saving
+        viewModelScope.launch {
+            Backups(getApplication()).restore(preview.backup)
+            _state.value = ImportState.Done(preview.fillUpCount, restoredAll = true)
+        }
     }
 
     /** Replaces everything in the app with the previewed fill-ups. */

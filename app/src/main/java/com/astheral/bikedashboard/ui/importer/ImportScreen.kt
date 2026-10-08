@@ -44,7 +44,7 @@ import java.util.Locale
 /** File types a CSV can show up as, depending on where it was saved from. */
 private val CSV_TYPES = arrayOf(
     "text/csv", "text/comma-separated-values", "application/csv",
-    "application/vnd.ms-excel", "text/plain", "text/*",
+    "application/vnd.ms-excel", "text/plain", "text/*", "application/json", "application/octet-stream",
 )
 
 private val DATE = DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH)
@@ -62,7 +62,7 @@ fun ImportScreen(onBack: () -> Unit, viewModel: ImportViewModel = viewModel()) {
         topBar = {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
-                title = { Text("Import CSV", fontWeight = FontWeight.SemiBold) },
+                title = { Text("Import or restore", fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
                 },
@@ -80,10 +80,10 @@ fun ImportScreen(onBack: () -> Unit, viewModel: ImportViewModel = viewModel()) {
             when (val s = state) {
                 ImportState.Idle -> {
                     Text(
-                        "Choose a Bike Dashboard backup, or the CSV exported from your fuel spreadsheet. " +
-                            "You'll see a preview before anything is saved.",
+                        "Choose a full Bike Dashboard backup (.json), a fill-up CSV, or the CSV exported from your fuel " +
+                            "spreadsheet. You'll see a preview before anything is saved.",
                     )
-                    Button(onClick = { pickFile.launch(CSV_TYPES) }) { Text("Choose CSV file") }
+                    Button(onClick = { pickFile.launch(CSV_TYPES) }) { Text("Choose file") }
                 }
                 ImportState.Reading, ImportState.Saving -> CircularProgressIndicator()
                 is ImportState.Preview -> Preview(
@@ -91,8 +91,13 @@ fun ImportScreen(onBack: () -> Unit, viewModel: ImportViewModel = viewModel()) {
                     onConfirm = viewModel::confirm,
                     onCancel = viewModel::reset,
                 )
+                is ImportState.FullPreview -> FullPreview(s, onConfirm = viewModel::confirmFull, onCancel = viewModel::reset)
                 is ImportState.Done -> {
-                    Text("Imported ${s.count} fill-ups.", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        if (s.restoredAll) "Restored everything: ${s.count} fill-ups, your bikes, settings and ideas."
+                        else "Imported ${s.count} fill-ups.",
+                        style = MaterialTheme.typography.titleMedium,
+                    )
                     Button(onClick = onBack) { Text("Done") }
                 }
                 is ImportState.Failed -> {
@@ -102,6 +107,41 @@ fun ImportScreen(onBack: () -> Unit, viewModel: ImportViewModel = viewModel()) {
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun FullPreview(s: ImportState.FullPreview, onConfirm: () -> Unit, onCancel: () -> Unit) {
+    val b = s.backup
+    GroupCard(contentPadding = 20.dp, edge = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.5f)) {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(s.fileName, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            CountUpText(b.bikes.size.toDouble(), { if (it.toInt() == 1) "1 bike" else "${it.toInt()} bikes" }, style = MaterialTheme.typography.headlineSmall)
+            b.bikes.forEach { bike -> Text("${bike.profile.name} · ${bike.fillUps.size} fill-ups") }
+            Text(
+                listOfNotNull(
+                    "settings",
+                    if (b.ideas.isNotBlank()) "ideas notebook" else null,
+                    if (b.bikes.any { it.details != null }) "bike details" else null,
+                ).joinToString(", ", prefix = "Also: "),
+            )
+            if (b.exportedAt.isNotEmpty()) {
+                Text(
+                    "Backed up ${b.exportedAt.replace('T', ' ')}" + if (b.appVersion.isNotEmpty()) " · version ${b.appVersion}" else "",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+    Text(
+        "Restoring replaces everything in the app: your ${s.existingBikes} ${if (s.existingBikes == 1) "bike" else "bikes"} " +
+            "and ${s.existingFillUps} fill-ups, your personalisation and the ideas notebook.",
+        color = MaterialTheme.colorScheme.error,
+    )
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedButton(onClick = onCancel) { Text("Cancel") }
+        Button(onClick = onConfirm) { Text("Restore everything") }
     }
 }
 
