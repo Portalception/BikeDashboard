@@ -51,7 +51,19 @@ import com.astheral.bikedashboard.calc.summarizeDashboard
 import com.astheral.bikedashboard.calc.DEFAULT_TRIP_KM
 import com.astheral.bikedashboard.data.FillUp
 import com.astheral.bikedashboard.data.Profile
+import com.astheral.bikedashboard.data.AppDatabase
+import com.astheral.bikedashboard.data.DueLevel
+import com.astheral.bikedashboard.data.IntervalStatus
 import com.astheral.bikedashboard.data.Settings
+import com.astheral.bikedashboard.data.currentOdometer
+import com.astheral.bikedashboard.data.withDefaults
+import com.astheral.bikedashboard.ui.service.DueRow
+import com.astheral.bikedashboard.ui.service.dueList
+import com.astheral.bikedashboard.ui.service.levelColor
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import com.astheral.bikedashboard.ui.DisplayUnit
 import com.astheral.bikedashboard.ui.Units
 import com.astheral.bikedashboard.ui.next
@@ -106,6 +118,8 @@ data class DashboardData(
     val today: LocalDate,
     /** The last exchange rate entered, for showing prices in ringgit. */
     val rmPerSgd: Double?,
+    /** Service intervals that are due soon or overdue, most urgent first. */
+    val due: List<IntervalStatus> = emptyList(),
 )
 
 private fun recent(stats: List<FillUpStats>, value: (FillUpStats) -> Double?) =
@@ -117,9 +131,22 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun updateUnits(change: (Units) -> Units) = settings.updateUnits(change)
 
+    private val db = AppDatabase.get(application)
+
     /** Null while loading. */
+    @OptIn(ExperimentalCoroutinesApi::class)
     val data: StateFlow<DashboardData?> =
-        Profiles.get(application).activeFillUps.map { (profile, all) ->
+        Profiles.get(application).activeFillUps.flatMapLatest { (profile, all) ->
+            if (profile == null) {
+                flowOf(Triple(profile, all, emptyList<IntervalStatus>()))
+            } else {
+                combine(db.serviceDao().observe(profile.id), db.intervalDao().observe(profile.id)) { records, saved ->
+                    val due = dueList(withDefaults(profile.id, saved), records, currentOdometer(all, records))
+                        .filter { it.level == DueLevel.SOON || it.level == DueLevel.OVERDUE }
+                    Triple(profile, all, due)
+                }
+            }
+        }.map { (profile, all, due) ->
             val today = LocalDate.now()
             val stats = computeStats(all, profile?.tripKm ?: DEFAULT_TRIP_KM)
             val gaps = stats.mapNotNull { it.days }.filter { it > 0 }.sorted()
@@ -145,6 +172,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                 usualDays = gaps.getOrNull(gaps.size / 2), // median, so the odd long break doesn't skew it
                 today = today,
                 rmPerSgd = stats.lastOrNull { it.fillUp.rmPerSgd != null }?.fillUp?.rmPerSgd,
+                due = due,
             )
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 }
@@ -173,6 +201,7 @@ fun DashboardScreen(
     onProfileClick: () -> Unit,
     onAddFillUp: () -> Unit,
     onImport: () -> Unit,
+    onOpenServicing: () -> Unit,
     viewModel: DashboardViewModel = viewModel(),
 ) {
     val data by viewModel.data.collectAsState()
@@ -195,6 +224,11 @@ fun DashboardScreen(
             Box(edges) { Empty(onAddFillUp, onImport) }
         } else {
             Header(d, units, profile, onProfileClick, edges)
+            if (d.due.isNotEmpty()) {
+                GroupCard(edges, contentPadding = 16.dp, edge = d.due.first().levelColor().copy(alpha = 0.6f), onClick = onOpenServicing) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { d.due.forEach { DueRow(it) } }
+                }
+            }
             PillTabs(
                 Period.entries.map { null to it.label },
                 selected = pager.currentPage,

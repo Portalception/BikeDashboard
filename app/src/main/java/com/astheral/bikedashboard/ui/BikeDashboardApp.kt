@@ -42,6 +42,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -52,6 +53,7 @@ import com.astheral.bikedashboard.ui.profile.ProfileSetupScreen
 import com.astheral.bikedashboard.ui.profile.ProfileSwitcherSheet
 import com.astheral.bikedashboard.ui.profile.ProfilesViewModel
 import com.astheral.bikedashboard.ui.details.BikeDetailsScreen
+import com.astheral.bikedashboard.ui.service.IntervalsScreen
 import com.astheral.bikedashboard.ui.service.ServiceEditScreen
 import com.astheral.bikedashboard.ui.service.ServicingScreen
 import com.astheral.bikedashboard.ui.settings.IdeasScreen
@@ -89,6 +91,7 @@ import kotlinx.serialization.Serializable
 @Serializable object PersonalisationRoute
 @Serializable object BikeDetailsRoute
 @Serializable object ServicingRoute
+@Serializable object IntervalsRoute
 
 /** Add a service record when [id] is 0, otherwise edit that one. */
 @Serializable data class ServiceEditRoute(val id: Long = 0)
@@ -151,8 +154,13 @@ private fun AnimatedContentTransitionScope<NavBackStackEntry>.backEnter(): Enter
 private fun AnimatedContentTransitionScope<NavBackStackEntry>.backExit(): ExitTransition =
     if (initialState.destination.isOverlay()) slideOutOfContainer(SlideDirection.Down, tween(SLIDE_MS)) else tabExit()
 
+/** [openServicingFor] opens that bike's servicing page, e.g. after tapping a reminder. */
 @Composable
-fun BikeDashboardApp(profilesViewModel: ProfilesViewModel = viewModel()) {
+fun BikeDashboardApp(
+    openServicingFor: Long? = null,
+    onOpenedServicing: () -> Unit = {},
+    profilesViewModel: ProfilesViewModel = viewModel(),
+) {
     val profiles by profilesViewModel.state.collectAsState()
     val all = profiles.all ?: return // still loading
     if (all.isEmpty()) {
@@ -167,6 +175,14 @@ fun BikeDashboardApp(profilesViewModel: ProfilesViewModel = viewModel()) {
     val backStack by nav.currentBackStackEntryAsState()
     val destination = backStack?.destination
     val showTabs = tabs.any { tab -> destination?.hasRoute(tab.route::class) == true }
+    LaunchedEffect(openServicingFor) {
+        val id = openServicingFor ?: return@LaunchedEffect
+        if (all.any { it.id == id }) {
+            profilesViewModel.switchTo(id)
+            nav.navigate(ServicingRoute) { launchSingleTop = true }
+        }
+        onOpenedServicing()
+    }
 
     AppBackground {
         Scaffold(
@@ -209,6 +225,7 @@ fun BikeDashboardApp(profilesViewModel: ProfilesViewModel = viewModel()) {
                         onProfileClick = openSwitcher,
                         onAddFillUp = { nav.navigate(EditRoute()) },
                         onImport = { nav.navigate(ImportRoute) },
+                        onOpenServicing = { nav.navigate(ServicingRoute) },
                     )
                 }
                 composable<HistoryRoute> { entry ->
@@ -231,6 +248,7 @@ fun BikeDashboardApp(profilesViewModel: ProfilesViewModel = viewModel()) {
                         onOpenPersonalisation = { nav.navigate(PersonalisationRoute) },
                         onOpenDetails = { nav.navigate(BikeDetailsRoute) },
                         onOpenServicing = { nav.navigate(ServicingRoute) },
+                        onOpenIntervals = { nav.navigate(IntervalsRoute) },
                     )
                 }
                 composable<ProfileSetupRoute>(
@@ -268,8 +286,15 @@ fun BikeDashboardApp(profilesViewModel: ProfilesViewModel = viewModel()) {
                             onBack = { nav.popBackStack() },
                             onAdd = { nav.navigate(ServiceEditRoute()) },
                             onOpen = { id -> nav.navigate(ServiceEditRoute(id)) },
+                            onOpenIntervals = { nav.navigate(IntervalsRoute) },
                         )
                     }
+                }
+                composable<IntervalsRoute>(
+                    enterTransition = { slideIntoContainer(SlideDirection.Up, tween(SLIDE_MS)) },
+                    popExitTransition = { slideOutOfContainer(SlideDirection.Down, tween(SLIDE_MS)) },
+                ) {
+                    AppBackground { IntervalsScreen(onBack = { nav.popBackStack() }) }
                 }
                 composable<ServiceEditRoute>(
                     enterTransition = { slideIntoContainer(SlideDirection.Up, tween(SLIDE_MS)) },

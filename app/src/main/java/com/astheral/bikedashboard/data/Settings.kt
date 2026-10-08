@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import com.astheral.bikedashboard.calc.DEFAULT_TRIP_KM
+import com.astheral.bikedashboard.reminders.ReminderFrequency
 import com.astheral.bikedashboard.ui.DistanceCostUnit
 import com.astheral.bikedashboard.ui.EconomyUnit
 import com.astheral.bikedashboard.ui.PriceUnit
@@ -71,6 +72,22 @@ class Settings private constructor(context: Context) {
 
     private inline fun <reified E : Enum<E>> enumOr(key: String, default: E): E =
         enumValues<E>().firstOrNull { it.name == prefs.getString(key, null) } ?: default
+
+    private val _reminderFrequency = MutableStateFlow(enumOr(KEY_REMINDER_FREQUENCY, ReminderFrequency.WEEKLY))
+
+    /** How often to repeat a service reminder once it's due soon. */
+    val reminderFrequency: StateFlow<ReminderFrequency> = _reminderFrequency.asStateFlow()
+
+    private val _reminderHour = MutableStateFlow(prefs.getInt(KEY_REMINDER_HOUR, 9))
+
+    /** The hour of the day reminders arrive, 0–23. */
+    val reminderHour: StateFlow<Int> = _reminderHour.asStateFlow()
+
+    fun setReminders(frequency: ReminderFrequency = _reminderFrequency.value, hour: Int = _reminderHour.value) {
+        prefs.edit().putString(KEY_REMINDER_FREQUENCY, frequency.name).putInt(KEY_REMINDER_HOUR, hour).apply()
+        _reminderFrequency.value = frequency
+        _reminderHour.value = hour
+    }
 
     private val _appearance = MutableStateFlow(loadAppearance())
     val appearance: StateFlow<AppearanceSettings> = _appearance.asStateFlow()
@@ -142,6 +159,8 @@ class Settings private constructor(context: Context) {
         _ideasUnlocked.value = prefs.getBoolean(KEY_IDEAS_UNLOCKED, false)
         _units.value = loadUnits()
         _appearance.value = loadAppearance()
+        _reminderFrequency.value = enumOr(KEY_REMINDER_FREQUENCY, ReminderFrequency.WEEKLY)
+        _reminderHour.value = prefs.getInt(KEY_REMINDER_HOUR, 9)
     }
 
     companion object {
@@ -160,6 +179,8 @@ class Settings private constructor(context: Context) {
         private const val KEY_UNIT_DISTANCE_COST = "unit_distance_cost"
         private const val KEY_UNIT_TIME_COST = "unit_time_cost"
         private const val KEY_UNIT_PRICE = "unit_price"
+        private const val KEY_REMINDER_FREQUENCY = "reminder_frequency"
+        private const val KEY_REMINDER_HOUR = "reminder_hour"
 
         @Volatile
         private var instance: Settings? = null

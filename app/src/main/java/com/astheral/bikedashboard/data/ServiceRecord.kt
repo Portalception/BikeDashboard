@@ -50,6 +50,10 @@ data class ServiceRecord(
     val currency: Currency = Currency.SGD,
 )
 
+/** The highest odometer reading among fill-ups and services, i.e. roughly where the bike is now. */
+fun currentOdometer(fillUps: List<FillUp>, records: List<ServiceRecord>): Int? =
+    (fillUps.map { it.odometerKm } + records.mapNotNull { it.odometerKm }).maxOrNull()
+
 @Dao
 interface ServiceDao {
     /** Newest first. */

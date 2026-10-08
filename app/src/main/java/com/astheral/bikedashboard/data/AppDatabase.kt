@@ -52,12 +52,12 @@ fun migration1To2(tripKm: Double) = object : Migration(1, 2) {
 
 /**
  * Version 3 adds each bike's paperwork (plate, chassis number, expiry dates …) in its own table,
- * and version 4 its servicing records.
+ * version 4 its servicing records and version 5 its service intervals.
  */
 @Database(
-    entities = [FillUp::class, Profile::class, BikeDetails::class, ServiceRecord::class],
-    version = 4,
-    autoMigrations = [AutoMigration(from = 2, to = 3), AutoMigration(from = 3, to = 4)],
+    entities = [FillUp::class, Profile::class, BikeDetails::class, ServiceRecord::class, ServiceInterval::class],
+    version = 5,
+    autoMigrations = [AutoMigration(from = 2, to = 3), AutoMigration(from = 3, to = 4), AutoMigration(from = 4, to = 5)],
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
@@ -66,6 +66,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun bikeDetailsDao(): BikeDetailsDao
     abstract fun backupDao(): BackupDao
     abstract fun serviceDao(): ServiceDao
+    abstract fun intervalDao(): IntervalDao
 
     companion object {
         @Volatile

@@ -7,6 +7,15 @@ data class Release(val version: String, val date: LocalDate, val changes: List<S
 /** Major changes in each version, newest first. Add an entry here with every version you share. */
 val CHANGELOG = listOf(
     Release(
+        version = "0.3.10",
+        date = LocalDate.of(2026, 10, 9),
+        changes = listOf(
+            "Service intervals for each bike (Settings > Bike > Service intervals): engine oil, minor and major servicing, fluids and washes, each every so many km or days, with a warning window before it's due. Oil starts at every 5,000 km, like your spreadsheet.",
+            "Reminders (Settings > Reminders): once something is coming up you get a notification, then again daily or weekly at the time you pick, until you add a new record.",
+            "Coming-up services show on the dashboard and at the top of the Servicing page.",
+        ),
+    ),
+    Release(
         version = "0.3.9",
         date = LocalDate.of(2026, 10, 9),
         changes = listOf(

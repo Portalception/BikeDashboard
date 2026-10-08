@@ -5,6 +5,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Transaction
+import com.astheral.bikedashboard.reminders.Reminders
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
@@ -38,6 +39,8 @@ data class BikeBackup(
     val details: BikeDetails? = null,
     val fillUps: List<FillUp> = emptyList(),
     val services: List<ServiceRecord> = emptyList(),
+    /** Only intervals that were changed from the defaults. */
+    val intervals: List<ServiceInterval> = emptyList(),
 )
 
 /**
@@ -95,6 +98,15 @@ interface BackupDao {
     @Query("SELECT * FROM service_records ORDER BY date, id")
     suspend fun services(): List<ServiceRecord>
 
+    @Query("SELECT * FROM service_intervals")
+    suspend fun intervals(): List<ServiceInterval>
+
+    @Query("DELETE FROM service_intervals")
+    suspend fun clearIntervals()
+
+    @Insert
+    suspend fun insertIntervals(intervals: List<ServiceInterval>)
+
     @Query("DELETE FROM service_records")
     suspend fun clearServices()
 
@@ -125,11 +137,13 @@ interface BackupDao {
         clearFillUps()
         clearDetails()
         clearServices()
+        clearIntervals()
         clearProfiles()
         insertProfiles(bikes.map { it.profile })
         insertDetails(bikes.mapNotNull { b -> b.details?.copy(profileId = b.profile.id) })
         insertFillUps(bikes.flatMap { b -> b.fillUps.map { it.copy(id = 0, profileId = b.profile.id) } })
         insertServices(bikes.flatMap { b -> b.services.map { it.copy(id = 0, profileId = b.profile.id) } })
+        insertIntervals(bikes.flatMap { b -> b.intervals.map { it.copy(profileId = b.profile.id) } })
     }
 }
 
@@ -145,13 +159,16 @@ class Backups(private val context: Context) {
         val fillUps = dao.fillUps().groupBy { it.profileId }
         val details = dao.details().associateBy { it.profileId }
         val services = dao.services().groupBy { it.profileId }
+        val intervals = dao.intervals().groupBy { it.profileId }
         val ideas = ideasFile(context).takeIf { it.exists() }?.readText().orEmpty()
         return FullBackup(
             exportedAt = java.time.LocalDateTime.now().withNano(0).toString(),
             appVersion = appVersion,
             settings = settings.backup(),
             ideas = ideas,
-            bikes = dao.profiles().map { p -> BikeBackup(p, details[p.id], fillUps[p.id].orEmpty(), services[p.id].orEmpty()) },
+            bikes = dao.profiles().map { p ->
+                BikeBackup(p, details[p.id], fillUps[p.id].orEmpty(), services[p.id].orEmpty(), intervals[p.id].orEmpty())
+            },
         )
     }
 
@@ -159,5 +176,6 @@ class Backups(private val context: Context) {
         dao.replaceEverything(backup.bikes)
         settings.restore(backup.settings)
         ideasFile(context).writeText(backup.ideas)
+        Reminders.schedule(context)
     }
 }

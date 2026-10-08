@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -107,6 +108,7 @@ fun ServicingScreen(
     onBack: () -> Unit,
     onAdd: () -> Unit,
     onOpen: (Long) -> Unit,
+    onOpenIntervals: () -> Unit,
     viewModel: ServicingViewModel = viewModel(),
 ) {
     val state by viewModel.state.collectAsState()
@@ -161,6 +163,15 @@ fun ServicingScreen(
                 }
             }
         } else {
+            if (s.due.isNotEmpty()) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    SectionHeader(Icons.Filled.NotificationsActive, "Coming up", Modifier.weight(1f).padding(top = 0.dp))
+                    TextButton(onClick = onOpenIntervals) { Text("Intervals") }
+                }
+                GroupCard(contentPadding = 16.dp, onClick = onOpenIntervals) {
+                    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) { s.due.forEach { DueRow(it) } }
+                }
+            }
             SectionHeader(Icons.Filled.History, "Since last", Modifier.padding(top = 0.dp))
             TRACKED.chunked(2).forEach { pair ->
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {

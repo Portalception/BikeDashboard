@@ -1,14 +1,29 @@
 package com.astheral.bikedashboard.ui.settings
 
+import android.Manifest
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.Alignment
 import android.app.Application
+import android.os.Build
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.NotificationsOff
+import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.filled.Today
+import com.astheral.bikedashboard.reminders.REMINDER_HOURS
+import com.astheral.bikedashboard.reminders.ReminderFrequency
+import com.astheral.bikedashboard.reminders.Reminders
+import com.astheral.bikedashboard.reminders.hourLabel
+import com.astheral.bikedashboard.ui.components.ChoiceTile
+import com.astheral.bikedashboard.ui.components.PillTabs
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -93,6 +108,16 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val _exportMessage = MutableStateFlow<String?>(null)
     val exportMessage: StateFlow<String?> = _exportMessage.asStateFlow()
 
+    val reminderFrequency: StateFlow<ReminderFrequency> = settings.reminderFrequency
+    val reminderHour: StateFlow<Int> = settings.reminderHour
+
+    fun setReminders(frequency: ReminderFrequency = reminderFrequency.value, hour: Int = reminderHour.value) {
+        settings.setReminders(frequency, hour)
+        Reminders.schedule(getApplication())
+        // Check straight away, so something already due shows up now rather than tomorrow.
+        viewModelScope.launch(Dispatchers.IO) { Reminders.check(getApplication()) }
+    }
+
     fun setTripKm(km: Double) {
         val p = profile.value ?: return
         viewModelScope.launch { profiles.update(p.copy(tripKm = km)) }
@@ -148,6 +173,7 @@ fun SettingsScreen(
     onOpenPersonalisation: () -> Unit,
     onOpenDetails: () -> Unit,
     onOpenServicing: () -> Unit,
+    onOpenIntervals: () -> Unit,
     viewModel: SettingsViewModel = viewModel(),
 ) {
     val ideasUnlocked by viewModel.ideasUnlocked.collectAsState()
@@ -199,6 +225,13 @@ fun SettingsScreen(
                     onClick = onOpenServicing,
                 ) { Chevron() }
                 GroupDivider()
+                SettingRow(
+                    Icons.Filled.Timer,
+                    "Service intervals",
+                    "When oil changes and services are due, and when to start reminding you",
+                    onClick = onOpenIntervals,
+                ) { Chevron() }
+                GroupDivider()
             }
             SettingRow(Icons.Filled.SwapHoriz, "Switch or add a bike", "Your other bikes, or a rental", onClick = onProfileClick) { Chevron() }
         }
@@ -212,6 +245,9 @@ fun SettingsScreen(
                 onClick = onOpenPersonalisation,
             ) { Chevron() }
         }
+
+        SectionHeader(Icons.Filled.Notifications, "Reminders")
+        RemindersCard(viewModel)
 
         SectionHeader(Icons.Filled.Route, "Savings offset")
         GroupCard(contentPadding = 16.dp) { TripKmField(tripKm, viewModel::setTripKm, profile?.name) }
@@ -242,6 +278,77 @@ fun SettingsScreen(
 
         SectionHeader(Icons.Filled.Info, "About")
         GroupCard { AboutCard(ideasUnlocked, onFound = viewModel::unlockIdeas, onOpenIdeas = onOpenIdeas) }
+    }
+}
+
+/**
+ * Off, daily or weekly reminders once a service is coming up, and the time they arrive.
+ * Android 13+ asks for permission to show notifications the first time they're turned on.
+ */
+@Composable
+private fun RemindersCard(viewModel: SettingsViewModel) {
+    val frequency by viewModel.reminderFrequency.collectAsState()
+    val hour by viewModel.reminderHour.collectAsState()
+    val context = LocalContext.current
+    var allowed by remember { mutableStateOf(Reminders.allowed(context)) }
+    var refused by remember { mutableStateOf(false) }
+    var wanted by remember { mutableStateOf<ReminderFrequency?>(null) }
+    val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        wanted?.let { viewModel.setReminders(it) }
+        allowed = Reminders.allowed(context)
+        refused = !granted
+        wanted = null
+    }
+    val askable = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+    GroupCard(contentPadding = 16.dp) {
+        Text(
+            "Once an oil change or service is coming up, remind me:",
+            Modifier.padding(start = 4.dp, bottom = 10.dp),
+            style = MaterialTheme.typography.titleSmall,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            val icons = mapOf(
+                ReminderFrequency.OFF to Icons.Filled.NotificationsOff,
+                ReminderFrequency.DAILY to Icons.Filled.Today,
+                ReminderFrequency.WEEKLY to Icons.Filled.DateRange,
+            )
+            ReminderFrequency.entries.forEach { f ->
+                ChoiceTile(icons.getValue(f), f.label, frequency == f, {
+                    if (f != ReminderFrequency.OFF && askable && !allowed) {
+                        wanted = f
+                        ask.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    } else {
+                        viewModel.setReminders(f)
+                    }
+                }, Modifier.weight(1f))
+            }
+        }
+        AnimatedVisibility(frequency != ReminderFrequency.OFF) {
+            Column {
+                Text(
+                    "At",
+                    Modifier.padding(start = 4.dp, top = 16.dp, bottom = 10.dp),
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                PillTabs(REMINDER_HOURS.map { null to hourLabel(it) }, REMINDER_HOURS.indexOf(hour).coerceAtLeast(0), { i ->
+                    viewModel.setReminders(hour = REMINDER_HOURS[i])
+                })
+            }
+        }
+        if (frequency != ReminderFrequency.OFF && !allowed) {
+            Row(Modifier.padding(start = 4.dp, top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    if (refused || !askable) "Notifications are off for Bike Dashboard. Turn them on in your phone's settings to get reminders."
+                    else "Allow notifications to get reminders.",
+                    Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+                if (askable && !refused) {
+                    TextButton(onClick = { wanted = frequency; ask.launch(Manifest.permission.POST_NOTIFICATIONS) }) { Text("Allow") }
+                }
+            }
+        }
     }
 }
 

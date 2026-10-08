@@ -10,7 +10,13 @@ import com.astheral.bikedashboard.csv.looksLikeServiceSheet
 import com.astheral.bikedashboard.csv.readServiceSheet
 import com.astheral.bikedashboard.data.AppDatabase
 import com.astheral.bikedashboard.data.Currency
-import com.astheral.bikedashboard.data.FillUp
+import com.astheral.bikedashboard.data.DueLevel
+import com.astheral.bikedashboard.data.IntervalStatus
+import com.astheral.bikedashboard.data.ServiceInterval
+import com.astheral.bikedashboard.data.currentOdometer
+import com.astheral.bikedashboard.data.status
+import com.astheral.bikedashboard.data.withDefaults
+import java.time.LocalDate
 import com.astheral.bikedashboard.data.Profile
 import com.astheral.bikedashboard.data.Profiles
 import com.astheral.bikedashboard.data.ServiceRecord
@@ -37,6 +43,8 @@ data class ServicingState(
     val odometerKm: Int?,
     /** The last exchange rate entered, for adding ringgit costs to SGD totals. */
     val rmPerSgd: Double?,
+    /** Each switched-on interval and how close it is to being due, most urgent first. */
+    val due: List<IntervalStatus> = emptyList(),
 ) {
     fun last(type: ServiceType): ServiceRecord? = records.firstOrNull { it.type == type }
 
@@ -47,9 +55,11 @@ data class ServicingState(
     }
 }
 
-/** The highest odometer reading among fill-ups and services, i.e. roughly where the bike is now. */
-fun currentOdometer(fillUps: List<FillUp>, records: List<ServiceRecord>): Int? =
-    (fillUps.map { it.odometerKm } + records.mapNotNull { it.odometerKm }).maxOrNull()
+/** Switched-on intervals, most urgent first; ones that can't be worked out yet go last. */
+fun dueList(intervals: List<ServiceInterval>, records: List<ServiceRecord>, odometer: Int?, today: LocalDate = LocalDate.now()) =
+    intervals.filter { it.enabled }
+        .map { status(it, records, odometer, today) }
+        .sortedWith(compareBy({ it.level == DueLevel.UNKNOWN }, { -it.used }))
 
 /** A spreadsheet import waiting for you to confirm. */
 data class PendingServiceImport(
@@ -68,12 +78,14 @@ class ServicingViewModel(application: Application) : AndroidViewModel(applicatio
         if (profile == null) {
             flowOf(null)
         } else {
-            combine(services.observe(profile.id), db.fillUpDao().observeAll(profile.id)) { records, fills ->
+            combine(services.observe(profile.id), db.fillUpDao().observeAll(profile.id), db.intervalDao().observe(profile.id)) { records, fills, saved ->
+                val odometer = currentOdometer(fills, records)
                 ServicingState(
                     profile = profile,
                     records = records,
-                    odometerKm = currentOdometer(fills, records),
+                    odometerKm = odometer,
                     rmPerSgd = fills.lastOrNull { it.rmPerSgd != null }?.rmPerSgd,
+                    due = dueList(withDefaults(profile.id, saved), records, odometer),
                 )
             }
         }

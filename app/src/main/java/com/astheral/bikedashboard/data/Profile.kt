@@ -61,12 +61,16 @@ interface ProfileDao {
     @Query("DELETE FROM service_records WHERE profileId = :profileId")
     suspend fun deleteServices(profileId: Long)
 
+    @Query("DELETE FROM service_intervals WHERE profileId = :profileId")
+    suspend fun deleteIntervals(profileId: Long)
+
     /** Removes the bike and everything kept for it together. */
     @Transaction
     suspend fun deleteWithFillUps(profile: Profile) {
         deleteFillUps(profile.id)
         deleteDetails(profile.id)
         deleteServices(profile.id)
+        deleteIntervals(profile.id)
         delete(profile)
     }
 }
