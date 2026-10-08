@@ -7,6 +7,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,7 +17,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -171,21 +171,20 @@ fun DashboardScreen(
     // One choice of period for the whole page: the tabs, a swipe on the tiles, and every chart follow it.
     val pager = rememberPagerState(pageCount = { Period.entries.size })
     val scope = rememberCoroutineScope()
-    val period = Period.entries[pager.currentPage]
     Column(
         Modifier
             .fillMaxSize()
             .statusBarsPadding()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp)
             .padding(bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
+        val edges = Modifier.padding(horizontal = 16.dp)
         if (d.lastFillUp == null) {
-            Header(null, profile, onProfileClick)
-            Empty(onAddFillUp, onImport)
+            Header(null, profile, onProfileClick, edges)
+            Box(edges) { Empty(onAddFillUp, onImport) }
         } else {
-            Header(d, profile, onProfileClick)
+            Header(d, profile, onProfileClick, edges)
             PillTabs(
                 listOf(
                     Icons.Filled.LocalGasStation to Period.LAST.label,
@@ -194,24 +193,46 @@ fun DashboardScreen(
                 ),
                 selected = pager.currentPage,
                 onSelect = { scope.launch { pager.animateScrollToPage(it) } },
+                modifier = edges,
             )
-            Summary(d, pager)
-            val charts = d.charts.getValue(period)
-            if (period == Period.DAYS_30 && d.summary.last30Days.fillUpCount == 0) {
-                Text("No fill-ups in the last 30 days, so there's nothing to chart.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            } else {
-                PriceChart(charts, d.hasOldMixed, period.chartLabel)
-                EconomyChart(charts, period.chartLabel)
-                SpendChart(charts, period.chartLabel, byMonth = period == Period.LIFETIME)
+            // The whole page below the tabs slides sideways when the period changes, and can be swiped.
+            HorizontalPager(
+                state = pager,
+                verticalAlignment = Alignment.Top,
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                pageSpacing = 16.dp,
+            ) { page -> PeriodPage(Period.entries[page], d) }
+        }
+    }
+}
+
+/** Everything for one period: the tiles, then the charts. */
+@Composable
+private fun PeriodPage(period: Period, d: DashboardData) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        GroupCard(contentPadding = 12.dp, edge = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.45f)) {
+            val summary = when (period) {
+                Period.LAST -> d.summary.lastFillUp
+                Period.DAYS_30 -> d.summary.last30Days
+                Period.LIFETIME -> d.summary.lifetime
             }
+            PeriodTiles(period, summary, d)
+        }
+        val charts = d.charts.getValue(period)
+        if (period == Period.DAYS_30 && d.summary.last30Days.fillUpCount == 0) {
+            Text("No fill-ups in the last 30 days, so there's nothing to chart.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        } else {
+            PriceChart(charts, d.hasOldMixed, period.chartLabel)
+            EconomyChart(charts, period.chartLabel)
+            SpendChart(charts, period.chartLabel, byMonth = period == Period.LIFETIME)
         }
     }
 }
 
 /** Title, a line about the last fill-up in the accent colour, a couple of chips and the wavy bar. */
 @Composable
-private fun Header(d: DashboardData?, profile: Profile?, onProfileClick: () -> Unit) {
-    Column(Modifier.padding(top = 16.dp, start = 4.dp, end = 4.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+private fun Header(d: DashboardData?, profile: Profile?, onProfileClick: () -> Unit, modifier: Modifier = Modifier) {
+    Column(modifier.padding(top = 16.dp, start = 4.dp, end = 4.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         ProfileTitle(profile, onProfileClick)
         val last = d?.lastFillUp ?: return@Column
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -256,22 +277,6 @@ private fun Empty(onAddFillUp: () -> Unit, onImport: () -> Unit) {
             )
             Button(onClick = onAddFillUp) { Text("Add fill-up") }
             OutlinedButton(onClick = onImport) { Text("Import spreadsheet") }
-        }
-    }
-}
-
-/** The tiles for each period, side by side: swipe sideways to switch period. */
-@Composable
-private fun Summary(d: DashboardData, pager: PagerState) {
-    GroupCard(contentPadding = 12.dp, edge = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.45f)) {
-        HorizontalPager(state = pager, verticalAlignment = Alignment.Top, pageSpacing = 12.dp) { page ->
-            val period = Period.entries[page]
-            val summary = when (period) {
-                Period.LAST -> d.summary.lastFillUp
-                Period.DAYS_30 -> d.summary.last30Days
-                Period.LIFETIME -> d.summary.lifetime
-            }
-            PeriodTiles(period, summary, d)
         }
     }
 }
