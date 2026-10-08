@@ -1,6 +1,7 @@
 package com.astheral.bikedashboard.data
 
 import android.content.Context
+import androidx.room.AutoMigration
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
@@ -49,11 +50,17 @@ fun migration1To2(tripKm: Double) = object : Migration(1, 2) {
     }
 }
 
-@Database(entities = [FillUp::class, Profile::class], version = 2)
+/** Version 3 adds each bike's paperwork (plate, chassis number, expiry dates …) in its own table. */
+@Database(
+    entities = [FillUp::class, Profile::class, BikeDetails::class],
+    version = 3,
+    autoMigrations = [AutoMigration(from = 2, to = 3)],
+)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun fillUpDao(): FillUpDao
     abstract fun profileDao(): ProfileDao
+    abstract fun bikeDetailsDao(): BikeDetailsDao
 
     companion object {
         @Volatile

@@ -53,10 +53,14 @@ interface ProfileDao {
     @Query("DELETE FROM fill_ups WHERE profileId = :profileId")
     suspend fun deleteFillUps(profileId: Long)
 
-    /** Removes the bike and all of its fill-ups together. */
+    @Query("DELETE FROM bike_details WHERE profileId = :profileId")
+    suspend fun deleteDetails(profileId: Long)
+
+    /** Removes the bike and everything kept for it together. */
     @Transaction
     suspend fun deleteWithFillUps(profile: Profile) {
         deleteFillUps(profile.id)
+        deleteDetails(profile.id)
         delete(profile)
     }
 }

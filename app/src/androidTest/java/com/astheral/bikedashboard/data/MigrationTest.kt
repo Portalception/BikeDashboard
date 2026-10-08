@@ -46,4 +46,16 @@ class MigrationTest {
         }
         db.close()
     }
+
+    @Test
+    fun version2GainsAnEmptyDetailsTable() {
+        helper.createDatabase(dbName, 2).apply {
+            execSQL("INSERT INTO profiles (id, name, kind, tankLitres, tripKm) VALUES (1, 'My bike', 'OWN', 14.0, 48.0)")
+            close()
+        }
+        helper.runMigrationsAndValidate(dbName, 3, true).apply {
+            query("SELECT COUNT(*) FROM bike_details").use { it.moveToFirst(); assertEquals(0, it.getInt(0)) }
+            close()
+        }
+    }
 }

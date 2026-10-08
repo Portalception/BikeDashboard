@@ -7,6 +7,13 @@ data class Release(val version: String, val date: LocalDate, val changes: List<S
 /** Major changes in each version, newest first. Add an entry here with every version you share. */
 val CHANGELOG = listOf(
     Release(
+        version = "0.3.7",
+        date = LocalDate.of(2026, 10, 8),
+        changes = listOf(
+            "Bike details page (Settings > Bike > Bike details): brand, model, plate, chassis and engine numbers, IU, what you paid, COE, OMV, and when the COE, road tax, inspection and insurance run out, with a countdown that turns red in the last 30 days.",
+        ),
+    ),
+    Release(
         version = "0.3.6",
         date = LocalDate.of(2026, 10, 8),
         changes = listOf(
