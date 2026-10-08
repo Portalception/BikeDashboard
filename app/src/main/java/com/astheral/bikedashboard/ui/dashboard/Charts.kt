@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.sp
 import com.astheral.bikedashboard.calc.ChartData
 import com.astheral.bikedashboard.calc.DatedValue
 import com.astheral.bikedashboard.calc.SpendSplit
+import com.astheral.bikedashboard.ui.EconomyUnit
 import com.astheral.bikedashboard.ui.components.AccentChip
 import com.astheral.bikedashboard.ui.components.GroupCard
 import com.astheral.bikedashboard.ui.theme.CountryColors
@@ -196,21 +197,22 @@ fun PriceChart(data: ChartData, hasOldMixed: Boolean, period: String) {
     }
 }
 
+/** Fuel economy in the unit picked on the dashboard tile. */
 @Composable
-fun EconomyChart(data: ChartData, period: String) {
+fun EconomyChart(data: ChartData, period: String, unit: EconomyUnit = EconomyUnit.KM_PER_L) {
     if (data.kmPerLitre.isEmpty()) return
     val producer = remember { CartesianChartModelProducer() }
     val every = labelEvery(data.kmPerLitre)
-    LaunchedEffect(data) {
+    LaunchedEffect(data, unit) {
         producer.runTransaction {
-            lineSeries { series(data.kmPerLitre.map { it.date.toEpochDay() }, data.kmPerLitre.map { it.value }) }
+            lineSeries { series(data.kmPerLitre.map { it.date.toEpochDay() }, data.kmPerLitre.map { unit.convert(it.value) }) }
         }
     }
-    ChartCard("Fuel economy (km/L)", period) {
+    ChartCard("Fuel economy (${unit.label})", period) {
         FittedChart(
             rememberCartesianChart(
                 rememberLineCartesianLayer(LineCartesianLayer.LineProvider.series(line(EconomyColor, dots = data.kmPerLitre.size <= 20))),
-                startAxis = startAxis(yFormatter(0)),
+                startAxis = startAxis(yFormatter(if (unit == EconomyUnit.L_PER_100KM) 1 else 0)),
                 bottomAxis = bottomAxis(dateAxis(every < 45), every),
             ),
             producer,

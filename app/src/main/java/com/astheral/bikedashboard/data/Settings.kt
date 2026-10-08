@@ -4,6 +4,11 @@ import android.content.Context
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import com.astheral.bikedashboard.calc.DEFAULT_TRIP_KM
+import com.astheral.bikedashboard.ui.DistanceCostUnit
+import com.astheral.bikedashboard.ui.EconomyUnit
+import com.astheral.bikedashboard.ui.PriceUnit
+import com.astheral.bikedashboard.ui.TimeCostUnit
+import com.astheral.bikedashboard.ui.Units
 import com.astheral.bikedashboard.ui.theme.AppearanceSettings
 import com.astheral.bikedashboard.ui.theme.ColorPreset
 import com.astheral.bikedashboard.ui.theme.ProgressStyle
@@ -40,6 +45,32 @@ class Settings private constructor(context: Context) {
         prefs.edit().putBoolean(KEY_IDEAS_UNLOCKED, true).apply()
         _ideasUnlocked.value = true
     }
+
+    private val _units = MutableStateFlow(
+        Units(
+            economy = enumOr(KEY_UNIT_ECONOMY, EconomyUnit.KM_PER_L),
+            distanceCost = enumOr(KEY_UNIT_DISTANCE_COST, DistanceCostUnit.PER_KM),
+            timeCost = enumOr(KEY_UNIT_TIME_COST, TimeCostUnit.PER_DAY),
+            price = enumOr(KEY_UNIT_PRICE, PriceUnit.SGD_PER_L),
+        ),
+    )
+
+    /** The unit picked for each number on the dashboard; tap a tile to change it. */
+    val units: StateFlow<Units> = _units.asStateFlow()
+
+    fun updateUnits(change: (Units) -> Units) {
+        _units.update(change)
+        val u = _units.value
+        prefs.edit()
+            .putString(KEY_UNIT_ECONOMY, u.economy.name)
+            .putString(KEY_UNIT_DISTANCE_COST, u.distanceCost.name)
+            .putString(KEY_UNIT_TIME_COST, u.timeCost.name)
+            .putString(KEY_UNIT_PRICE, u.price.name)
+            .apply()
+    }
+
+    private inline fun <reified E : Enum<E>> enumOr(key: String, default: E): E =
+        enumValues<E>().firstOrNull { it.name == prefs.getString(key, null) } ?: default
 
     private val _appearance = MutableStateFlow(loadAppearance())
     val appearance: StateFlow<AppearanceSettings> = _appearance.asStateFlow()
@@ -91,6 +122,10 @@ class Settings private constructor(context: Context) {
         private const val KEY_ACCENT = "accent_color"
         private const val KEY_PROGRESS_STYLE = "progress_style"
         private const val KEY_OLD_COLOR_THEME = "color_theme"
+        private const val KEY_UNIT_ECONOMY = "unit_economy"
+        private const val KEY_UNIT_DISTANCE_COST = "unit_distance_cost"
+        private const val KEY_UNIT_TIME_COST = "unit_time_cost"
+        private const val KEY_UNIT_PRICE = "unit_price"
 
         @Volatile
         private var instance: Settings? = null

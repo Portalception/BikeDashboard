@@ -7,6 +7,13 @@ data class Release(val version: String, val date: LocalDate, val changes: List<S
 /** Major changes in each version, newest first. Add an entry here with every version you share. */
 val CHANGELOG = listOf(
     Release(
+        version = "0.3.4",
+        date = LocalDate.of(2026, 10, 8),
+        changes = listOf(
+            "Tap a dashboard tile to change its unit: km/L, L/100 km or mpg; cost per km or per 100 km; cost per day, week or month; petrol price in S\$ or RM (at your last rate). Your choice is remembered, and the fuel economy chart follows it.",
+        ),
+    ),
+    Release(
         version = "0.3.3",
         date = LocalDate.of(2026, 10, 8),
         changes = listOf(
