@@ -77,7 +77,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-enum class SetupStep { NAME, KIND, TANK, TRIP, REVIEW }
+enum class SetupStep { NAME, KIND, TANK, REVIEW }
 
 data class SetupState(
     val loading: Boolean = true,
@@ -88,7 +88,6 @@ data class SetupState(
     val name: String = "",
     val kind: ProfileKind = ProfileKind.OWN,
     val tank: String = trim(DEFAULT_TANK_LITRES),
-    val trip: String = trim(DEFAULT_TRIP_KM),
     val step: SetupStep = SetupStep.NAME,
     val direction: Int = 1,
     val error: String? = null,
@@ -101,7 +100,6 @@ private fun trim(v: Double) = if (v == Math.rint(v)) v.toLong().toString() else 
 fun SetupState.errorFor(step: SetupStep): String? = when (step) {
     SetupStep.NAME -> if (name.isBlank()) "Give the bike a name" else null
     SetupStep.TANK -> parseNumber(tank).let { if (it == null || it <= 0 || it > 60) "Litres, e.g. 14" else null }
-    SetupStep.TRIP -> parseNumber(trip).let { if (it == null || it < 0) "Km, e.g. 48" else null }
     else -> null
 }
 
@@ -127,7 +125,6 @@ class ProfileSetupViewModel(application: Application, private val profileId: Lon
                     name = p.name,
                     kind = p.kind,
                     tank = trim(p.tankLitres),
-                    trip = trim(p.tripKm),
                     // Editing opens on the summary; tap an answer to change it.
                     step = SetupStep.REVIEW,
                 )
@@ -167,7 +164,8 @@ class ProfileSetupViewModel(application: Application, private val profileId: Lon
             name = s.name.trim(),
             kind = s.kind,
             tankLitres = parseNumber(s.tank)!!,
-            tripKm = parseNumber(s.trip)!!,
+            // No longer used (the trip is one setting for every bike); kept as it was.
+            tripKm = existing?.tripKm ?: DEFAULT_TRIP_KM,
         )
         viewModelScope.launch {
             if (existing == null) profiles.create(profile) else profiles.update(profile)
@@ -186,7 +184,8 @@ class ProfileSetupViewModel(application: Application, private val profileId: Lon
 
 /**
  * Setting up a bike, one question per card: its name, whether it's yours or a rental, the tank
- * size (for the "more than the tank holds" warning) and the trip distance for the savings.
+ * size (for the "more than the tank holds" warning). The trip into Malaysia is set once for
+ * every bike, in Settings.
  * Editing opens on the summary card.
  */
 @Composable
@@ -333,18 +332,11 @@ private fun StepCard(step: SetupStep, state: SetupState, vm: ProfileSetupViewMod
             value = state.tank, suffix = "L", error = state.error, selectAll = true,
             onChange = { v -> vm.change { it.copy(tank = v) } }, onNext = vm::next,
         )
-        SetupStep.TRIP -> NumberCard(
-            question = "How far is a trip into Malaysia and back?",
-            hint = "The petrol for this ride is taken off the savings, unless you mark a fill-up as no special trip.",
-            value = state.trip, suffix = "km", error = state.error, selectAll = true,
-            onChange = { v -> vm.change { it.copy(trip = v) } }, onNext = vm::next,
-        )
         SetupStep.REVIEW -> GroupCard {
             listOf(
                 Triple(SetupStep.NAME, "Name", state.name),
                 Triple(SetupStep.KIND, "Type", state.kind.label),
                 Triple(SetupStep.TANK, "Tank", "${state.tank} L"),
-                Triple(SetupStep.TRIP, "Trip to MY", "${state.trip} km"),
             ).forEachIndexed { i, (s, label, value) ->
                 if (i > 0) GroupDivider()
                 Row(
@@ -352,7 +344,7 @@ private fun StepCard(step: SetupStep, state: SetupState, vm: ProfileSetupViewMod
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(label, Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(value, fontFamily = if (s == SetupStep.TANK || s == SetupStep.TRIP) NumberFont else null, style = MaterialTheme.typography.titleSmall)
+                    Text(value, fontFamily = if (s == SetupStep.TANK) NumberFont else null, style = MaterialTheme.typography.titleSmall)
                     Spacer(Modifier.width(10.dp))
                     Icon(Icons.Filled.Edit, contentDescription = "Change", Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }

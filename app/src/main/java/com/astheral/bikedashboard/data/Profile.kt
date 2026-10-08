@@ -26,7 +26,10 @@ data class Profile(
     val kind: ProfileKind = ProfileKind.OWN,
     /** Used to warn when a fill-up is more than the tank holds. */
     val tankLitres: Double = DEFAULT_TANK_LITRES,
-    /** Round trip into Malaysia to pump, taken off the savings. */
+    /**
+     * No longer used: the trip into Malaysia is one setting for every bike now ([Settings.tripKm]).
+     * The column stays so old databases and backups still load, and its value seeds that setting once.
+     */
     val tripKm: Double = DEFAULT_TRIP_KM,
 )
 

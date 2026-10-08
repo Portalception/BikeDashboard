@@ -48,7 +48,6 @@ import com.astheral.bikedashboard.calc.computeStats
 import com.astheral.bikedashboard.calc.hasOldMixed
 import com.astheral.bikedashboard.calc.inLastDays
 import com.astheral.bikedashboard.calc.summarizeDashboard
-import com.astheral.bikedashboard.calc.DEFAULT_TRIP_KM
 import com.astheral.bikedashboard.data.FillUp
 import com.astheral.bikedashboard.data.Profile
 import com.astheral.bikedashboard.data.AppDatabase
@@ -93,7 +92,6 @@ import com.astheral.bikedashboard.ui.short
 import com.astheral.bikedashboard.ui.theme.CountryColors
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -143,8 +141,8 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
 
     /** Null while loading. */
     @OptIn(ExperimentalCoroutinesApi::class)
-    val data: StateFlow<DashboardData?> =
-        Profiles.get(application).activeFillUps.flatMapLatest { (profile, all) ->
+    val data: StateFlow<DashboardData?> = Profiles.get(application).let { profiles ->
+        profiles.activeFillUps.flatMapLatest { (profile, all) ->
             if (profile == null) {
                 flowOf(Triple(profile, all, emptyList<IntervalStatus>()))
             } else {
@@ -154,9 +152,9 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                     Triple(profile, all, due)
                 }
             }
-        }.map { (profile, all, due) ->
+        }.combine(profiles.tripKm) { (_, all, due), tripKm ->
             val today = LocalDate.now()
-            val stats = computeStats(all, profile?.tripKm ?: DEFAULT_TRIP_KM)
+            val stats = computeStats(all, tripKm)
             val gaps = stats.mapNotNull { it.days }.filter { it > 0 }.sorted()
             DashboardData(
                 summary = summarizeDashboard(stats, today),
@@ -183,7 +181,8 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                 rmPerSgd = stats.lastOrNull { it.fillUp.rmPerSgd != null }?.fillUp?.rmPerSgd,
                 due = due,
             )
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 }
 
 /** The dashboard's tabs. Week and month are rolling: the last 7 and 30 days up to today. */

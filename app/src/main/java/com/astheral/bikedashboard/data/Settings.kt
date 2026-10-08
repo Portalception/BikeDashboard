@@ -25,8 +25,27 @@ import kotlinx.coroutines.flow.update
 class Settings private constructor(context: Context) {
     private val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
 
-    /** The trip distance from before profiles; it now lives on each profile. Only read when upgrading. */
+    /**
+     * The trip distance from before profiles (version 1 of the database). Only read when upgrading
+     * that database; the trip now lives in [tripKm], under its own key.
+     */
     val legacyTripKm: Double get() = prefs.getFloat(KEY_TRIP_KM, DEFAULT_TRIP_KM.toFloat()).toDouble()
+
+    private val _tripKm = MutableStateFlow(loadTripKm())
+
+    /**
+     * Round trip into Malaysia to pump, taken off the savings of every bike. Null until it's been
+     * set; [Profiles.tripKm] then starts it from the trip that used to be kept on each bike.
+     */
+    val tripKm: StateFlow<Double?> = _tripKm.asStateFlow()
+
+    fun setTripKm(km: Double) {
+        prefs.edit().putFloat(KEY_SAVINGS_TRIP_KM, km.toFloat()).apply()
+        _tripKm.value = km
+    }
+
+    private fun loadTripKm(): Double? =
+        if (prefs.contains(KEY_SAVINGS_TRIP_KM)) prefs.getFloat(KEY_SAVINGS_TRIP_KM, DEFAULT_TRIP_KM.toFloat()).toDouble() else null
 
     private val _activeProfileId = MutableStateFlow(prefs.getLong(KEY_ACTIVE_PROFILE, NO_PROFILE))
 
@@ -173,11 +192,15 @@ class Settings private constructor(context: Context) {
         _reminderFrequency.value = enumOr(KEY_REMINDER_FREQUENCY, ReminderFrequency.WEEKLY)
         _reminderHour.value = prefs.getInt(KEY_REMINDER_HOUR, 9)
         _appIcon.value = enumOr(KEY_APP_ICON, AppIcon.MONOCHROME)
+        _tripKm.value = loadTripKm()
     }
 
     companion object {
         const val NO_PROFILE = -1L
         private const val KEY_TRIP_KM = "trip_km"
+
+        /** Not [KEY_TRIP_KM]: that one may still hold a value from before profiles, which would hide the bike's own trip. */
+        private const val KEY_SAVINGS_TRIP_KM = "savings_trip_km"
         private const val KEY_ACTIVE_PROFILE = "active_profile"
         private const val KEY_IDEAS_UNLOCKED = "ideas_unlocked"
         private const val KEY_THEME_MODE = "theme_mode"

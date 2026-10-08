@@ -64,7 +64,6 @@ import com.astheral.bikedashboard.calc.computeStats
 import com.astheral.bikedashboard.calc.totalCostSgd
 import com.astheral.bikedashboard.calc.totalLitres
 import com.astheral.bikedashboard.data.AppDatabase
-import com.astheral.bikedashboard.calc.DEFAULT_TRIP_KM
 import com.astheral.bikedashboard.data.Profiles
 import com.astheral.bikedashboard.ui.km
 import com.astheral.bikedashboard.ui.kmPerLitre
@@ -75,7 +74,7 @@ import com.astheral.bikedashboard.ui.sgd
 import com.astheral.bikedashboard.ui.sgdPerLitre
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -91,8 +90,9 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
 
     /** Newest first. Null while loading. */
     val fillUps: StateFlow<List<FillUpStats>?> =
-        Profiles.get(application).activeFillUps
-            .map { (profile, all) -> computeStats(all, profile?.tripKm ?: DEFAULT_TRIP_KM).reversed() }
+        Profiles.get(application).let { profiles ->
+            combine(profiles.activeFillUps, profiles.tripKm) { (_, all), tripKm -> computeStats(all, tripKm).reversed() }
+        }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     fun delete(id: Long) {

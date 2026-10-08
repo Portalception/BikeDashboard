@@ -1,6 +1,7 @@
 package com.astheral.bikedashboard.data
 
 import android.content.Context
+import com.astheral.bikedashboard.calc.DEFAULT_TRIP_KM
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -32,6 +33,15 @@ class Profiles private constructor(context: Context) {
     val activeFillUps: Flow<Pair<Profile?, List<FillUp>>> = active.flatMapLatest { profile ->
         if (profile == null) flowOf(null to emptyList()) else fillUps.observeAll(profile.id).map { profile to it }
     }
+
+    /**
+     * The round trip into Malaysia taken off the savings, the same for every bike. The first time,
+     * before it's ever been set, it starts from the trip that used to be kept on the active bike
+     * (or the first one) and saves that, so the number carries over.
+     */
+    val tripKm: Flow<Double> = combine(settings.tripKm, active) { saved, profile ->
+        saved ?: profile?.tripKm?.also(settings::setTripKm) ?: DEFAULT_TRIP_KM
+    }.distinctUntilChanged()
 
     suspend fun activeNow(): Profile? = active.first()
 

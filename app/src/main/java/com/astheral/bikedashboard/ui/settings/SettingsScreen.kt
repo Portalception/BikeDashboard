@@ -119,10 +119,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch(Dispatchers.IO) { Reminders.check(getApplication()) }
     }
 
-    fun setTripKm(km: Double) {
-        val p = profile.value ?: return
-        viewModelScope.launch { profiles.update(p.copy(tripKm = km)) }
-    }
+    /** The trip into Malaysia, the same for every bike. */
+    val tripKm: StateFlow<Double> = profiles.tripKm.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DEFAULT_TRIP_KM)
+
+    fun setTripKm(km: Double) = settings.setTripKm(km)
 
     fun unlockIdeas() = settings.unlockIdeas()
 
@@ -179,7 +179,7 @@ fun SettingsScreen(
 ) {
     val ideasUnlocked by viewModel.ideasUnlocked.collectAsState()
     val profile by viewModel.profile.collectAsState()
-    val tripKm = profile?.tripKm ?: DEFAULT_TRIP_KM
+    val tripKm by viewModel.tripKm.collectAsState()
     val exportMessage by viewModel.exportMessage.collectAsState()
     val exportTo = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
         if (uri != null) viewModel.export(uri)
@@ -208,7 +208,7 @@ fun SettingsScreen(
                 SettingRow(
                     p.kind.icon(),
                     p.name,
-                    "${p.kind.label} · ${trimKm(p.tankLitres)} L tank · ${trimKm(p.tripKm)} km trip",
+                    "${p.kind.label} · ${trimKm(p.tankLitres)} L tank",
                     onClick = { onEditProfile(p.id) },
                 ) { Chevron() }
                 GroupDivider()
@@ -251,7 +251,7 @@ fun SettingsScreen(
         RemindersCard(viewModel)
 
         SectionHeader(Icons.Filled.Route, "Savings offset")
-        GroupCard(contentPadding = 16.dp) { TripKmField(tripKm, viewModel::setTripKm, profile?.name) }
+        GroupCard(contentPadding = 16.dp) { TripKmField(tripKm, viewModel::setTripKm) }
 
         SectionHeader(Icons.Filled.Save, "Backup")
         GroupCard {
@@ -363,8 +363,8 @@ internal fun Chevron() {
 }
 
 @Composable
-private fun TripKmField(saved: Double, onSave: (Double) -> Unit, bikeName: String?) {
-    var text by remember(saved, bikeName) { mutableStateOf(if (saved == Math.rint(saved)) saved.toLong().toString() else saved.toString()) }
+private fun TripKmField(saved: Double, onSave: (Double) -> Unit) {
+    var text by remember(saved) { mutableStateOf(if (saved == Math.rint(saved)) saved.toLong().toString() else saved.toString()) }
     val value = parseNumber(text)
     val valid = value != null && value >= 0
     OutlinedTextField(
@@ -373,14 +373,14 @@ private fun TripKmField(saved: Double, onSave: (Double) -> Unit, bikeName: Strin
             text = it
             parseNumber(it)?.takeIf { km -> km >= 0 }?.let(onSave)
         },
-        label = { Text(if (bikeName == null) "Trip to Malaysia and back" else "Trip to Malaysia and back on $bikeName") },
+        label = { Text("Trip to Malaysia and back") },
         suffix = { Text("km") },
         singleLine = true,
         isError = !valid,
         shape = RoundedCornerShape(16.dp),
         supportingText = {
             Text(
-                if (valid) "The petrol for this ride is taken off the savings, unless you turn on \"No special trip to MY\"."
+                if (valid) "The same for every bike. The petrol for this ride is taken off the savings, unless you turn on \"No special trip to MY\"."
                 else "Enter a distance in km, e.g. 48",
             )
         },

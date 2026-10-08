@@ -7,6 +7,14 @@ data class Release(val version: String, val date: LocalDate, val changes: List<S
 /** Major changes in each version, newest first. Add an entry here with every version you share. */
 val CHANGELOG = listOf(
     Release(
+        version = "0.4.3",
+        date = LocalDate.of(2026, 10, 9),
+        changes = listOf(
+            "The trip into Malaysia that's taken off your savings is now one setting for all your bikes, in Settings > Savings offset. Your current number carries over.",
+            "Setting up a new bike no longer asks about the trip distance.",
+        ),
+    ),
+    Release(
         version = "0.4.2",
         date = LocalDate.of(2026, 10, 9),
         changes = listOf(
