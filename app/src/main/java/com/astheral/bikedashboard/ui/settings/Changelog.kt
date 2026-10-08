@@ -7,6 +7,20 @@ data class Release(val version: String, val date: LocalDate, val changes: List<S
 /** Major changes in each version, newest first. Add an entry here with every version you share. */
 val CHANGELOG = listOf(
     Release(
+        version = "0.4",
+        date = LocalDate.of(2026, 10, 9),
+        changes = listOf(
+            "Everything from 0.3.1 to 0.3.12 together:",
+            "Servicing records for each bike, with service intervals and daily or weekly reminder notifications.",
+            "Bike details: plate, chassis and engine numbers, value, and COE, road tax, inspection and insurance dates.",
+            "Tap any dashboard card for a detailed overview; tap a number to change its unit.",
+            "Week and Month tabs; the whole dashboard slides between periods.",
+            "Spend bars coloured by country, and charts that fit their data, dotted when there are only a few fill-ups.",
+            "Settings > Personalisation, a new fuel-light app icon with themed versions, and full backups that keep everything, ideas included.",
+            "The back gesture slides back instead of zooming.",
+        ),
+    ),
+    Release(
         version = "0.3.12",
         date = LocalDate.of(2026, 10, 9),
         changes = listOf(
