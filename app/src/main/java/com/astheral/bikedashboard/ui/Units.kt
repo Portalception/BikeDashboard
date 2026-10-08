@@ -75,6 +75,13 @@ enum class PriceUnit(val label: String) {
     }
 }
 
+/** Plain SGD amounts, which have no other unit. */
+object SgdUnit : DisplayUnit {
+    override val label = "S$"
+    override fun convert(base: Double) = base
+    override fun format(value: Double) = sgd(value)
+}
+
 /** The unit picked for each number on the dashboard. Saved in Settings and in backups. */
 data class Units(
     val economy: EconomyUnit = EconomyUnit.KM_PER_L,

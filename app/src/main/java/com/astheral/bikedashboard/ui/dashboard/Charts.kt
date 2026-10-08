@@ -35,6 +35,7 @@ import com.patrykandpatrick.vico.compose.cartesian.axis.VerticalAxis
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberAxisGuidelineComponent
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberAxisLabelComponent
 import com.patrykandpatrick.vico.compose.cartesian.data.CartesianChartModelProducer
+import com.patrykandpatrick.vico.compose.cartesian.data.CartesianLayerRangeProvider
 import com.patrykandpatrick.vico.compose.cartesian.data.CartesianValueFormatter
 import com.patrykandpatrick.vico.compose.cartesian.data.columnSeries
 import com.patrykandpatrick.vico.compose.cartesian.data.lineSeries
@@ -58,14 +59,14 @@ private val MONTH_YEAR = DateTimeFormatter.ofPattern("MMM yy", Locale.ENGLISH)
 private val EconomyColor @Composable get() = MaterialTheme.colorScheme.tertiary
 
 /** Dates on the x axis are stored as day numbers; show them as "Mar 25", or "3 Oct" over short spans. */
-private fun dateAxis(short: Boolean) = CartesianValueFormatter { _, x, _ ->
+internal fun dateAxis(short: Boolean) = CartesianValueFormatter { _, x, _ ->
     LocalDate.ofEpochDay(x.toLong()).format(if (short) DAY_MONTH else MONTH_YEAR)
 }
 
 private val DAY_MONTH = DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH)
 
 /** How many days apart the date labels sit, so a few always fit. */
-private fun labelEvery(points: List<DatedValue>): Int {
+internal fun labelEvery(points: List<DatedValue>): Int {
     val span = if (points.size < 2) 1L else points.last().date.toEpochDay() - points.first().date.toEpochDay()
     return when {
         span <= 21 -> 7
@@ -75,7 +76,7 @@ private fun labelEvery(points: List<DatedValue>): Int {
     }
 }
 
-private fun yFormatter(digits: Int, prefix: String = "") =
+internal fun yFormatter(digits: Int, prefix: String = "") =
     CartesianValueFormatter { _, y, _ -> prefix + String.format(Locale.ENGLISH, "%.${digits}f", y) }
 
 @Composable
@@ -84,9 +85,10 @@ private fun ChartCard(
     period: String,
     legend: List<Pair<String, Color>> = emptyList(),
     note: String? = null,
+    onClick: (() -> Unit)? = null,
     chart: @Composable () -> Unit,
 ) {
-    GroupCard(contentPadding = 20.dp) {
+    GroupCard(contentPadding = 20.dp, onClick = onClick) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(title, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
@@ -120,11 +122,11 @@ private fun axisLabel() = rememberAxisLabelComponent(
 private fun guideline() = rememberAxisGuidelineComponent(fill = Fill(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)))
 
 @Composable
-private fun startAxis(formatter: CartesianValueFormatter) =
+internal fun startAxis(formatter: CartesianValueFormatter) =
     VerticalAxis.rememberStart(label = axisLabel(), guideline = guideline(), valueFormatter = formatter)
 
 @Composable
-private fun bottomAxis(formatter: CartesianValueFormatter, spacing: Int) = HorizontalAxis.rememberBottom(
+internal fun bottomAxis(formatter: CartesianValueFormatter, spacing: Int) = HorizontalAxis.rememberBottom(
     label = axisLabel(),
     guideline = guideline(),
     valueFormatter = formatter,
@@ -133,7 +135,7 @@ private fun bottomAxis(formatter: CartesianValueFormatter, spacing: Int) = Horiz
 
 /** The whole period fits on screen: no scrolling or pinch-zooming inside the chart. */
 @Composable
-private fun FittedChart(
+internal fun FittedChart(
     chart: com.patrykandpatrick.vico.compose.cartesian.CartesianChart,
     producer: CartesianChartModelProducer,
 ) {
@@ -146,11 +148,24 @@ private fun FittedChart(
     )
 }
 
-/** A line in [color]; with [dots], each fill-up is also marked, so a period with one point still shows it. */
+/** Below this many points a line can't show a real trend, so it's drawn dotted and straight. */
+const val SMOOTH_MIN_POINTS = 6
+
+/**
+ * A line in [color] through [points] points. With enough points it's a smooth curve; with only a
+ * few it's dotted, so it doesn't look like a trend. Short series also mark each fill-up, so a
+ * period with one point still shows it.
+ */
 @Composable
-private fun line(color: Color, dots: Boolean) = LineCartesianLayer.rememberLine(
+internal fun line(color: Color, points: Int) = LineCartesianLayer.rememberLine(
     fill = LineCartesianLayer.LineFill.single(Fill(color)),
-    pointProvider = if (dots) {
+    stroke = if (points < SMOOTH_MIN_POINTS) {
+        LineCartesianLayer.LineStroke.Dashed(thickness = 2.5.dp, dashLength = 4.dp, gapLength = 4.dp)
+    } else {
+        LineCartesianLayer.LineStroke.Continuous(thickness = 2.5.dp)
+    },
+    interpolator = if (points < SMOOTH_MIN_POINTS) LineCartesianLayer.Interpolator.Sharp else LineCartesianLayer.Interpolator.cubic(),
+    pointProvider = if (points <= 20) {
         LineCartesianLayer.PointProvider.single(
             LineCartesianLayer.Point(rememberShapeComponent(fill = Fill(color), shape = CircleShape), 7.dp),
         )
@@ -159,8 +174,21 @@ private fun line(color: Color, dots: Boolean) = LineCartesianLayer.rememberLine(
     },
 )
 
+/**
+ * The y axis fits the data instead of starting at zero, with a little room above and below, so
+ * small changes (like 2.30 vs 2.45 a litre) are easy to see.
+ */
 @Composable
-fun PriceChart(data: ChartData, hasOldMixed: Boolean, period: String) {
+internal fun fittedRange(values: List<Double>): CartesianLayerRangeProvider = remember(values) {
+    if (values.isEmpty()) return@remember CartesianLayerRangeProvider.auto()
+    val lo = values.min()
+    val hi = values.max()
+    val pad = if (hi > lo) (hi - lo) * 0.15 else maxOf(kotlin.math.abs(hi) * 0.05, 0.01)
+    CartesianLayerRangeProvider.fixed(minY = lo - pad, maxY = hi + pad)
+}
+
+@Composable
+fun PriceChart(data: ChartData, hasOldMixed: Boolean, period: String, onClick: (() -> Unit)? = null) {
     if (data.sgPrice.isEmpty() && data.myPrice.isEmpty()) return
     val producer = remember { CartesianChartModelProducer() }
     // Each country only gets a line if it has points; Vico needs every series to be non-empty.
@@ -185,10 +213,14 @@ fun PriceChart(data: ChartData, hasOldMixed: Boolean, period: String) {
             if (name == "Singapore") data.sgPrice.isNotEmpty() else data.myPrice.isNotEmpty()
         },
         note = if (hasOldMixed) "In SGD. Old mixed fill-ups aren't shown, because their price is a blend of both countries." else "In SGD.",
+        onClick = onClick,
     ) {
         FittedChart(
             rememberCartesianChart(
-                rememberLineCartesianLayer(LineCartesianLayer.LineProvider.series(series.map { line(it.second, dots = all.size <= 20) })),
+                rememberLineCartesianLayer(
+                    LineCartesianLayer.LineProvider.series(series.map { (points, color) -> line(color, points.size) }),
+                    rangeProvider = fittedRange(all.map { it.value }),
+                ),
                 startAxis = startAxis(yFormatter(2, "S$")),
                 bottomAxis = bottomAxis(dateAxis(every < 45), every),
             ),
@@ -199,7 +231,7 @@ fun PriceChart(data: ChartData, hasOldMixed: Boolean, period: String) {
 
 /** Fuel economy in the unit picked on the dashboard tile. */
 @Composable
-fun EconomyChart(data: ChartData, period: String, unit: EconomyUnit = EconomyUnit.KM_PER_L) {
+fun EconomyChart(data: ChartData, period: String, unit: EconomyUnit = EconomyUnit.KM_PER_L, onClick: (() -> Unit)? = null) {
     if (data.kmPerLitre.isEmpty()) return
     val producer = remember { CartesianChartModelProducer() }
     val every = labelEvery(data.kmPerLitre)
@@ -208,10 +240,13 @@ fun EconomyChart(data: ChartData, period: String, unit: EconomyUnit = EconomyUni
             lineSeries { series(data.kmPerLitre.map { it.date.toEpochDay() }, data.kmPerLitre.map { unit.convert(it.value) }) }
         }
     }
-    ChartCard("Fuel economy (${unit.label})", period) {
+    ChartCard("Fuel economy (${unit.label})", period, onClick = onClick) {
         FittedChart(
             rememberCartesianChart(
-                rememberLineCartesianLayer(LineCartesianLayer.LineProvider.series(line(EconomyColor, dots = data.kmPerLitre.size <= 20))),
+                rememberLineCartesianLayer(
+                    LineCartesianLayer.LineProvider.series(line(EconomyColor, data.kmPerLitre.size)),
+                    rangeProvider = fittedRange(data.kmPerLitre.map { unit.convert(it.value) }),
+                ),
                 startAxis = startAxis(yFormatter(if (unit == EconomyUnit.L_PER_100KM) 1 else 0)),
                 bottomAxis = bottomAxis(dateAxis(every < 45), every),
             ),
@@ -226,7 +261,7 @@ fun EconomyChart(data: ChartData, period: String, unit: EconomyUnit = EconomyUni
  * the petrol was pumped, stacked when a fill-up or month has both.
  */
 @Composable
-fun SpendChart(data: ChartData, period: String, byMonth: Boolean) {
+fun SpendChart(data: ChartData, period: String, byMonth: Boolean, onClick: (() -> Unit)? = null) {
     val labels: List<String>
     val splits: List<SpendSplit>
     if (byMonth) {
@@ -258,6 +293,7 @@ fun SpendChart(data: ChartData, period: String, byMonth: Boolean) {
         if (byMonth) "Monthly spend (SGD)" else "Spend per fill-up (SGD)",
         period,
         legend = parts.map { (name, color, _) -> name to color },
+        onClick = onClick,
     ) {
         FittedChart(
             rememberCartesianChart(

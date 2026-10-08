@@ -7,6 +7,15 @@ data class Release(val version: String, val date: LocalDate, val changes: List<S
 /** Major changes in each version, newest first. Add an entry here with every version you share. */
 val CHANGELOG = listOf(
     Release(
+        version = "0.3.12",
+        date = LocalDate.of(2026, 10, 9),
+        changes = listOf(
+            "Tap any dashboard tile or chart for a detailed overview: the figure for each period side by side, best, worst, average and median fill-ups, a chart and the fill-ups behind it.",
+            "To change a tile's unit, tap its number (marked with ⇄); the detail page also has unit buttons.",
+            "Line charts fit their y axis to the data instead of starting at zero, are smooth curves when there's enough data, and dotted when there are only a few fill-ups.",
+        ),
+    ),
+    Release(
         version = "0.3.11",
         date = LocalDate.of(2026, 10, 9),
         changes = listOf(

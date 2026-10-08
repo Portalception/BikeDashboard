@@ -70,6 +70,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.astheral.bikedashboard.ui.dashboard.DashboardScreen
+import com.astheral.bikedashboard.ui.dashboard.Metric
+import com.astheral.bikedashboard.ui.dashboard.MetricDetailScreen
 import com.astheral.bikedashboard.ui.edit.EditScreen
 import com.astheral.bikedashboard.ui.history.HistoryScreen
 import com.astheral.bikedashboard.ui.importer.ImportScreen
@@ -92,6 +94,9 @@ import kotlinx.serialization.Serializable
 @Serializable object BikeDetailsRoute
 @Serializable object ServicingRoute
 @Serializable object IntervalsRoute
+
+/** A dashboard number's detail page: [metric] is a [Metric] name, [period] the tab it opened on. */
+@Serializable data class MetricRoute(val metric: String, val period: Int)
 
 /** Add a service record when [id] is 0, otherwise edit that one. */
 @Serializable data class ServiceEditRoute(val id: Long = 0)
@@ -226,7 +231,22 @@ fun BikeDashboardApp(
                         onAddFillUp = { nav.navigate(EditRoute()) },
                         onImport = { nav.navigate(ImportRoute) },
                         onOpenServicing = { nav.navigate(ServicingRoute) },
+                        onOpenMetric = { metric, period -> nav.navigate(MetricRoute(metric.name, period.ordinal)) },
                     )
+                }
+                composable<MetricRoute>(
+                    enterTransition = { slideIntoContainer(SlideDirection.Up, tween(SLIDE_MS)) },
+                    popExitTransition = { slideOutOfContainer(SlideDirection.Down, tween(SLIDE_MS)) },
+                ) { entry ->
+                    val route = entry.toRoute<MetricRoute>()
+                    AppBackground {
+                        MetricDetailScreen(
+                            metric = Metric.valueOf(route.metric),
+                            startPeriod = route.period,
+                            profile = profile,
+                            onBack = { nav.popBackStack() },
+                        )
+                    }
                 }
                 composable<HistoryRoute> { entry ->
                     val deletedId by entry.savedStateHandle.getStateFlow<Long?>(DELETED_FILL_UP_ID, null).collectAsState()

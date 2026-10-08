@@ -97,8 +97,8 @@ fun status(interval: ServiceInterval, records: List<ServiceRecord>, odometerKm: 
             (daysLeft != null && interval.warnDays != null && daysLeft <= interval.warnDays) -> DueLevel.SOON
         else -> DueLevel.OK
     }
-    val kmUsed = kmLeft?.let { 1f - it.toFloat() / interval.everyKm!! } ?: 0f
-    val daysUsed = daysLeft?.let { 1f - it.toFloat() / interval.everyDays!! } ?: 0f
+    val kmUsed = kmLeft?.let { 1f - it.toFloat() / interval.everyKm } ?: 0f
+    val daysUsed = daysLeft?.let { 1f - it.toFloat() / interval.everyDays } ?: 0f
     return IntervalStatus(interval, last, kmLeft, daysLeft, level, max(kmUsed, daysUsed).coerceAtLeast(0f))
 }
 

@@ -65,6 +65,11 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import com.astheral.bikedashboard.ui.DisplayUnit
+import com.astheral.bikedashboard.ui.SgdUnit
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.ui.draw.clip
 import com.astheral.bikedashboard.ui.Units
 import com.astheral.bikedashboard.ui.next
 import com.astheral.bikedashboard.ui.profile.ProfileTitle
@@ -107,6 +112,8 @@ data class TileSeries(
 
 data class DashboardData(
     val summary: DashboardSummary,
+    /** Every fill-up worked out, oldest first, for the detail pages. */
+    val stats: List<FillUpStats> = emptyList(),
     val lastFillUp: FillUp?,
     /** Chart data for each period: the last 10 fill-ups, the last 7 and 30 days, and everything. */
     val charts: Map<Period, ChartData>,
@@ -152,6 +159,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
             val gaps = stats.mapNotNull { it.days }.filter { it > 0 }.sorted()
             DashboardData(
                 summary = summarizeDashboard(stats, today),
+                stats = stats,
                 lastFillUp = stats.lastOrNull()?.fillUp,
                 charts = mapOf(
                     // One fill-up makes an empty chart, so "last fill-up" shows it with the ones before it.
@@ -202,6 +210,7 @@ fun DashboardScreen(
     onAddFillUp: () -> Unit,
     onImport: () -> Unit,
     onOpenServicing: () -> Unit,
+    onOpenMetric: (Metric, Period) -> Unit,
     viewModel: DashboardViewModel = viewModel(),
 ) {
     val data by viewModel.data.collectAsState()
@@ -241,25 +250,25 @@ fun DashboardScreen(
                 verticalAlignment = Alignment.Top,
                 contentPadding = PaddingValues(horizontal = 16.dp),
                 pageSpacing = 16.dp,
-            ) { page -> PeriodPage(Period.entries[page], d, units, viewModel::updateUnits) }
+            ) { page -> PeriodPage(Period.entries[page], d, units, viewModel::updateUnits) { metric -> onOpenMetric(metric, Period.entries[page]) } }
         }
     }
 }
 
 /** Everything for one period: the tiles, then the charts. */
 @Composable
-private fun PeriodPage(period: Period, d: DashboardData, units: Units, onUnits: ((Units) -> Units) -> Unit) {
+private fun PeriodPage(period: Period, d: DashboardData, units: Units, onUnits: ((Units) -> Units) -> Unit, onOpen: (Metric) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         GroupCard(contentPadding = 12.dp, edge = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.45f)) {
-            PeriodTiles(period, d.summary.of(period), d, units, onUnits)
+            PeriodTiles(period, d.summary.of(period), d, units, onUnits, onOpen)
         }
         val charts = d.charts.getValue(period)
         if (period.days != null && d.summary.of(period).fillUpCount == 0) {
             Text("No fill-ups in the last ${period.days} days, so there's nothing to chart.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         } else {
-            PriceChart(charts, d.hasOldMixed, period.chartLabel)
-            EconomyChart(charts, period.chartLabel, units.economy)
-            SpendChart(charts, period.chartLabel, byMonth = period == Period.LIFETIME)
+            PriceChart(charts, d.hasOldMixed, period.chartLabel) { onOpen(Metric.PRICE) }
+            EconomyChart(charts, period.chartLabel, units.economy) { onOpen(Metric.ECONOMY) }
+            SpendChart(charts, period.chartLabel, byMonth = period == Period.LIFETIME) { onOpen(Metric.SPEND) }
         }
     }
 }
@@ -317,7 +326,14 @@ private fun Empty(onAddFillUp: () -> Unit, onImport: () -> Unit) {
 }
 
 @Composable
-private fun PeriodTiles(period: Period, summary: PeriodSummary, d: DashboardData, units: Units, onUnits: ((Units) -> Units) -> Unit) {
+private fun PeriodTiles(
+    period: Period,
+    summary: PeriodSummary,
+    d: DashboardData,
+    units: Units,
+    onUnits: ((Units) -> Units) -> Unit,
+    onOpen: (Metric) -> Unit,
+) {
     fun highlight(series: List<DatedValue>) = when (period) {
         Period.LAST -> if (series.lastOrNull()?.date == d.lastFillUp?.date) 1 else 0
         Period.LIFETIME -> series.size
@@ -340,22 +356,26 @@ private fun PeriodTiles(period: Period, summary: PeriodSummary, d: DashboardData
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             StatTile(
                 "Fuel economy", summary.kmPerLitre, units.economy, t.kmPerLitre, highlight(t.kmPerLitre), accent, Modifier.weight(1f),
-                onClick = { onUnits { it.copy(economy = it.economy.next()) } },
+                onClick = { onOpen(Metric.ECONOMY) },
+                onSwitchUnit = { onUnits { it.copy(economy = it.economy.next()) } },
             )
             StatTile(
                 "Petrol price", summary.pricePerLitre, price, t.pricePerLitre, highlight(t.pricePerLitre), accent, Modifier.weight(1f),
+                onClick = { onOpen(Metric.PRICE) },
                 // Ringgit needs a rate, so without one there's nothing to switch to.
-                onClick = if (d.rmPerSgd == null) null else ({ onUnits { it.copy(price = it.price.next()) } }),
+                onSwitchUnit = if (d.rmPerSgd == null) null else ({ onUnits { it.copy(price = it.price.next()) } }),
             )
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             StatTile(
                 "Cost per km", summary.costPerKm, units.distanceCost, t.costPerKm, highlight(t.costPerKm), accent, Modifier.weight(1f),
-                onClick = { onUnits { it.copy(distanceCost = it.distanceCost.next()) } },
+                onClick = { onOpen(Metric.COST_PER_KM) },
+                onSwitchUnit = { onUnits { it.copy(distanceCost = it.distanceCost.next()) } },
             )
             StatTile(
                 "Cost per day", summary.costPerDay, units.timeCost, t.costPerDay, highlight(t.costPerDay), accent, Modifier.weight(1f),
-                onClick = { onUnits { it.copy(timeCost = it.timeCost.next()) } },
+                onClick = { onOpen(Metric.COST_PER_DAY) },
+                onSwitchUnit = { onUnits { it.copy(timeCost = it.timeCost.next()) } },
             )
         }
         val saved = summary.savingsSgd
@@ -367,15 +387,9 @@ private fun PeriodTiles(period: Period, summary: PeriodSummary, d: DashboardData
             highlight(t.savings),
             if (saved != null && saved < 0) MaterialTheme.colorScheme.error else CountryColors.my,
             Modifier.fillMaxWidth(),
+            onClick = { onOpen(Metric.SAVINGS) },
         )
     }
-}
-
-/** Plain SGD amounts, which have no other unit. */
-private object SgdUnit : DisplayUnit {
-    override val label = "S$"
-    override fun convert(base: Double) = base
-    override fun format(value: Double) = sgd(value)
 }
 
 private fun caption(period: Period, s: PeriodSummary, last: FillUp): String = when (period) {
@@ -386,8 +400,9 @@ private fun caption(period: Period, s: PeriodSummary, last: FillUp): String = wh
 
 /**
  * A small outlined tile: label with a dot, the number in monospace (counting up when it
- * appears), and bars for recent fill-ups with the ones this number covers lit up. Tapping a tile
- * with [onClick] switches it to its next unit, e.g. km/L to L/100 km.
+ * appears), and bars for recent fill-ups with the ones this number covers lit up. Tapping the tile
+ * opens its detail page; tapping the number (marked with ⇄) switches to the next unit, e.g. km/L
+ * to L/100 km.
  */
 @Composable
 private fun StatTile(
@@ -399,14 +414,31 @@ private fun StatTile(
     color: Color,
     modifier: Modifier,
     onClick: (() -> Unit)? = null,
+    onSwitchUnit: (() -> Unit)? = null,
 ) {
     val body: @Composable () -> Unit = {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             DotLabel(label, color)
-            if (value == null) {
-                Text("—", style = MaterialTheme.typography.titleMedium, fontFamily = NumberFont)
-            } else {
-                CountUpText(unit.convert(value), unit::format, style = MaterialTheme.typography.titleMedium)
+            Row(
+                Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .then(if (onSwitchUnit != null && value != null) Modifier.clickable(onClick = onSwitchUnit) else Modifier),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (value == null) {
+                    Text("—", style = MaterialTheme.typography.titleMedium, fontFamily = NumberFont)
+                } else {
+                    CountUpText(unit.convert(value), unit::format, Modifier.weight(1f, fill = false), style = MaterialTheme.typography.titleMedium)
+                    if (onSwitchUnit != null) {
+                        Spacer(Modifier.size(4.dp))
+                        Icon(
+                            Icons.Filled.SwapHoriz,
+                            contentDescription = "Change unit",
+                            Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
             }
             Box(Modifier.padding(top = 2.dp)) { MiniBars(series.map { unit.convert(it.value) }, highlight, color) }
         }

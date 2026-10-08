@@ -78,11 +78,11 @@ class IntervalsViewModel(application: Application) : AndroidViewModel(applicatio
 }
 
 /** Which number a dialog is changing. */
-private enum class IntervalField(val title: String, val suffix: String, val icon: ImageVector) {
-    EVERY_KM("Every", "km", Icons.Filled.Speed),
-    EVERY_DAYS("Or every", "days", Icons.Filled.CalendarMonth),
-    WARN_KM("Remind me from", "km before", Icons.Filled.Warning),
-    WARN_DAYS("Or from", "days before", Icons.Filled.Timer),
+private enum class IntervalField(val title: String, val suffix: String, val question: String, val icon: ImageVector) {
+    EVERY_KM("Every", "km", "Due every how many km?", Icons.Filled.Speed),
+    EVERY_DAYS("Or every", "days", "Or every how many days?", Icons.Filled.CalendarMonth),
+    WARN_KM("Remind me from", "km before", "Start reminding how many km before?", Icons.Filled.Warning),
+    WARN_DAYS("Or from", "days before", "Or how many days before?", Icons.Filled.Timer),
 }
 
 private fun ServiceInterval.get(f: IntervalField): Int? = when (f) {
@@ -171,7 +171,7 @@ fun IntervalsScreen(onBack: () -> Unit, viewModel: IntervalsViewModel = viewMode
 
     editing?.let { (interval, f) ->
         TextFieldDialog(
-            title = "${interval.type.label}: ${f.title.lowercase()} … ${f.suffix}",
+            title = "${interval.type.label}: ${f.question.replaceFirstChar { it.lowercase() }}",
             initial = interval.get(f)?.toString().orEmpty(),
             onDismiss = { editing = null },
             onSave = { t ->
