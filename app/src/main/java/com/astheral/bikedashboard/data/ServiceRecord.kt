@@ -13,26 +13,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.Serializable
 import java.time.LocalDate
 
-/** The kinds of work in the spreadsheet's servicing record, plus "Other". */
-enum class ServiceType(val label: String) {
-    MAJOR_SERVICING("Major servicing"),
-    MINOR_SERVICING("Minor servicing"),
-    ENGINE_OIL("Engine oil"),
-    FLUID_CHANGE("Fluid change"),
-    REPAIR("Repair"),
-    PERFORMANCE_MOD("Performance mod"),
-    COSMETIC_MOD("Cosmetic mod"),
-    BIKE_WASH("Bike wash"),
-    OTHER("Other"),
-    ;
-
-    companion object {
-        /** Matches the spreadsheet's names, e.g. "Major Servicing" or "Engine Oil". */
-        fun fromSheet(name: String): ServiceType? =
-            entries.firstOrNull { it.label.equals(name.trim(), ignoreCase = true) || it.name.equals(name.trim(), ignoreCase = true) }
-    }
-}
-
 enum class Currency(val symbol: String) { SGD("S$"), MYR("RM") }
 
 /** One visit to the workshop (or a wash, or a part you fitted yourself) for one bike. */
@@ -44,7 +24,8 @@ data class ServiceRecord(
     @Serializable(with = LocalDateSerializer::class) val date: LocalDate,
     /** Odometer reading at the time, if known. */
     val odometerKm: Int? = null,
-    val type: ServiceType,
+    /** The [ServiceCategory.id] of the kind of work, e.g. "ENGINE_OIL". */
+    val type: String,
     val description: String = "",
     val cost: Double? = null,
     val currency: Currency = Currency.SGD,

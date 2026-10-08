@@ -54,7 +54,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.astheral.bikedashboard.data.Currency
 import com.astheral.bikedashboard.data.ServiceRecord
-import com.astheral.bikedashboard.data.ServiceType
+import com.astheral.bikedashboard.data.DefaultCategory
+import com.astheral.bikedashboard.data.ServiceCategory
 import com.astheral.bikedashboard.ui.count
 import com.astheral.bikedashboard.ui.components.CountUpText
 import com.astheral.bikedashboard.ui.components.DotLabel
@@ -68,27 +69,9 @@ import com.astheral.bikedashboard.ui.components.outline
 import com.astheral.bikedashboard.ui.km
 import com.astheral.bikedashboard.ui.sgd
 import com.astheral.bikedashboard.ui.short
-import com.astheral.bikedashboard.ui.theme.LocalDarkTheme
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 import java.util.Locale
-
-/** A colour per kind of work, readable on light and dark backgrounds. */
-@Composable
-fun ServiceType.color(): Color {
-    val dark = LocalDarkTheme.current
-    return when (this) {
-        ServiceType.MAJOR_SERVICING -> if (dark) Color(0xFFFF8A80) else Color(0xFFC62828)
-        ServiceType.MINOR_SERVICING -> if (dark) Color(0xFFFFB74D) else Color(0xFFE65100)
-        ServiceType.ENGINE_OIL -> if (dark) Color(0xFFFFD54F) else Color(0xFF9A7400)
-        ServiceType.FLUID_CHANGE -> if (dark) Color(0xFF4DD0E1) else Color(0xFF00838F)
-        ServiceType.REPAIR -> if (dark) Color(0xFF82B1FF) else Color(0xFF1565C0)
-        ServiceType.PERFORMANCE_MOD -> if (dark) Color(0xFFCE93D8) else Color(0xFF7B1FA2)
-        ServiceType.COSMETIC_MOD -> if (dark) Color(0xFFF48FB1) else Color(0xFFAD1457)
-        ServiceType.BIKE_WASH -> if (dark) Color(0xFF80CBC4) else Color(0xFF00695C)
-        ServiceType.OTHER -> if (dark) Color(0xFFB0BEC5) else Color(0xFF546E7A)
-    }
-}
 
 fun ServiceRecord.costText(): String? = cost?.let {
     when (currency) {
@@ -97,8 +80,8 @@ fun ServiceRecord.costText(): String? = cost?.let {
     }
 }
 
-/** The kinds of work the "since last" tiles follow. */
-private val TRACKED = listOf(ServiceType.MAJOR_SERVICING, ServiceType.MINOR_SERVICING, ServiceType.ENGINE_OIL, ServiceType.BIKE_WASH)
+/** The kinds of work the "since last" tiles follow, as long as you haven't removed them. */
+private val TRACKED = listOf(DefaultCategory.MAJOR_SERVICING, DefaultCategory.MINOR_SERVICING, DefaultCategory.ENGINE_OIL, DefaultCategory.BIKE_WASH)
 
 /**
  * Servicing for the bike being shown: how long since the last service, oil change and wash,
@@ -120,7 +103,7 @@ fun ServicingScreen(
     }
     val importSheet = { pickFile.launch(arrayOf("text/csv", "text/comma-separated-values", "application/csv", "text/plain", "text/*")) }
     val s = state ?: return
-    var filter by remember { mutableStateOf<ServiceType?>(null) }
+    var filter by remember { mutableStateOf<String?>(null) }
     val today = LocalDate.now()
 
     Column(
@@ -174,9 +157,10 @@ fun ServicingScreen(
                 }
             }
             SectionHeader(Icons.Filled.History, "Since last", Modifier.padding(top = 0.dp))
-            TRACKED.chunked(2).forEach { pair ->
+            TRACKED.filter { id -> s.categories.any { it.id == id } }.chunked(2).forEach { pair ->
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    pair.forEach { type -> SinceTile(type, s.last(type), s.odometerKm, today, Modifier.weight(1f)) }
+                    pair.forEach { type -> SinceTile(type, s.name(type), s.last(type), s.odometerKm, today, Modifier.weight(1f)) }
+                    if (pair.size == 1) Spacer(Modifier.weight(1f))
                 }
             }
 
@@ -184,7 +168,7 @@ fun ServicingScreen(
             SpendCard(s, today)
 
             SectionHeader(Icons.Filled.Build, "Records")
-            TypeFilter(s.records, filter) { filter = it }
+            TypeFilter(s.categories, s.records, filter) { filter = it }
             val shown = s.records.filter { filter == null || it.type == filter }
             shown.groupBy { it.date.year }.forEach { (year, inYear) ->
                 Row(Modifier.padding(start = 8.dp, top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -199,7 +183,7 @@ fun ServicingScreen(
                 GroupCard {
                     inYear.forEachIndexed { i, record ->
                         if (i > 0) GroupDivider()
-                        RecordRow(record) { onOpen(record.id) }
+                        RecordRow(record, s.name(record.type)) { onOpen(record.id) }
                     }
                 }
             }
@@ -215,6 +199,9 @@ fun ServicingScreen(
                     buildString {
                         append("From ${p.fileName}, for ${s.profile.name}.")
                         if (p.existing > 0) append(" This replaces the ${count(p.existing, "service")} already there.")
+                        if (p.newCategories.isNotEmpty()) {
+                            append(" New categories will be added for ${p.newCategories.joinToString { it.name }}.")
+                        }
                         if (p.problems.isNotEmpty()) {
                             append("\n\n${p.problems.size} rows couldn't be read and will be left out:\n")
                             p.problems.take(10).forEach { append("#${it.rowNumber}: ${it.message}\n") }
@@ -230,10 +217,10 @@ fun ServicingScreen(
 
 /** Days and km since the last time this kind of work was done. */
 @Composable
-private fun SinceTile(type: ServiceType, last: ServiceRecord?, odometer: Int?, today: LocalDate, modifier: Modifier) {
+private fun SinceTile(type: String, name: String, last: ServiceRecord?, odometer: Int?, today: LocalDate, modifier: Modifier) {
     Surface(modifier, shape = TileShape, color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.55f), border = outline()) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            DotLabel(type.label, type.color())
+            DotLabel(name, categoryColor(type))
             if (last == null) {
                 Text("Not yet", style = MaterialTheme.typography.titleMedium)
             } else {
@@ -281,13 +268,13 @@ private fun SpendCard(s: ServicingState, today: LocalDate) {
     }
 }
 
-/** "All" plus a pill for each kind of work that has records. */
+/** "All" plus a pill for each category that has records. */
 @Composable
-private fun TypeFilter(records: List<ServiceRecord>, selected: ServiceType?, onSelect: (ServiceType?) -> Unit) {
-    val types = ServiceType.entries.filter { t -> records.any { it.type == t } }
+private fun TypeFilter(categories: List<ServiceCategory>, records: List<ServiceRecord>, selected: String?, onSelect: (String?) -> Unit) {
+    val types = categories.filter { c -> records.any { it.type == c.id } }
     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         FilterPill("All", null, selected == null) { onSelect(null) }
-        types.forEach { t -> FilterPill(t.label, t.color(), selected == t) { onSelect(if (selected == t) null else t) } }
+        types.forEach { c -> FilterPill(c.name, categoryColor(c.id), selected == c.id) { onSelect(if (selected == c.id) null else c.id) } }
     }
 }
 
@@ -307,17 +294,17 @@ internal fun FilterPill(label: String, dot: Color?, selected: Boolean, onClick: 
 }
 
 @Composable
-private fun RecordRow(record: ServiceRecord, onClick: () -> Unit) {
+private fun RecordRow(record: ServiceRecord, name: String, onClick: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.size(10.dp).background(record.type.color(), CircleShape))
+        Box(Modifier.size(10.dp).background(categoryColor(record.type), CircleShape))
         Spacer(Modifier.width(16.dp))
         Column(Modifier.weight(1f)) {
-            Text(record.description.ifBlank { record.type.label }, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(record.description.ifBlank { name }, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Text(
-                listOfNotNull(record.type.label, record.date.short(), record.odometerKm?.let { km(it) }).joinToString(" · "),
+                listOfNotNull(name, record.date.short(), record.odometerKm?.let { km(it) }).joinToString(" · "),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

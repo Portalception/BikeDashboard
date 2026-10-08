@@ -20,16 +20,20 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -47,7 +51,11 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.astheral.bikedashboard.data.AppDatabase
 import com.astheral.bikedashboard.data.Profile
 import com.astheral.bikedashboard.data.Profiles
+import com.astheral.bikedashboard.data.ServiceCategory
 import com.astheral.bikedashboard.data.ServiceInterval
+import com.astheral.bikedashboard.data.defaultInterval
+import com.astheral.bikedashboard.data.findByName
+import com.astheral.bikedashboard.data.newCategory
 import com.astheral.bikedashboard.data.withDefaults
 import com.astheral.bikedashboard.ui.components.GroupCard
 import com.astheral.bikedashboard.ui.components.GroupDivider
@@ -59,21 +67,67 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.Locale
 
+/** One item on the page: a category and this bike's interval for it. */
+data class IntervalItem(val category: ServiceCategory, val interval: ServiceInterval)
+
+data class IntervalsState(
+    val profile: Profile,
+    val items: List<IntervalItem>,
+    /** Every category, for checking names and offering the ones not on the page yet. */
+    val categories: List<ServiceCategory>,
+)
+
 class IntervalsViewModel(application: Application) : AndroidViewModel(application) {
-    private val dao = AppDatabase.get(application).intervalDao()
+    private val db = AppDatabase.get(application)
+    private val dao = db.intervalDao()
+    private val categoryDao = db.categoryDao()
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    val state: StateFlow<Pair<Profile, List<ServiceInterval>>?> = Profiles.get(application).active.flatMapLatest { profile ->
-        if (profile == null) flowOf(null) else dao.observe(profile.id).map { profile to withDefaults(profile.id, it) }
+    val state: StateFlow<IntervalsState?> = Profiles.get(application).active.flatMapLatest { profile ->
+        if (profile == null) {
+            flowOf(null)
+        } else {
+            combine(dao.observe(profile.id), categoryDao.observe()) { saved, cats ->
+                val items = withDefaults(profile.id, saved, cats).map { i -> IntervalItem(cats.first { it.id == i.type }, i) }
+                IntervalsState(profile, items, cats)
+            }
+        }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     fun save(interval: ServiceInterval) {
         viewModelScope.launch { dao.save(interval) }
+    }
+
+    /** Renames the item's category, which renames it everywhere (records too). */
+    fun rename(category: ServiceCategory, name: String) {
+        viewModelScope.launch { categoryDao.rename(category.id, name) }
+    }
+
+    /**
+     * Adds an item called [name], switched on for this bike. A category you already have with that
+     * name is used; otherwise a new category is made.
+     */
+    fun add(name: String) {
+        val s = state.value ?: return
+        val category = s.categories.findByName(name) ?: newCategory(name, s.categories)
+        addExisting(category)
+    }
+
+    fun addExisting(category: ServiceCategory) {
+        val profile = state.value?.profile ?: return
+        viewModelScope.launch {
+            categoryDao.addInterval(category, defaultInterval(profile.id, category.id).copy(enabled = true))
+        }
+    }
+
+    /** Takes the item off the page on every bike. Its category and records stay. */
+    fun remove(category: ServiceCategory) {
+        viewModelScope.launch { categoryDao.removeInterval(category.id) }
     }
 }
 
@@ -106,8 +160,11 @@ private fun ServiceInterval.with(f: IntervalField, v: Int?): ServiceInterval = w
 @Composable
 fun IntervalsScreen(onBack: () -> Unit, viewModel: IntervalsViewModel = viewModel()) {
     val state by viewModel.state.collectAsState()
-    val (profile, intervals) = state ?: return
-    var editing by remember { mutableStateOf<Pair<ServiceInterval, IntervalField>?>(null) }
+    val (profile, items, categories) = state ?: return
+    var editing by remember { mutableStateOf<Pair<IntervalItem, IntervalField>?>(null) }
+    var renaming by remember { mutableStateOf<ServiceCategory?>(null) }
+    var removing by remember { mutableStateOf<ServiceCategory?>(null) }
+    var adding by remember { mutableStateOf(false) }
 
     Column(
         Modifier
@@ -133,12 +190,16 @@ fun IntervalsScreen(onBack: () -> Unit, viewModel: IntervalsViewModel = viewMode
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        intervals.forEach { interval ->
+        items.forEach { item ->
+            val interval = item.interval
             GroupCard {
                 Row(Modifier.padding(start = 20.dp, end = 16.dp, top = 12.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(10.dp).background(interval.type.color(), CircleShape))
+                    Box(Modifier.size(10.dp).background(categoryColor(item.category.id), CircleShape))
                     Spacer(Modifier.width(16.dp))
-                    Text(interval.type.label, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+                    Text(item.category.name, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+                    IconButton(onClick = { renaming = item.category }) {
+                        Icon(Icons.Filled.Edit, contentDescription = "Rename or remove", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                     Switch(checked = interval.enabled, onCheckedChange = { on -> viewModel.save(interval.copy(enabled = on)) })
                 }
                 AnimatedVisibility(interval.enabled) {
@@ -150,13 +211,21 @@ fun IntervalsScreen(onBack: () -> Unit, viewModel: IntervalsViewModel = viewMode
                                 f.icon,
                                 "${f.title} ${v?.let { String.format(Locale.ENGLISH, "%,d", it) } ?: "—"} ${f.suffix}",
                                 subtitle = if (v == null) "Not used" else null,
-                                onClick = { editing = interval to f },
+                                onClick = { editing = item to f },
                                 iconTint = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
                 }
             }
+        }
+        GroupCard {
+            SettingRow(
+                Icons.Filled.Add,
+                "Add an item",
+                subtitle = "Something else to keep track of, like a chain clean or new tyres",
+                onClick = { adding = true },
+            )
         }
         Row(Modifier.padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Filled.NotificationsActive, contentDescription = null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -169,9 +238,49 @@ fun IntervalsScreen(onBack: () -> Unit, viewModel: IntervalsViewModel = viewMode
         }
     }
 
-    editing?.let { (interval, f) ->
+    renaming?.let { category ->
+        CategoryNameDialog(
+            title = "Rename",
+            initial = category.name,
+            taken = categories.filter { it.id != category.id }.map { it.name },
+            note = "This renames it everywhere, on every bike and in your service records.",
+            onDismiss = { renaming = null },
+            onSave = { name -> viewModel.rename(category, name); renaming = null },
+            onRemove = { renaming = null; removing = category },
+        )
+    }
+    removing?.let { category ->
+        AlertDialog(
+            onDismissRequest = { removing = null },
+            title = { Text("Remove ${category.name}?") },
+            text = {
+                Text(
+                    "It's taken off this page for every bike, with its interval and reminders. " +
+                        "Your ${category.name.lowercase()} records stay, and you can add it back later.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { viewModel.remove(category); removing = null }) { Text("Remove", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = { TextButton(onClick = { removing = null }) { Text("Cancel") } },
+        )
+    }
+    if (adding) {
+        CategoryNameDialog(
+            title = "Add an item",
+            initial = "",
+            taken = items.map { it.category.name },
+            onDismiss = { adding = false },
+            onSave = { name -> viewModel.add(name); adding = false },
+            suggestions = categories.filter { !it.hasInterval },
+            onPickSuggestion = { c -> viewModel.addExisting(c); adding = false },
+        )
+    }
+
+    editing?.let { (item, f) ->
+        val interval = item.interval
         TextFieldDialog(
-            title = "${interval.type.label}: ${f.question.replaceFirstChar { it.lowercase() }}",
+            title = "${item.category.name}: ${f.question.replaceFirstChar { it.lowercase() }}",
             initial = interval.get(f)?.toString().orEmpty(),
             onDismiss = { editing = null },
             onSave = { t ->

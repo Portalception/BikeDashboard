@@ -21,6 +21,7 @@ import com.astheral.bikedashboard.data.IntervalStatus
 import com.astheral.bikedashboard.data.Profile
 import com.astheral.bikedashboard.data.Settings
 import com.astheral.bikedashboard.data.currentOdometer
+import com.astheral.bikedashboard.data.nameOf
 import com.astheral.bikedashboard.data.status
 import com.astheral.bikedashboard.data.withDefaults
 import com.astheral.bikedashboard.ui.km
@@ -54,7 +55,7 @@ object Reminders {
     private const val REQUEST_CHECK = 1
     private const val WINDOW_MS = 30 * 60 * 1000L
     private const val GROUP = "service_reminders"
-    private const val SUMMARY_ID = 1 // reminders use bike id × 100 + type, so never 1
+    private const val SUMMARY_ID = 1 // reminders use a number made from the bike and category, never 1
     const val EXTRA_OPEN_SERVICING = "open_servicing_for_profile"
 
     /** Sets up (or cancels) the daily check to match Settings. Safe to call any number of times. */
@@ -84,12 +85,13 @@ object Reminders {
     /** Every enabled interval on every bike that's due soon or overdue. */
     suspend fun dueNow(context: Context, today: LocalDate = LocalDate.now()): List<Pair<Profile, IntervalStatus>> {
         val db = AppDatabase.get(context)
+        val categories = db.categoryDao().getAll()
         return db.profileDao().getAll().flatMap { profile ->
             val records = db.serviceDao().getAll(profile.id)
             val odometer = currentOdometer(db.fillUpDao().getAll(profile.id), records)
-            withDefaults(profile.id, db.intervalDao().getAll(profile.id))
+            withDefaults(profile.id, db.intervalDao().getAll(profile.id), categories)
                 .filter { it.enabled }
-                .map { profile to status(it, records, odometer, today) }
+                .map { profile to status(it, records, odometer, today, categories.nameOf(it.type)) }
         }.filter { (_, s) -> s.level == DueLevel.SOON || s.level == DueLevel.OVERDUE }
     }
 
@@ -116,7 +118,7 @@ object Reminders {
         if (toSend.size > 1) notifySummary(context, toSend)
     }
 
-    private fun key(profile: Profile, s: IntervalStatus) = "${profile.id}:${s.type.name}"
+    private fun key(profile: Profile, s: IntervalStatus) = "${profile.id}:${s.type}"
 
     private fun createChannel(context: Context) {
         val channel = NotificationChannel(CHANNEL, "Service reminders", NotificationManager.IMPORTANCE_DEFAULT).apply {
@@ -155,9 +157,10 @@ object Reminders {
 
     @Suppress("MissingPermission") // checked by allowed() first
     private fun notify(context: Context, profile: Profile, s: IntervalStatus) {
-        val id = (profile.id * 100 + s.type.ordinal).toInt()
+        // The same bike and category always get the same number, so a repeat replaces the last one.
+        val id = key(profile, s).hashCode().let { if (it == SUMMARY_ID) SUMMARY_ID + 1 else it }
         val tap = openServicing(context, profile.id, id)
-        val title = if (s.level == DueLevel.OVERDUE) "${s.type.label} is due · ${profile.name}" else "${s.type.label} coming up · ${profile.name}"
+        val title = if (s.level == DueLevel.OVERDUE) "${s.name} is due · ${profile.name}" else "${s.name} coming up · ${profile.name}"
         val last = s.last?.let { r -> "Last done ${r.date.short()}" + (r.odometerKm?.let { " at ${km(it)}" } ?: "") + "." }
         val text = s.summary() + "."
         val notification = NotificationCompat.Builder(context, CHANNEL)

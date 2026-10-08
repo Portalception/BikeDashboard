@@ -6,16 +6,16 @@ import org.junit.Test
 import java.time.LocalDate
 
 class ServiceIntervalTest {
-    private val oil = ServiceInterval(1, ServiceType.ENGINE_OIL, everyKm = 5000, everyDays = 180, warnKm = 500, warnDays = 14)
+    private val oil = ServiceInterval(1, DefaultCategory.ENGINE_OIL, everyKm = 5000, everyDays = 180, warnKm = 500, warnDays = 14)
     private val today = LocalDate.of(2026, 10, 8)
-    private fun oilChange(date: String, km: Int) = ServiceRecord(profileId = 1, date = LocalDate.parse(date), odometerKm = km, type = ServiceType.ENGINE_OIL)
+    private fun oilChange(date: String, km: Int) = ServiceRecord(profileId = 1, date = LocalDate.parse(date), odometerKm = km, type = DefaultCategory.ENGINE_OIL)
 
     @Test
     fun countsFromTheLatestRecordOfThatKind() {
         val records = listOf(
             oilChange("2026-01-10", 148330),
             oilChange("2026-07-15", 159057),
-            ServiceRecord(profileId = 1, date = LocalDate.parse("2026-09-01"), odometerKm = 161000, type = ServiceType.BIKE_WASH),
+            ServiceRecord(profileId = 1, date = LocalDate.parse("2026-09-01"), odometerKm = 161000, type = DefaultCategory.BIKE_WASH),
         )
         val s = status(oil, records, odometerKm = 162000, today = today)
         assertEquals(159057 + 5000 - 162000, s.kmLeft)
@@ -48,9 +48,28 @@ class ServiceIntervalTest {
 
     @Test
     fun savedIntervalsReplaceDefaults() {
-        val all = withDefaults(1, listOf(oil.copy(everyKm = 4000)))
-        assertEquals(INTERVAL_TYPES, all.map { it.type })
-        assertEquals(4000, all.first().everyKm)
+        val all = withDefaults(1, listOf(oil.copy(everyKm = 4000)), DEFAULT_CATEGORIES)
+        assertEquals(
+            listOf(DefaultCategory.MAJOR_SERVICING, DefaultCategory.MINOR_SERVICING, DefaultCategory.ENGINE_OIL, DefaultCategory.FLUID_CHANGE, DefaultCategory.BIKE_WASH),
+            all.map { it.type },
+        )
+        assertEquals(4000, all[2].everyKm)
         assertEquals(10000, all[1].everyKm)
+    }
+
+    @Test
+    fun itemsFollowTheCategories() {
+        val chain = ServiceCategory("CHAIN", "Chain clean", 20, hasInterval = true)
+        val cats = DEFAULT_CATEGORIES.map { if (it.id == DefaultCategory.BIKE_WASH) it.copy(hasInterval = false) else it } + chain
+        val all = withDefaults(1, emptyList(), cats)
+        assertEquals("CHAIN", all.last().type)
+        assertEquals(false, all.any { it.type == DefaultCategory.BIKE_WASH })
+        assertEquals(365, all.last().everyDays) // a new item's default
+    }
+
+    @Test
+    fun statusCarriesTheName() {
+        assertEquals("Oil change", status(oil, emptyList(), 1, today, "Oil change").name)
+        assertEquals("Engine oil", status(oil, emptyList(), 1, today).name)
     }
 }

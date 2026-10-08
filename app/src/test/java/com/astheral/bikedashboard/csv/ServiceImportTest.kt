@@ -1,7 +1,9 @@
 package com.astheral.bikedashboard.csv
 
 import com.astheral.bikedashboard.data.Currency
-import com.astheral.bikedashboard.data.ServiceType
+import com.astheral.bikedashboard.data.DEFAULT_CATEGORIES
+import com.astheral.bikedashboard.data.DefaultCategory
+import com.astheral.bikedashboard.data.ServiceCategory
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -34,7 +36,7 @@ class ServiceImportTest {
         val first = result.records[0]
         assertEquals(LocalDate.of(2025, 1, 10), first.date) // the first Date column, not the summary's
         assertEquals(130000, first.odometerKm)
-        assertEquals(ServiceType.MAJOR_SERVICING, first.type)
+        assertEquals(DefaultCategory.MAJOR_SERVICING, first.type)
         assertNull(first.cost) // "$ -" is blank
         assertEquals(7L, first.profileId)
 
@@ -43,7 +45,30 @@ class ServiceImportTest {
         assertEquals(89.0, wash.cost!!, 0.0)
         assertEquals(Currency.MYR, wash.currency)
 
-        assertEquals(ServiceType.OTHER, result.records[3].type)
         assertEquals(listOf(49), result.problems.map { it.rowNumber })
+    }
+
+    @Test
+    fun unknownTypesBecomeNewCategories() {
+        val result = readServiceSheet(sheet, profileId = 7)
+        assertEquals("STRANGE_TYPE", result.records[3].type)
+        assertEquals(listOf(ServiceCategory("STRANGE_TYPE", "Strange Type", 9)), result.newCategories)
+        // A row that can't be read (#49, "Repair" is known anyway) adds nothing.
+        assertEquals(1, result.newCategories.size)
+    }
+
+    @Test
+    fun matchesRenamedCategoriesByName() {
+        val renamed = DEFAULT_CATEGORIES.map { if (it.id == DefaultCategory.ENGINE_OIL) it.copy(name = "Oil change") else it }
+        val text = """
+            Date,Mileage (Km),Type,Description,Cost,Currency
+            1-Jan-2026,100,oil change,,,SGD
+            2-Jan-2026,200,-,,,SGD
+            3-Jan-2026,300,Chain,,,SGD
+            4-Jan-2026,400,chain,,,SGD
+        """.trimIndent()
+        val result = readServiceSheet(text, profileId = 1, categories = renamed)
+        assertEquals(listOf(DefaultCategory.ENGINE_OIL, DefaultCategory.OTHER, "CHAIN", "CHAIN"), result.records.map { it.type })
+        assertEquals(listOf("Chain"), result.newCategories.map { it.name })
     }
 }

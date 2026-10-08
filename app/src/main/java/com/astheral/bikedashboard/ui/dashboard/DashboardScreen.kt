@@ -146,8 +146,8 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
             if (profile == null) {
                 flowOf(Triple(profile, all, emptyList<IntervalStatus>()))
             } else {
-                combine(db.serviceDao().observe(profile.id), db.intervalDao().observe(profile.id)) { records, saved ->
-                    val due = dueList(withDefaults(profile.id, saved), records, currentOdometer(all, records))
+                combine(db.serviceDao().observe(profile.id), db.intervalDao().observe(profile.id), db.categoryDao().observe()) { records, saved, cats ->
+                    val due = dueList(withDefaults(profile.id, saved, cats), records, currentOdometer(all, records), cats)
                         .filter { it.level == DueLevel.SOON || it.level == DueLevel.OVERDUE }
                     Triple(profile, all, due)
                 }

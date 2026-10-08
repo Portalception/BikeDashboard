@@ -7,6 +7,14 @@ data class Release(val version: String, val date: LocalDate, val changes: List<S
 /** Major changes in each version, newest first. Add an entry here with every version you share. */
 val CHANGELOG = listOf(
     Release(
+        version = "0.4.4",
+        date = LocalDate.of(2026, 10, 9),
+        changes = listOf(
+            "You can now rename, add and remove the items on the Service intervals page.",
+            "Your service categories are saved in backups, and anything new in an imported servicing sheet gets its own category.",
+        ),
+    ),
+    Release(
         version = "0.4.3",
         date = LocalDate.of(2026, 10, 9),
         changes = listOf(

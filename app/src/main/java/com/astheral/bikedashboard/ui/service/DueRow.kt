@@ -19,12 +19,12 @@ import com.astheral.bikedashboard.ui.components.NumberFont
 import com.astheral.bikedashboard.ui.components.ProgressLine
 import com.astheral.bikedashboard.ui.theme.LocalDarkTheme
 
-/** The colour for how urgent an interval is: the type's own colour until it's nearly due. */
+/** The colour for how urgent an interval is: the category's own colour until it's nearly due. */
 @Composable
 fun IntervalStatus.levelColor(): Color = when (level) {
     DueLevel.OVERDUE -> MaterialTheme.colorScheme.error
     DueLevel.SOON -> if (LocalDarkTheme.current) Color(0xFFFFB74D) else Color(0xFFE65100)
-    else -> type.color()
+    else -> categoryColor(type)
 }
 
 /** One interval: its name and what's left, over a progress line of how much has been used. */
@@ -34,7 +34,7 @@ fun DueRow(status: IntervalStatus, modifier: Modifier = Modifier) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             // The label keeps its width; a long summary wraps instead of squeezing it.
-            DotLabel(status.type.label, status.type.color())
+            DotLabel(status.name, categoryColor(status.type))
             Text(
                 status.summary(),
                 modifier = Modifier.weight(1f).padding(start = 12.dp),

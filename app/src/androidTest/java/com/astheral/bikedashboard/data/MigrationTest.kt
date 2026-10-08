@@ -47,6 +47,28 @@ class MigrationTest {
         db.close()
     }
 
+    /** Version 6 turns the fixed kinds of work into categories; existing records and intervals keep theirs. */
+    @Test
+    fun version5RecordsKeepTheirKindAsACategory() {
+        helper.createDatabase(dbName, 5).apply {
+            execSQL("INSERT INTO profiles (id, name, kind, tankLitres, tripKm) VALUES (1, 'My bike', 'OWN', 14.0, 48.0)")
+            execSQL("INSERT INTO service_records (id, profileId, date, odometerKm, type, description, cost, currency) VALUES (1, 1, 20364, 159057, 'ENGINE_OIL', 'Motul', 45.0, 'SGD')")
+            execSQL("INSERT INTO service_intervals (profileId, type, enabled, everyKm) VALUES (1, 'BIKE_WASH', 1, NULL)")
+            close()
+        }
+        helper.runMigrationsAndValidate(dbName, 6, true).apply {
+            query("SELECT COUNT(*) FROM service_categories").use { it.moveToFirst(); assertEquals(DEFAULT_CATEGORIES.size, it.getInt(0)) }
+            query("SELECT type FROM service_records").use { it.moveToFirst(); assertEquals("ENGINE_OIL", it.getString(0)) }
+            query("SELECT name, hasInterval FROM service_categories WHERE id = 'ENGINE_OIL'").use {
+                it.moveToFirst()
+                assertEquals("Engine oil", it.getString(0))
+                assertEquals(1, it.getInt(1))
+            }
+            query("SELECT type FROM service_intervals").use { it.moveToFirst(); assertEquals("BIKE_WASH", it.getString(0)) }
+            close()
+        }
+    }
+
     @Test
     fun version2GainsAnEmptyDetailsTable() {
         helper.createDatabase(dbName, 2).apply {

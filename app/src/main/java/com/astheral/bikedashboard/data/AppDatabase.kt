@@ -7,6 +7,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
+import androidx.room.migration.AutoMigrationSpec
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import java.time.LocalDate
@@ -51,13 +52,36 @@ fun migration1To2(tripKm: Double) = object : Migration(1, 2) {
 }
 
 /**
+ * Version 6 turns the fixed list of kinds of service work into editable categories. Records and
+ * intervals already stored the kind's name ("ENGINE_OIL" …), which become the built-in
+ * categories' ids, so nothing in them changes; the new table just gets the built-in list.
+ */
+class SeedServiceCategories : AutoMigrationSpec {
+    override fun onPostMigrate(db: SupportSQLiteDatabase) = db.insertCategories(DEFAULT_CATEGORIES)
+}
+
+/** Fills in the categories on a fresh install, and makes sure "Other" is always there. */
+private object SeedCallback : RoomDatabase.Callback() {
+    override fun onCreate(db: SupportSQLiteDatabase) = db.insertCategories(DEFAULT_CATEGORIES)
+
+    override fun onOpen(db: SupportSQLiteDatabase) =
+        db.insertCategories(DEFAULT_CATEGORIES.filter { it.id == DefaultCategory.OTHER })
+}
+
+/**
  * Version 3 adds each bike's paperwork (plate, chassis number, expiry dates …) in its own table,
- * version 4 its servicing records and version 5 its service intervals.
+ * version 4 its servicing records, version 5 its service intervals and version 6 the service
+ * categories shared by all bikes.
  */
 @Database(
-    entities = [FillUp::class, Profile::class, BikeDetails::class, ServiceRecord::class, ServiceInterval::class],
-    version = 5,
-    autoMigrations = [AutoMigration(from = 2, to = 3), AutoMigration(from = 3, to = 4), AutoMigration(from = 4, to = 5)],
+    entities = [FillUp::class, Profile::class, BikeDetails::class, ServiceRecord::class, ServiceInterval::class, ServiceCategory::class],
+    version = 6,
+    autoMigrations = [
+        AutoMigration(from = 2, to = 3),
+        AutoMigration(from = 3, to = 4),
+        AutoMigration(from = 4, to = 5),
+        AutoMigration(from = 5, to = 6, spec = SeedServiceCategories::class),
+    ],
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
@@ -67,6 +91,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun backupDao(): BackupDao
     abstract fun serviceDao(): ServiceDao
     abstract fun intervalDao(): IntervalDao
+    abstract fun categoryDao(): CategoryDao
 
     companion object {
         @Volatile
@@ -80,6 +105,7 @@ abstract class AppDatabase : RoomDatabase() {
                     "bike_dashboard.db",
                 )
                     .addMigrations(migration1To2(Settings.get(context).legacyTripKm))
+                    .addCallback(SeedCallback)
                     .build()
                     .also { instance = it }
             }

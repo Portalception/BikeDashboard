@@ -55,11 +55,23 @@ data class FullBackup(
     val appVersion: String = "",
     val settings: SettingsBackup = SettingsBackup(),
     val ideas: String = "",
+    /** The service categories, shared by all bikes. Empty in backups from before they could be changed. */
+    val categories: List<ServiceCategory> = emptyList(),
     val bikes: List<BikeBackup> = emptyList(),
 ) {
     companion object {
         const val FORMAT = "bike-dashboard-backup"
     }
+}
+
+/**
+ * The categories to restore: the backup's own, or the built-in ones for an older backup, plus one
+ * for any kind of work its records or intervals use that isn't among them.
+ */
+fun FullBackup.restoredCategories(): List<ServiceCategory> {
+    val intervalTypes = bikes.flatMap { b -> b.intervals.map { it.type } }
+    val used = bikes.flatMap { b -> b.services.map { it.type } } + intervalTypes
+    return withMissingCategories(categories.ifEmpty { DEFAULT_CATEGORIES }, used, intervalTypes.toSet())
 }
 
 /** Lenient, so a backup from a newer version of the app still opens in an older one. */
@@ -101,6 +113,15 @@ interface BackupDao {
     @Query("SELECT * FROM service_intervals")
     suspend fun intervals(): List<ServiceInterval>
 
+    @Query("SELECT * FROM service_categories ORDER BY sortOrder, name")
+    suspend fun categories(): List<ServiceCategory>
+
+    @Query("DELETE FROM service_categories")
+    suspend fun clearCategories()
+
+    @Insert
+    suspend fun insertCategories(categories: List<ServiceCategory>)
+
     @Query("DELETE FROM service_intervals")
     suspend fun clearIntervals()
 
@@ -131,9 +152,11 @@ interface BackupDao {
     @Insert
     suspend fun insertDetails(details: List<BikeDetails>)
 
-    /** Swaps everything for the backup's bikes in one go, so a failed restore changes nothing. */
+    /** Swaps everything for the backup's bikes and categories in one go, so a failed restore changes nothing. */
     @Transaction
-    suspend fun replaceEverything(bikes: List<BikeBackup>) {
+    suspend fun replaceEverything(bikes: List<BikeBackup>, categories: List<ServiceCategory>) {
+        clearCategories()
+        insertCategories(categories)
         clearFillUps()
         clearDetails()
         clearServices()
@@ -166,6 +189,7 @@ class Backups(private val context: Context) {
             appVersion = appVersion,
             settings = settings.backup(),
             ideas = ideas,
+            categories = dao.categories(),
             bikes = dao.profiles().map { p ->
                 BikeBackup(p, details[p.id], fillUps[p.id].orEmpty(), services[p.id].orEmpty(), intervals[p.id].orEmpty())
             },
@@ -173,7 +197,7 @@ class Backups(private val context: Context) {
     }
 
     suspend fun restore(backup: FullBackup) {
-        dao.replaceEverything(backup.bikes)
+        dao.replaceEverything(backup.bikes, backup.restoredCategories())
         settings.restore(backup.settings)
         ideasFile(context).writeText(backup.ideas)
         Reminders.schedule(context)

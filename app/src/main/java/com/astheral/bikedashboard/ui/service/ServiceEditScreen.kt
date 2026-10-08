@@ -49,7 +49,9 @@ import com.astheral.bikedashboard.data.AppDatabase
 import com.astheral.bikedashboard.data.Currency
 import com.astheral.bikedashboard.data.Profiles
 import com.astheral.bikedashboard.data.ServiceRecord
-import com.astheral.bikedashboard.data.ServiceType
+import com.astheral.bikedashboard.data.DefaultCategory
+import com.astheral.bikedashboard.data.ServiceCategory
+import com.astheral.bikedashboard.data.nameOf
 import com.astheral.bikedashboard.data.currentOdometer
 import com.astheral.bikedashboard.ui.components.GroupCard
 import com.astheral.bikedashboard.ui.components.PickDateDialog
@@ -68,7 +70,7 @@ import java.time.LocalDate
 data class ServiceForm(
     val loading: Boolean = true,
     val isNew: Boolean = true,
-    val type: ServiceType = ServiceType.ENGINE_OIL,
+    val type: String = DefaultCategory.ENGINE_OIL,
     val description: String = "",
     val date: LocalDate = LocalDate.now(),
     val odometer: String = "",
@@ -76,6 +78,8 @@ data class ServiceForm(
     val currency: Currency = Currency.SGD,
     val error: String? = null,
     val done: Boolean = false,
+    /** Every category, to pick from. */
+    val categories: List<ServiceCategory> = emptyList(),
 )
 
 private fun trim(v: Double) = if (v == Math.rint(v)) v.toLong().toString() else v.toString()
@@ -94,10 +98,16 @@ class ServiceEditViewModel(application: Application, private val id: Long) : And
             val r = if (id == 0L) null else dao.getById(id)
             existing = r
             profileId = r?.profileId ?: Profiles.get(application).active.first()?.id ?: return@launch
+            val categories = db.categoryDao().getAll()
             _form.value = if (r == null) {
                 // A new record starts at today's date and where the bike's odometer is now.
                 val odo = currentOdometer(db.fillUpDao().getAll(profileId), dao.getAll(profileId))
-                ServiceForm(loading = false, odometer = odo?.toString().orEmpty())
+                ServiceForm(
+                    loading = false,
+                    odometer = odo?.toString().orEmpty(),
+                    type = categories.firstOrNull { it.id == DefaultCategory.ENGINE_OIL }?.id ?: categories.firstOrNull()?.id ?: DefaultCategory.OTHER,
+                    categories = categories,
+                )
             } else {
                 ServiceForm(
                     loading = false,
@@ -108,6 +118,7 @@ class ServiceEditViewModel(application: Application, private val id: Long) : And
                     odometer = r.odometerKm?.toString().orEmpty(),
                     cost = r.cost?.let(::trim).orEmpty(),
                     currency = r.currency,
+                    categories = categories,
                 )
             }
         }
@@ -196,8 +207,8 @@ fun ServiceEditScreen(id: Long, onDone: () -> Unit) {
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    ServiceType.entries.forEach { t ->
-                        FilterPill(t.label, t.color(), f.type == t) { vm.edit { it.copy(type = t) } }
+                    f.categories.forEach { c ->
+                        FilterPill(c.name, categoryColor(c.id), f.type == c.id) { vm.edit { it.copy(type = c.id) } }
                     }
                 }
                 OutlinedTextField(
@@ -269,7 +280,7 @@ fun ServiceEditScreen(id: Long, onDone: () -> Unit) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
             title = { Text("Delete this record?") },
-            text = { Text("${f.type.label}${if (f.description.isNotBlank()) ": ${f.description}" else ""} on ${f.date.long()}. This can't be undone.") },
+            text = { Text("${f.categories.nameOf(f.type)}${if (f.description.isNotBlank()) ": ${f.description}" else ""} on ${f.date.long()}. This can't be undone.") },
             confirmButton = { TextButton(onClick = { confirmDelete = false; vm.delete() }) { Text("Delete", color = MaterialTheme.colorScheme.error) } },
             dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } },
         )
