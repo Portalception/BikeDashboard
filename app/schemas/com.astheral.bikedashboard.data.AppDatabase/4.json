@@ -1,0 +1,366 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 4,
+    "identityHash": "dfd22b98b2a04e9b778a71478deba49d",
+    "entities": [
+      {
+        "tableName": "fill_ups",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `profileId` INTEGER NOT NULL DEFAULT 1, `date` INTEGER NOT NULL, `country` TEXT NOT NULL, `odometerKm` INTEGER NOT NULL, `sgLitres` REAL, `sgCostSgd` REAL, `myLitres` REAL, `myCostSgd` REAL, `rmPaid` REAL, `rmPerSgd` REAL, `rmCharged` REAL, `unsplitLitres` REAL, `unsplitCostSgd` REAL, `barsLeft` INTEGER, `reserveKm` REAL, `noSpecialTrip` INTEGER NOT NULL, `estimatedMax` REAL, `importedSavingsSgd` REAL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "profileId",
+            "columnName": "profileId",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "1"
+          },
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "country",
+            "columnName": "country",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "odometerKm",
+            "columnName": "odometerKm",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sgLitres",
+            "columnName": "sgLitres",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "sgCostSgd",
+            "columnName": "sgCostSgd",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "myLitres",
+            "columnName": "myLitres",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "myCostSgd",
+            "columnName": "myCostSgd",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "rmPaid",
+            "columnName": "rmPaid",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "rmPerSgd",
+            "columnName": "rmPerSgd",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "rmCharged",
+            "columnName": "rmCharged",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "unsplitLitres",
+            "columnName": "unsplitLitres",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "unsplitCostSgd",
+            "columnName": "unsplitCostSgd",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "barsLeft",
+            "columnName": "barsLeft",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "reserveKm",
+            "columnName": "reserveKm",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "noSpecialTrip",
+            "columnName": "noSpecialTrip",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "estimatedMax",
+            "columnName": "estimatedMax",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "importedSavingsSgd",
+            "columnName": "importedSavingsSgd",
+            "affinity": "REAL"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_fill_ups_date",
+            "unique": false,
+            "columnNames": [
+              "date"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_fill_ups_date` ON `${TABLE_NAME}` (`date`)"
+          },
+          {
+            "name": "index_fill_ups_profileId",
+            "unique": false,
+            "columnNames": [
+              "profileId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_fill_ups_profileId` ON `${TABLE_NAME}` (`profileId`)"
+          }
+        ]
+      },
+      {
+        "tableName": "profiles",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `kind` TEXT NOT NULL, `tankLitres` REAL NOT NULL, `tripKm` REAL NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "kind",
+            "columnName": "kind",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tankLitres",
+            "columnName": "tankLitres",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tripKm",
+            "columnName": "tripKm",
+            "affinity": "REAL",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "bike_details",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`profileId` INTEGER NOT NULL, `brand` TEXT, `model` TEXT, `plate` TEXT, `chassisNumber` TEXT, `engineNumber` TEXT, `iuNumber` TEXT, `registeredIu` TEXT, `purchasePrice` REAL, `coePaid` REAL, `openMarketValue` REAL, `startOdometerKm` INTEGER, `coeExpiry` INTEGER, `coeNumber` TEXT, `roadTaxExpiry` INTEGER, `inspectionExpiry` INTEGER, `insuranceExpiry` INTEGER, `insurancePolicy` TEXT, `notes` TEXT, PRIMARY KEY(`profileId`))",
+        "fields": [
+          {
+            "fieldPath": "profileId",
+            "columnName": "profileId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "brand",
+            "columnName": "brand",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "model",
+            "columnName": "model",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "plate",
+            "columnName": "plate",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "chassisNumber",
+            "columnName": "chassisNumber",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "engineNumber",
+            "columnName": "engineNumber",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "iuNumber",
+            "columnName": "iuNumber",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "registeredIu",
+            "columnName": "registeredIu",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "purchasePrice",
+            "columnName": "purchasePrice",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "coePaid",
+            "columnName": "coePaid",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "openMarketValue",
+            "columnName": "openMarketValue",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "startOdometerKm",
+            "columnName": "startOdometerKm",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "coeExpiry",
+            "columnName": "coeExpiry",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "coeNumber",
+            "columnName": "coeNumber",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "roadTaxExpiry",
+            "columnName": "roadTaxExpiry",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "inspectionExpiry",
+            "columnName": "inspectionExpiry",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "insuranceExpiry",
+            "columnName": "insuranceExpiry",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "insurancePolicy",
+            "columnName": "insurancePolicy",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "notes",
+            "columnName": "notes",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "profileId"
+          ]
+        }
+      },
+      {
+        "tableName": "service_records",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `profileId` INTEGER NOT NULL, `date` INTEGER NOT NULL, `odometerKm` INTEGER, `type` TEXT NOT NULL, `description` TEXT NOT NULL, `cost` REAL, `currency` TEXT NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "profileId",
+            "columnName": "profileId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "odometerKm",
+            "columnName": "odometerKm",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "type",
+            "columnName": "type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cost",
+            "columnName": "cost",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "currency",
+            "columnName": "currency",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_service_records_profileId",
+            "unique": false,
+            "columnNames": [
+              "profileId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_service_records_profileId` ON `${TABLE_NAME}` (`profileId`)"
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'dfd22b98b2a04e9b778a71478deba49d')"
+    ]
+  }
+}

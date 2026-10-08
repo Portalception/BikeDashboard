@@ -7,6 +7,15 @@ data class Release(val version: String, val date: LocalDate, val changes: List<S
 /** Major changes in each version, newest first. Add an entry here with every version you share. */
 val CHANGELOG = listOf(
     Release(
+        version = "0.3.9",
+        date = LocalDate.of(2026, 10, 9),
+        changes = listOf(
+            "Servicing (Settings > Bike > Servicing): keep each bike's services, oil changes, repairs, mods and washes, with how many days and km since the last service, oil change and wash, and what you've spent.",
+            "Import your spreadsheet's Servicing Record sheet (saved as CSV) with the download button on the Servicing page.",
+            "Full backups include servicing records.",
+        ),
+    ),
+    Release(
         version = "0.3.8",
         date = LocalDate.of(2026, 10, 9),
         changes = listOf(

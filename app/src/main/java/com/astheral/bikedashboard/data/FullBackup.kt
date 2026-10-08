@@ -37,6 +37,7 @@ data class BikeBackup(
     val profile: Profile,
     val details: BikeDetails? = null,
     val fillUps: List<FillUp> = emptyList(),
+    val services: List<ServiceRecord> = emptyList(),
 )
 
 /**
@@ -91,6 +92,15 @@ interface BackupDao {
     @Query("SELECT * FROM bike_details")
     suspend fun details(): List<BikeDetails>
 
+    @Query("SELECT * FROM service_records ORDER BY date, id")
+    suspend fun services(): List<ServiceRecord>
+
+    @Query("DELETE FROM service_records")
+    suspend fun clearServices()
+
+    @Insert
+    suspend fun insertServices(services: List<ServiceRecord>)
+
     @Query("DELETE FROM fill_ups")
     suspend fun clearFillUps()
 
@@ -114,10 +124,12 @@ interface BackupDao {
     suspend fun replaceEverything(bikes: List<BikeBackup>) {
         clearFillUps()
         clearDetails()
+        clearServices()
         clearProfiles()
         insertProfiles(bikes.map { it.profile })
         insertDetails(bikes.mapNotNull { b -> b.details?.copy(profileId = b.profile.id) })
         insertFillUps(bikes.flatMap { b -> b.fillUps.map { it.copy(id = 0, profileId = b.profile.id) } })
+        insertServices(bikes.flatMap { b -> b.services.map { it.copy(id = 0, profileId = b.profile.id) } })
     }
 }
 
@@ -132,13 +144,14 @@ class Backups(private val context: Context) {
     suspend fun create(appVersion: String): FullBackup {
         val fillUps = dao.fillUps().groupBy { it.profileId }
         val details = dao.details().associateBy { it.profileId }
+        val services = dao.services().groupBy { it.profileId }
         val ideas = ideasFile(context).takeIf { it.exists() }?.readText().orEmpty()
         return FullBackup(
             exportedAt = java.time.LocalDateTime.now().withNano(0).toString(),
             appVersion = appVersion,
             settings = settings.backup(),
             ideas = ideas,
-            bikes = dao.profiles().map { p -> BikeBackup(p, details[p.id], fillUps[p.id].orEmpty()) },
+            bikes = dao.profiles().map { p -> BikeBackup(p, details[p.id], fillUps[p.id].orEmpty(), services[p.id].orEmpty()) },
         )
     }
 

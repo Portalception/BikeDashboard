@@ -20,6 +20,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.ExpandMore
@@ -146,6 +147,7 @@ fun SettingsScreen(
     onOpenIdeas: () -> Unit,
     onOpenPersonalisation: () -> Unit,
     onOpenDetails: () -> Unit,
+    onOpenServicing: () -> Unit,
     viewModel: SettingsViewModel = viewModel(),
 ) {
     val ideasUnlocked by viewModel.ideasUnlocked.collectAsState()
@@ -188,6 +190,13 @@ fun SettingsScreen(
                     "Bike details",
                     "Plate, chassis and engine numbers, value, COE, road tax and insurance",
                     onClick = onOpenDetails,
+                ) { Chevron() }
+                GroupDivider()
+                SettingRow(
+                    Icons.Filled.Build,
+                    "Servicing",
+                    "Services, oil changes, repairs and washes for this bike",
+                    onClick = onOpenServicing,
                 ) { Chevron() }
                 GroupDivider()
             }

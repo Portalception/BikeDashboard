@@ -52,6 +52,8 @@ import com.astheral.bikedashboard.ui.profile.ProfileSetupScreen
 import com.astheral.bikedashboard.ui.profile.ProfileSwitcherSheet
 import com.astheral.bikedashboard.ui.profile.ProfilesViewModel
 import com.astheral.bikedashboard.ui.details.BikeDetailsScreen
+import com.astheral.bikedashboard.ui.service.ServiceEditScreen
+import com.astheral.bikedashboard.ui.service.ServicingScreen
 import com.astheral.bikedashboard.ui.settings.IdeasScreen
 import com.astheral.bikedashboard.ui.settings.PersonalisationScreen
 import androidx.compose.ui.Modifier
@@ -86,6 +88,10 @@ import kotlinx.serialization.Serializable
 @Serializable object IdeasRoute
 @Serializable object PersonalisationRoute
 @Serializable object BikeDetailsRoute
+@Serializable object ServicingRoute
+
+/** Add a service record when [id] is 0, otherwise edit that one. */
+@Serializable data class ServiceEditRoute(val id: Long = 0)
 
 private data class Tab(val route: Any, val label: String, val icon: ImageVector)
 
@@ -224,6 +230,7 @@ fun BikeDashboardApp(profilesViewModel: ProfilesViewModel = viewModel()) {
                         onOpenIdeas = { nav.navigate(IdeasRoute) },
                         onOpenPersonalisation = { nav.navigate(PersonalisationRoute) },
                         onOpenDetails = { nav.navigate(BikeDetailsRoute) },
+                        onOpenServicing = { nav.navigate(ServicingRoute) },
                     )
                 }
                 composable<ProfileSetupRoute>(
@@ -251,6 +258,24 @@ fun BikeDashboardApp(profilesViewModel: ProfilesViewModel = viewModel()) {
                     popExitTransition = { slideOutOfContainer(SlideDirection.Down, tween(SLIDE_MS)) },
                 ) {
                     AppBackground { BikeDetailsScreen(onBack = { nav.popBackStack() }) }
+                }
+                composable<ServicingRoute>(
+                    enterTransition = { slideIntoContainer(SlideDirection.Up, tween(SLIDE_MS)) },
+                    popExitTransition = { slideOutOfContainer(SlideDirection.Down, tween(SLIDE_MS)) },
+                ) {
+                    AppBackground {
+                        ServicingScreen(
+                            onBack = { nav.popBackStack() },
+                            onAdd = { nav.navigate(ServiceEditRoute()) },
+                            onOpen = { id -> nav.navigate(ServiceEditRoute(id)) },
+                        )
+                    }
+                }
+                composable<ServiceEditRoute>(
+                    enterTransition = { slideIntoContainer(SlideDirection.Up, tween(SLIDE_MS)) },
+                    popExitTransition = { slideOutOfContainer(SlideDirection.Down, tween(SLIDE_MS)) },
+                ) { entry ->
+                    AppBackground { ServiceEditScreen(id = entry.toRoute<ServiceEditRoute>().id, onDone = { nav.popBackStack() }) }
                 }
                 composable<ImportRoute>(
                     enterTransition = { slideIntoContainer(SlideDirection.Up, tween(SLIDE_MS)) },
