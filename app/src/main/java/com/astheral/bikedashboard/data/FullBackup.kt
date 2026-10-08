@@ -6,6 +6,7 @@ import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Transaction
 import com.astheral.bikedashboard.reminders.Reminders
+import com.astheral.bikedashboard.ui.theme.AppIcon
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
@@ -177,5 +178,6 @@ class Backups(private val context: Context) {
         settings.restore(backup.settings)
         ideasFile(context).writeText(backup.ideas)
         Reminders.schedule(context)
+        AppIcon.apply(context, settings.appIcon.value)
     }
 }

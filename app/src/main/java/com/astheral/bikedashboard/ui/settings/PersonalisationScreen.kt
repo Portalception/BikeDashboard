@@ -28,6 +28,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.filled.LocalGasStation
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ColorLens
 import androidx.compose.material.icons.filled.Contrast
@@ -75,6 +77,7 @@ import com.astheral.bikedashboard.ui.components.GroupCard
 import com.astheral.bikedashboard.ui.components.ProgressLine
 import com.astheral.bikedashboard.ui.components.SectionHeader
 import com.astheral.bikedashboard.ui.components.SettingRow
+import com.astheral.bikedashboard.ui.theme.AppIcon
 import com.astheral.bikedashboard.ui.theme.AppearanceSettings
 import com.astheral.bikedashboard.ui.theme.ColorPreset
 import com.astheral.bikedashboard.ui.theme.ProgressStyle
@@ -87,6 +90,12 @@ class PersonalisationViewModel(application: Application) : AndroidViewModel(appl
     private val settings = Settings.get(application)
     val appearance: StateFlow<AppearanceSettings> = settings.appearance
     val units: StateFlow<Units> = settings.units
+    val appIcon: StateFlow<AppIcon> = settings.appIcon
+
+    fun setAppIcon(icon: AppIcon) {
+        settings.setAppIcon(icon)
+        AppIcon.apply(getApplication(), icon)
+    }
 
     fun updateAppearance(change: (AppearanceSettings) -> AppearanceSettings) = settings.updateAppearance(change)
     fun updateUnits(change: (Units) -> Units) = settings.updateUnits(change)
@@ -97,6 +106,7 @@ class PersonalisationViewModel(application: Application) : AndroidViewModel(appl
 fun PersonalisationScreen(onBack: () -> Unit, viewModel: PersonalisationViewModel = viewModel()) {
     val appearance by viewModel.appearance.collectAsState()
     val units by viewModel.units.collectAsState()
+    val appIcon by viewModel.appIcon.collectAsState()
     val update = viewModel::updateAppearance
 
     Column(
@@ -165,6 +175,12 @@ fun PersonalisationScreen(onBack: () -> Unit, viewModel: PersonalisationViewMode
             }
         }
 
+        SectionHeader(Icons.Filled.Apps, "App icon")
+        GroupCard(contentPadding = 16.dp) {
+            Label("Launcher icon", "Your home screen may take a few seconds to show the new one")
+            IconPicker(appIcon, viewModel::setAppIcon)
+        }
+
         SectionHeader(Icons.Filled.Straighten, "Units")
         GroupCard(contentPadding = 16.dp) {
             Label("Fuel economy")
@@ -185,6 +201,43 @@ fun PersonalisationScreen(onBack: () -> Unit, viewModel: PersonalisationViewMode
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+    }
+}
+
+/** Each launcher icon as a small preview; the chosen one has a ring around it. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun IconPicker(selected: AppIcon, onPick: (AppIcon) -> Unit) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        AppIcon.entries.forEach { icon ->
+            val isSelected = icon == selected
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.width(76.dp).clip(RoundedCornerShape(12.dp)).clickable(role = Role.RadioButton) { onPick(icon) }.padding(4.dp),
+            ) {
+                val ring by animateDpAsState(if (isSelected) 3.dp else 0.dp, label = "iconRing")
+                Box(
+                    Modifier
+                        .size(56.dp)
+                        .border(ring, MaterialTheme.colorScheme.onSurface, RoundedCornerShape(18.dp))
+                        .padding(if (isSelected) 5.dp else 0.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Brush.linearGradient(listOf(icon.top, icon.bottom))),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Box(Modifier.size(34.dp).clip(CircleShape).background(icon.glyph.copy(alpha = 0.14f)).border(1.dp, icon.glyph.copy(alpha = 0.45f), CircleShape))
+                    Icon(Icons.Filled.LocalGasStation, contentDescription = null, tint = icon.glyph, modifier = Modifier.size(22.dp))
+                }
+                Text(
+                    icon.label,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                    modifier = Modifier.padding(top = 4.dp),
+                    maxLines = 1,
+                    softWrap = false,
+                )
+            }
         }
     }
 }

@@ -10,6 +10,7 @@ import com.astheral.bikedashboard.ui.EconomyUnit
 import com.astheral.bikedashboard.ui.PriceUnit
 import com.astheral.bikedashboard.ui.TimeCostUnit
 import com.astheral.bikedashboard.ui.Units
+import com.astheral.bikedashboard.ui.theme.AppIcon
 import com.astheral.bikedashboard.ui.theme.AppearanceSettings
 import com.astheral.bikedashboard.ui.theme.ColorPreset
 import com.astheral.bikedashboard.ui.theme.ProgressStyle
@@ -89,6 +90,16 @@ class Settings private constructor(context: Context) {
         _reminderHour.value = hour
     }
 
+    private val _appIcon = MutableStateFlow(enumOr(KEY_APP_ICON, AppIcon.MONOCHROME))
+
+    /** The launcher icon picked in Personalisation. */
+    val appIcon: StateFlow<AppIcon> = _appIcon.asStateFlow()
+
+    fun setAppIcon(icon: AppIcon) {
+        prefs.edit().putString(KEY_APP_ICON, icon.name).apply()
+        _appIcon.value = icon
+    }
+
     private val _appearance = MutableStateFlow(loadAppearance())
     val appearance: StateFlow<AppearanceSettings> = _appearance.asStateFlow()
 
@@ -161,6 +172,7 @@ class Settings private constructor(context: Context) {
         _appearance.value = loadAppearance()
         _reminderFrequency.value = enumOr(KEY_REMINDER_FREQUENCY, ReminderFrequency.WEEKLY)
         _reminderHour.value = prefs.getInt(KEY_REMINDER_HOUR, 9)
+        _appIcon.value = enumOr(KEY_APP_ICON, AppIcon.MONOCHROME)
     }
 
     companion object {
@@ -181,6 +193,7 @@ class Settings private constructor(context: Context) {
         private const val KEY_UNIT_PRICE = "unit_price"
         private const val KEY_REMINDER_FREQUENCY = "reminder_frequency"
         private const val KEY_REMINDER_HOUR = "reminder_hour"
+        private const val KEY_APP_ICON = "app_icon"
 
         @Volatile
         private var instance: Settings? = null
