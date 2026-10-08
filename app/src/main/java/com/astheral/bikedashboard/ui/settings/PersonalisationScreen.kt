@@ -42,7 +42,9 @@ import androidx.compose.material.icons.filled.Wallpaper
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -62,7 +64,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -74,6 +78,7 @@ import com.astheral.bikedashboard.ui.TimeCostUnit
 import com.astheral.bikedashboard.ui.Units
 import com.astheral.bikedashboard.ui.components.ChoiceTile
 import com.astheral.bikedashboard.ui.components.GroupCard
+import com.astheral.bikedashboard.ui.components.NumberFont
 import com.astheral.bikedashboard.ui.components.ProgressLine
 import com.astheral.bikedashboard.ui.components.SectionHeader
 import com.astheral.bikedashboard.ui.components.SettingRow
@@ -382,31 +387,87 @@ private fun Swatch(brush: Brush, selected: Boolean, checkTint: Color, size: Int 
 
 private fun contentOn(color: Color) = if (color.luminance() > 0.5f) Color.Black else Color.White
 
-/** Pick any colour with hue, vividness and brightness sliders. */
+/**
+ * Pick any colour: the hue, vividness and brightness sliders reach every colour, including
+ * black, white and greys, and the hex box takes an exact #RRGGBB code. The two stay in step.
+ */
 @Composable
 private fun CustomColorDialog(start: Color, onDismiss: () -> Unit, onPick: (Color) -> Unit) {
     val hsv = remember { FloatArray(3).also { android.graphics.Color.colorToHSV(start.toArgb(), it) } }
     var hue by remember { mutableFloatStateOf(hsv[0]) }
-    var saturation by remember { mutableFloatStateOf(hsv[1].coerceAtLeast(0.2f)) }
-    var value by remember { mutableFloatStateOf(hsv[2].coerceAtLeast(0.3f)) }
-    val color = Color.hsv(hue, saturation, value)
+    var saturation by remember { mutableFloatStateOf(hsv[1]) }
+    var value by remember { mutableFloatStateOf(hsv[2]) }
+    // The colour exactly as typed (or as it started), so it isn't nudged by rounding through
+    // the sliders. Moving a slider clears it.
+    var exact by remember { mutableStateOf<Color?>(start) }
+    var hex by remember { mutableStateOf(hexOf(start)) }
+    val color = exact ?: Color.hsv(hue, saturation, value)
+    val hexValid = colorFromHex(hex) != null
+
+    fun fromSliders(h: Float = hue, s: Float = saturation, v: Float = value) {
+        hue = h; saturation = s; value = v
+        exact = null
+        hex = hexOf(Color.hsv(h, s, v))
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Custom colour") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Box(Modifier.fillMaxWidth().height(56.dp).clip(RoundedCornerShape(16.dp)).background(color))
+                OutlinedTextField(
+                    value = hex,
+                    onValueChange = { typed ->
+                        hex = typed.filter { it.digitToIntOrNull(16) != null }.take(6).uppercase()
+                        colorFromHex(hex)?.let { parsed ->
+                            exact = parsed
+                            val out = FloatArray(3).also { android.graphics.Color.colorToHSV(parsed.toArgb(), it) }
+                            // Greys have no hue, and black no vividness either: leave those
+                            // sliders where they were, so moving them carries on from there.
+                            if (out[1] > 0f && out[2] > 0f) hue = out[0]
+                            if (out[2] > 0f) saturation = out[1]
+                            value = out[2]
+                        }
+                    },
+                    label = { Text("Hex code") },
+                    prefix = { Text("#", fontFamily = NumberFont) },
+                    isError = !hexValid,
+                    supportingText = if (hexValid) null else ({ Text("Six digits 0–9 or A–F, like 1B3F9A") }),
+                    textStyle = LocalTextStyle.current.copy(fontFamily = NumberFont),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters, autoCorrectEnabled = false),
+                    modifier = Modifier.fillMaxWidth(),
+                )
                 Text("Hue", style = MaterialTheme.typography.labelMedium)
-                Box(Modifier.fillMaxWidth().height(10.dp).clip(CircleShape).background(Brush.horizontalGradient((0..6).map { Color.hsv(it * 60f % 360f, 1f, 1f) })))
-                Slider(value = hue, onValueChange = { hue = it }, valueRange = 0f..359f)
+                SliderTrack((0..6).map { Color.hsv(it * 60f % 360f, 1f, 1f) })
+                Slider(value = hue, onValueChange = { fromSliders(h = it) }, valueRange = 0f..360f)
                 Text("Vividness", style = MaterialTheme.typography.labelMedium)
-                Slider(value = saturation, onValueChange = { saturation = it }, valueRange = 0.15f..1f)
+                SliderTrack(listOf(Color.hsv(hue, 0f, value), Color.hsv(hue, 1f, value)))
+                Slider(value = saturation, onValueChange = { fromSliders(s = it) }, valueRange = 0f..1f)
                 Text("Brightness", style = MaterialTheme.typography.labelMedium)
-                Slider(value = value, onValueChange = { value = it }, valueRange = 0.3f..1f)
+                SliderTrack(listOf(Color.Black, Color.hsv(hue, saturation, 1f)))
+                Slider(value = value, onValueChange = { fromSliders(v = it) }, valueRange = 0f..1f)
             }
         },
-        confirmButton = { TextButton(onClick = { onPick(color) }) { Text("Use colour") } },
+        confirmButton = { TextButton(onClick = { onPick(color) }, enabled = hexValid) { Text("Use colour") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
+}
+
+/** A thin bar above a slider showing the colours it moves through. */
+@Composable
+private fun SliderTrack(colors: List<Color>) {
+    Box(Modifier.fillMaxWidth().height(10.dp).clip(CircleShape).background(Brush.horizontalGradient(colors)))
+}
+
+/** The colour as six hex digits, like "1B3F9A" (no "#", no transparency). */
+internal fun hexOf(color: Color): String = "%06X".format(color.toArgb() and 0xFFFFFF)
+
+/** Six hex digits, with or without a "#", as a solid colour; null if it isn't that. */
+internal fun colorFromHex(text: String): Color? {
+    val digits = text.trim().removePrefix("#")
+    if (digits.length != 6 || digits.any { it.digitToIntOrNull(16) == null }) return null
+    return Color(0xFF000000.toInt() or digits.toInt(16))
 }
 

@@ -7,6 +7,14 @@ data class Release(val version: String, val date: LocalDate, val changes: List<S
 /** Major changes in each version, newest first. Add an entry here with every version you share. */
 val CHANGELOG = listOf(
     Release(
+        version = "0.4.2",
+        date = LocalDate.of(2026, 10, 9),
+        changes = listOf(
+            "Custom colours can now be any colour, including black, white and greys, or typed in as a hex code.",
+            "The colour you pick is now the one the app actually uses for buttons and highlights.",
+        ),
+    ),
+    Release(
         version = "0.4.1",
         date = LocalDate.of(2026, 10, 9),
         changes = listOf(

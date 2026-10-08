@@ -15,10 +15,12 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+import com.materialkolor.contrast.Contrast
 import com.materialkolor.hct.Hct
 import com.materialkolor.palettes.TonalPalette
 import com.materialkolor.scheme.SchemeFidelity
@@ -118,20 +120,27 @@ fun BikeDashboardTheme(appearance: AppearanceSettings = AppearanceSettings(), co
 
 /**
  * Builds a full Material colour scheme from two colours: [primary] for the main colour
- * and [accent] for highlights (Material calls this "tertiary"). Both are kept close to the
- * colours picked rather than toned down.
+ * and [accent] for highlights (Material calls this "tertiary").
+ *
+ * Material on its own would swap the picked colours for a fixed lighter or darker shade of
+ * them, so here `primary` and `tertiary` are the picked colours themselves (see [readableOn]).
+ * The text on top of them is black or white, whichever is easier to read. Backgrounds and
+ * containers still come from Material, tinted by the picked colours.
  */
 fun schemeFor(primary: Color, accent: Color, dark: Boolean): ColorScheme {
     val s = SchemeFidelity(Hct.fromInt(primary.toArgb()), dark, 0.0)
     val a = TonalPalette.fromHct(Hct.fromInt(accent.toArgb()))
     fun c(argb: Int) = Color(argb)
-    val tertiary = c(a.tone(if (dark) 80 else 40))
-    val onTertiary = c(a.tone(if (dark) 20 else 100))
+    val surfaceTone = Hct.fromInt(s.surface).tone
+    val shownPrimary = primary.readableOn(surfaceTone, dark)
+    val onPrimary = contentOn(shownPrimary)
+    val tertiary = accent.readableOn(surfaceTone, dark)
+    val onTertiary = contentOn(tertiary)
     val tertiaryContainer = c(a.tone(if (dark) 30 else 90))
     val onTertiaryContainer = c(a.tone(if (dark) 90 else 10))
     return if (dark) {
         darkColorScheme(
-            primary = c(s.primary), onPrimary = c(s.onPrimary),
+            primary = shownPrimary, onPrimary = onPrimary,
             primaryContainer = c(s.primaryContainer), onPrimaryContainer = c(s.onPrimaryContainer),
             inversePrimary = c(s.inversePrimary),
             secondary = c(s.secondary), onSecondary = c(s.onSecondary),
@@ -141,7 +150,7 @@ fun schemeFor(primary: Color, accent: Color, dark: Boolean): ColorScheme {
             background = c(s.background), onBackground = c(s.onBackground),
             surface = c(s.surface), onSurface = c(s.onSurface),
             surfaceVariant = c(s.surfaceVariant), onSurfaceVariant = c(s.onSurfaceVariant),
-            surfaceTint = c(s.surfaceTint),
+            surfaceTint = shownPrimary,
             inverseSurface = c(s.inverseSurface), inverseOnSurface = c(s.inverseOnSurface),
             error = c(s.error), onError = c(s.onError),
             errorContainer = c(s.errorContainer), onErrorContainer = c(s.onErrorContainer),
@@ -153,7 +162,7 @@ fun schemeFor(primary: Color, accent: Color, dark: Boolean): ColorScheme {
         )
     } else {
         lightColorScheme(
-            primary = c(s.primary), onPrimary = c(s.onPrimary),
+            primary = shownPrimary, onPrimary = onPrimary,
             primaryContainer = c(s.primaryContainer), onPrimaryContainer = c(s.onPrimaryContainer),
             inversePrimary = c(s.inversePrimary),
             secondary = c(s.secondary), onSecondary = c(s.onSecondary),
@@ -163,7 +172,7 @@ fun schemeFor(primary: Color, accent: Color, dark: Boolean): ColorScheme {
             background = c(s.background), onBackground = c(s.onBackground),
             surface = c(s.surface), onSurface = c(s.onSurface),
             surfaceVariant = c(s.surfaceVariant), onSurfaceVariant = c(s.onSurfaceVariant),
-            surfaceTint = c(s.surfaceTint),
+            surfaceTint = shownPrimary,
             inverseSurface = c(s.inverseSurface), inverseOnSurface = c(s.inverseOnSurface),
             error = c(s.error), onError = c(s.onError),
             errorContainer = c(s.errorContainer), onErrorContainer = c(s.onErrorContainer),
@@ -174,6 +183,28 @@ fun schemeFor(primary: Color, accent: Color, dark: Boolean): ColorScheme {
             surfaceContainerLowest = c(s.surfaceContainerLowest),
         )
     }
+}
+
+/**
+ * This colour, unchanged, as long as it stands out at least 2:1 from a background of
+ * [backgroundTone], which keeps bright oranges, yellows and sky blues exactly as picked.
+ * Otherwise (black in dark mode, white or a pale colour in light mode) it would vanish as
+ * coloured text or an outline, so it's made just light or dark enough, keeping its hue.
+ */
+private fun Color.readableOn(backgroundTone: Double, dark: Boolean): Color {
+    val hct = Hct.fromInt(toArgb())
+    if (Contrast.ratioOfTones(hct.tone, backgroundTone) >= MIN_CONTRAST) return this
+    val tone = if (dark) Contrast.lighterUnsafe(backgroundTone, MIN_CONTRAST) else Contrast.darkerUnsafe(backgroundTone, MIN_CONTRAST)
+    return Color(Hct.from(hct.hue, hct.chroma, tone).toInt())
+}
+
+private const val MIN_CONTRAST = 2.0
+
+/** Black or white, whichever reads better on top of [color]. */
+private fun contentOn(color: Color): Color {
+    val l = color.luminance()
+    // Contrast ratio against white is 1.05 / (l + 0.05), against black (l + 0.05) / 0.05.
+    return if (1.05f / (l + 0.05f) >= (l + 0.05f) / 0.05f) Color.White else Color.Black
 }
 
 /** True black background with near-black cards, for AMOLED screens. */
