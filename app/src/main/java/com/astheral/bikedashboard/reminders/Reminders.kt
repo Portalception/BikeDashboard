@@ -28,6 +28,7 @@ import com.astheral.bikedashboard.data.status
 import com.astheral.bikedashboard.data.withDefaults
 import com.astheral.bikedashboard.ui.km
 import com.astheral.bikedashboard.ui.short
+import com.astheral.bikedashboard.calc.ReminderSchedule
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -35,22 +36,11 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
 
-enum class ReminderFrequency(val label: String) { OFF("Off"), DAILY("Daily"), WEEKLY("Weekly") }
-
-/** Hours offered for the reminder, 24-hour clock. */
-val REMINDER_HOURS = listOf(7, 9, 12, 18, 21)
-
-fun hourLabel(hour: Int) = when {
-    hour == 0 -> "12 am"
-    hour < 12 -> "$hour am"
-    hour == 12 -> "12 pm"
-    else -> "${hour - 12} pm"
-}
-
 /**
- * Service reminders. Once a day (at the hour picked in Settings) the app looks at every bike's
- * intervals. When something enters its warning window you get a notification, then another one
- * each day or each week (as picked) until it's done, which you mark by adding a service record.
+ * Service reminders. On the days and at the time picked in Settings (every N days, some
+ * weekdays, or a day of the month; see [ReminderSchedule]) the app looks at every bike's
+ * intervals. Everything in its warning window or overdue gets a notification on each of those
+ * days until it's done, which you mark by adding a service record.
  *
  * The same check also covers paperwork (COE, insurance, road tax, inspection) switched on in
  * Bike details: from a set number of days before it expires until a new date is entered. Those
@@ -72,7 +62,7 @@ object Reminders {
     /** Added to paperwork tap request codes, so they never replace a servicing one. */
     private const val PAPERWORK_REQUEST_BASE = 1_000_000
 
-    /** Sets up (or cancels) the daily check to match Settings. Safe to call any number of times. */
+    /** Sets up (or cancels) the next check to match Settings. Safe to call any number of times. */
     fun schedule(context: Context) {
         val settings = Settings.get(context)
         val alarms = context.getSystemService(AlarmManager::class.java) ?: return
@@ -81,12 +71,11 @@ object Reminders {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         alarms.cancel(pending)
-        if (settings.reminderFrequency.value == ReminderFrequency.OFF) return
-        var next = LocalDateTime.now().withHour(settings.reminderHour.value).withMinute(0).withSecond(0).withNano(0)
-        if (!next.isAfter(LocalDateTime.now())) next = next.plusDays(1)
+        val next = settings.reminderSchedule.value.next(LocalDateTime.now()) ?: return
         val at = next.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
         // Within half an hour of the chosen time. A repeating inexact alarm can run up to 18 hours
-        // late, so this is a one-off that the receiver sets again for the next day.
+        // late, and reminder days aren't evenly spaced anyway, so this is a one-off that the
+        // receiver sets again for the next reminder day.
         alarms.setWindow(AlarmManager.RTC_WAKEUP, at, WINDOW_MS, pending)
     }
 
@@ -122,10 +111,14 @@ object Reminders {
         }
     }
 
-    /** Posts the notifications that are due today, following the daily or weekly choice. */
-    suspend fun check(context: Context, today: LocalDate = LocalDate.now()) {
-        val frequency = Settings.get(context).reminderFrequency.value
-        if (frequency == ReminderFrequency.OFF) return
+    /**
+     * Posts a notification for everything that's due. [scheduled] is true for the alarm's run on
+     * a reminder day, which covers everything not already notified today. Other checks (right
+     * after changing a setting) only post what has never been notified, so editing doesn't
+     * bring back reminders you've already seen.
+     */
+    suspend fun check(context: Context, today: LocalDate = LocalDate.now(), scheduled: Boolean = false) {
+        if (!Settings.get(context).reminderSchedule.value.on) return
         val sent = context.getSharedPreferences("reminders", Context.MODE_PRIVATE)
         val due = dueNow(context, today)
         val paperwork = paperworkDue(context, today)
@@ -134,21 +127,19 @@ object Reminders {
         sent.edit().apply { sent.all.keys.filter { it !in dueKeys }.forEach { remove(it) } }.apply()
         if (!allowed(context)) return
         createChannel(context)
-        val gap = if (frequency == ReminderFrequency.WEEKLY) 7 else 1
-        val toSend = due.filter { (profile, s) ->
-            val lastSent = sent.getLong(key(profile, s), Long.MIN_VALUE)
-            lastSent == Long.MIN_VALUE || today.toEpochDay() - lastSent >= gap
+        // Never the same thing twice in one day.
+        fun ready(key: String): Boolean {
+            val lastSent = sent.getLong(key, Long.MIN_VALUE)
+            return lastSent == Long.MIN_VALUE || (scheduled && lastSent != today.toEpochDay())
         }
+        val toSend = due.filter { (profile, s) -> ready(key(profile, s)) }
         toSend.forEach { (profile, s) ->
             notify(context, profile, s)
             sent.edit().putLong(key(profile, s), today.toEpochDay()).apply()
         }
         if (toSend.size > 1) notifySummary(context, toSend)
 
-        val papersToSend = paperwork.filter { (profile, l) ->
-            val lastSent = sent.getLong(key(profile, l), Long.MIN_VALUE)
-            lastSent == Long.MIN_VALUE || today.toEpochDay() - lastSent >= gap
-        }
+        val papersToSend = paperwork.filter { (profile, l) -> ready(key(profile, l)) }
         if (papersToSend.isNotEmpty()) createPaperworkChannel(context)
         papersToSend.forEach { (profile, l) ->
             notifyPaperwork(context, profile, l)
@@ -268,22 +259,22 @@ object Reminders {
     }
 }
 
-/** The daily check, run by the alarm. */
+/** The check on each reminder day, run by the alarm. */
 class ReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val result = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                Reminders.check(context.applicationContext)
+                Reminders.check(context.applicationContext, scheduled = true)
             } finally {
-                Reminders.schedule(context.applicationContext) // tomorrow's check
+                Reminders.schedule(context.applicationContext) // the next reminder day
                 result.finish()
             }
         }
     }
 }
 
-/** Alarms are cleared when the phone restarts, so set the daily check up again. */
+/** Alarms are cleared when the phone restarts, so set the next check up again. */
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action == Intent.ACTION_BOOT_COMPLETED || intent.action == Intent.ACTION_MY_PACKAGE_REPLACED) {

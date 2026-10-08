@@ -7,6 +7,13 @@ data class Release(val version: String, val date: LocalDate, val changes: List<S
 /** Major changes in each version, newest first. Add an entry here with every version you share. */
 val CHANGELOG = listOf(
     Release(
+        version = "0.4.9",
+        date = LocalDate.of(2026, 10, 9),
+        changes = listOf(
+            "Reminders can now arrive at any time you pick, and you choose the days: every few days, certain weekdays (like every Wednesday), or a day of the month (like the 4th). Your old daily or weekly setting carries over.",
+        ),
+    ),
+    Release(
         version = "0.4.8",
         date = LocalDate.of(2026, 10, 9),
         changes = listOf(

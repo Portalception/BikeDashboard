@@ -10,13 +10,39 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Today
-import com.astheral.bikedashboard.reminders.REMINDER_HOURS
-import com.astheral.bikedashboard.reminders.ReminderFrequency
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.rememberTimePickerState
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
+import com.astheral.bikedashboard.calc.MAX_EVERY_DAYS
+import com.astheral.bikedashboard.calc.ReminderSchedule
+import com.astheral.bikedashboard.calc.RepeatKind
+import com.astheral.bikedashboard.calc.ordinal
+import com.astheral.bikedashboard.calc.timeLabel
 import com.astheral.bikedashboard.reminders.Reminders
-import com.astheral.bikedashboard.reminders.hourLabel
 import com.astheral.bikedashboard.ui.count
 import com.astheral.bikedashboard.ui.components.ChoiceTile
-import com.astheral.bikedashboard.ui.components.PillTabs
+import com.astheral.bikedashboard.ui.components.NumberFont
+import java.time.DayOfWeek
+import java.time.LocalTime
+import java.time.format.TextStyle
+import java.util.Locale
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import android.net.Uri
@@ -109,13 +135,12 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val _exportMessage = MutableStateFlow<String?>(null)
     val exportMessage: StateFlow<String?> = _exportMessage.asStateFlow()
 
-    val reminderFrequency: StateFlow<ReminderFrequency> = settings.reminderFrequency
-    val reminderHour: StateFlow<Int> = settings.reminderHour
+    val reminderSchedule: StateFlow<ReminderSchedule> = settings.reminderSchedule
 
-    fun setReminders(frequency: ReminderFrequency = reminderFrequency.value, hour: Int = reminderHour.value) {
-        settings.setReminders(frequency, hour)
+    fun setReminderSchedule(change: (ReminderSchedule) -> ReminderSchedule) {
+        settings.setReminderSchedule(change(reminderSchedule.value))
         Reminders.schedule(getApplication())
-        // Check straight away, so something already due shows up now rather than tomorrow.
+        // Check straight away, so something already due shows up now rather than on the next reminder day.
         viewModelScope.launch(Dispatchers.IO) { Reminders.check(getApplication()) }
     }
 
@@ -283,19 +308,21 @@ fun SettingsScreen(
 }
 
 /**
- * Off, daily or weekly reminders once a service is coming up, and the time they arrive.
+ * When reminders arrive: off, every few days, on some weekdays or on a day of the month, at any
+ * time of day. On those days every service or paperwork item that's due gets a notification.
  * Android 13+ asks for permission to show notifications the first time they're turned on.
  */
 @Composable
 private fun RemindersCard(viewModel: SettingsViewModel) {
-    val frequency by viewModel.reminderFrequency.collectAsState()
-    val hour by viewModel.reminderHour.collectAsState()
+    val schedule by viewModel.reminderSchedule.collectAsState()
     val context = LocalContext.current
     var allowed by remember { mutableStateOf(Reminders.allowed(context)) }
     var refused by remember { mutableStateOf(false) }
-    var wanted by remember { mutableStateOf<ReminderFrequency?>(null) }
+    var wanted by remember { mutableStateOf<RepeatKind?>(null) }
+    var pickingTime by remember { mutableStateOf(false) }
+    val pick = { kind: RepeatKind -> viewModel.setReminderSchedule { it.withKind(kind) } }
     val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        wanted?.let { viewModel.setReminders(it) }
+        wanted?.let(pick)
         allowed = Reminders.allowed(context)
         refused = !granted
         wanted = null
@@ -303,40 +330,74 @@ private fun RemindersCard(viewModel: SettingsViewModel) {
     val askable = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
     GroupCard(contentPadding = 16.dp) {
         Text(
-            "Once an oil change or service is coming up, remind me:",
+            "When a service or paperwork is coming up, remind me:",
             Modifier.padding(start = 4.dp, bottom = 10.dp),
             style = MaterialTheme.typography.titleSmall,
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             val icons = mapOf(
-                ReminderFrequency.OFF to Icons.Filled.NotificationsOff,
-                ReminderFrequency.DAILY to Icons.Filled.Today,
-                ReminderFrequency.WEEKLY to Icons.Filled.DateRange,
+                RepeatKind.OFF to Icons.Filled.NotificationsOff,
+                RepeatKind.EVERY_N_DAYS to Icons.Filled.Today,
+                RepeatKind.WEEKLY to Icons.Filled.DateRange,
+                RepeatKind.MONTHLY to Icons.Filled.CalendarMonth,
             )
-            ReminderFrequency.entries.forEach { f ->
-                ChoiceTile(icons.getValue(f), f.label, frequency == f, {
-                    if (f != ReminderFrequency.OFF && askable && !allowed) {
-                        wanted = f
+            RepeatKind.entries.forEach { k ->
+                ChoiceTile(icons.getValue(k), k.label, schedule.kind == k, {
+                    if (k != RepeatKind.OFF && askable && !allowed) {
+                        wanted = k
                         ask.launch(Manifest.permission.POST_NOTIFICATIONS)
                     } else {
-                        viewModel.setReminders(f)
+                        pick(k)
                     }
                 }, Modifier.weight(1f))
             }
         }
-        AnimatedVisibility(frequency != ReminderFrequency.OFF) {
-            Column {
+        AnimatedVisibility(schedule.on) {
+            Column(Modifier.padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                when (schedule.kind) {
+                    RepeatKind.EVERY_N_DAYS -> Stepper(
+                        "Every",
+                        if (schedule.everyDays == 1) "day" else "${schedule.everyDays} days",
+                        canLower = schedule.everyDays > 1,
+                        canRaise = schedule.everyDays < MAX_EVERY_DAYS,
+                        onChange = { step -> viewModel.setReminderSchedule { it.withEveryDays(it.everyDays + step) } },
+                    )
+                    RepeatKind.WEEKLY -> WeekdayPicker(schedule.weekdays) { days ->
+                        viewModel.setReminderSchedule { it.copy(weekdays = days) }
+                    }
+                    RepeatKind.MONTHLY -> {
+                        Stepper(
+                            "On the",
+                            "${ordinal(schedule.dayOfMonth)} of the month",
+                            canLower = schedule.dayOfMonth > 1,
+                            canRaise = schedule.dayOfMonth < 31,
+                            onChange = { step -> viewModel.setReminderSchedule { it.copy(dayOfMonth = (it.dayOfMonth + step).coerceIn(1, 31)) } },
+                        )
+                        if (schedule.dayOfMonth > 28) {
+                            Text(
+                                "Months without a ${ordinal(schedule.dayOfMonth)} use their last day.",
+                                Modifier.padding(start = 4.dp),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    RepeatKind.OFF -> {}
+                }
+                OutlinedButton(onClick = { pickingTime = true }, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Filled.Schedule, contentDescription = null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("At ${timeLabel(schedule.time)}", fontFamily = NumberFont)
+                }
                 Text(
-                    "At",
-                    Modifier.padding(start = 4.dp, top = 16.dp, bottom = 10.dp),
-                    style = MaterialTheme.typography.titleSmall,
+                    schedule.summary(),
+                    Modifier.padding(start = 4.dp),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.tertiary,
                 )
-                PillTabs(REMINDER_HOURS.map { null to hourLabel(it) }, REMINDER_HOURS.indexOf(hour).coerceAtLeast(0), { i ->
-                    viewModel.setReminders(hour = REMINDER_HOURS[i])
-                })
             }
         }
-        if (frequency != ReminderFrequency.OFF && !allowed) {
+        if (schedule.on && !allowed) {
             Row(Modifier.padding(start = 4.dp, top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     if (refused || !askable) "Notifications are off for Bike Dashboard. Turn them on in your phone's settings to get reminders."
@@ -346,11 +407,92 @@ private fun RemindersCard(viewModel: SettingsViewModel) {
                     color = MaterialTheme.colorScheme.error,
                 )
                 if (askable && !refused) {
-                    TextButton(onClick = { wanted = frequency; ask.launch(Manifest.permission.POST_NOTIFICATIONS) }) { Text("Allow") }
+                    TextButton(onClick = { wanted = schedule.kind; ask.launch(Manifest.permission.POST_NOTIFICATIONS) }) { Text("Allow") }
                 }
             }
         }
     }
+    if (pickingTime) {
+        PickTimeDialog(schedule.time, onDismiss = { pickingTime = false }) { time ->
+            viewModel.setReminderSchedule { it.copy(time = time) }
+            pickingTime = false
+        }
+    }
+}
+
+/**
+ * [kind], starting "every N days" from the next time the reminder can arrive, so the first one
+ * comes as soon as possible.
+ */
+private fun ReminderSchedule.withKind(kind: RepeatKind): ReminderSchedule =
+    if (kind == RepeatKind.EVERY_N_DAYS && this.kind != kind) copy(kind = kind, anchor = firstDay(time)) else copy(kind = kind)
+
+private fun ReminderSchedule.withEveryDays(days: Int): ReminderSchedule =
+    copy(everyDays = days.coerceIn(1, MAX_EVERY_DAYS), anchor = firstDay(time))
+
+/** Today if [time] is still to come, otherwise tomorrow. */
+private fun firstDay(time: LocalTime): LocalDate =
+    if (LocalTime.now().isBefore(time)) LocalDate.now() else LocalDate.now().plusDays(1)
+
+/** "Every  [-] 3 days [+]": a label and a value with buttons to lower or raise it by one. */
+@Composable
+private fun Stepper(label: String, value: String, canLower: Boolean, canRaise: Boolean, onChange: (Int) -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(start = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
+        FilledTonalIconButton(onClick = { onChange(-1) }, enabled = canLower) { Icon(Icons.Filled.Remove, contentDescription = "Fewer") }
+        Text(
+            value,
+            Modifier.padding(horizontal = 8.dp),
+            style = MaterialTheme.typography.titleSmall,
+            fontFamily = NumberFont,
+        )
+        FilledTonalIconButton(onClick = { onChange(1) }, enabled = canRaise) { Icon(Icons.Filled.Add, contentDescription = "More") }
+    }
+}
+
+/** Seven round day buttons, Monday first; any number can be picked, but not none. */
+@Composable
+private fun WeekdayPicker(selected: Set<DayOfWeek>, onChange: (Set<DayOfWeek>) -> Unit) {
+    val accent = MaterialTheme.colorScheme.tertiary
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        DayOfWeek.entries.forEach { day ->
+            val on = day in selected
+            Box(
+                Modifier
+                    .weight(1f)
+                    .aspectRatio(1f)
+                    .clip(CircleShape)
+                    .background(if (on) accent.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f))
+                    .border(if (on) 1.5.dp else 1.dp, if (on) accent else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f), CircleShape)
+                    .clickable(role = Role.Checkbox) {
+                        val next = if (on) selected - day else selected + day
+                        if (next.isNotEmpty()) onChange(next)
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    day.getDisplayName(TextStyle.SHORT, Locale.ENGLISH).take(2),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = if (on) FontWeight.Bold else FontWeight.Normal,
+                    color = if (on) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+/** A clock for picking any time of day. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PickTimeDialog(initial: LocalTime, onDismiss: () -> Unit, onPick: (LocalTime) -> Unit) {
+    val state = rememberTimePickerState(initialHour = initial.hour, initialMinute = initial.minute, is24Hour = false)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Remind me at") },
+        text = { TimePicker(state) },
+        confirmButton = { TextButton(onClick = { onPick(LocalTime.of(state.hour, state.minute)) }) { Text("OK") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }
 
 /** "Yamaha R3" -> "yamaha-r3", for the backup file name. */

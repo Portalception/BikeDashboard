@@ -6,7 +6,10 @@ import androidx.compose.ui.graphics.toArgb
 import com.astheral.bikedashboard.calc.DEFAULT_PAPERWORK_LEAD_DAYS
 import com.astheral.bikedashboard.calc.DEFAULT_TRIP_KM
 import com.astheral.bikedashboard.calc.LegalItem
-import com.astheral.bikedashboard.reminders.ReminderFrequency
+import com.astheral.bikedashboard.calc.MAX_EVERY_DAYS
+import com.astheral.bikedashboard.calc.ReminderSchedule
+import com.astheral.bikedashboard.calc.RepeatKind
+import com.astheral.bikedashboard.calc.migrateOldReminders
 import com.astheral.bikedashboard.ui.DistanceCostUnit
 import com.astheral.bikedashboard.ui.EconomyUnit
 import com.astheral.bikedashboard.ui.PriceUnit
@@ -22,6 +25,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import java.time.DayOfWeek
+import java.time.LocalDate
+import java.time.LocalTime
 
 /** Small app settings, kept on the phone. */
 class Settings private constructor(context: Context) {
@@ -95,20 +101,49 @@ class Settings private constructor(context: Context) {
     private inline fun <reified E : Enum<E>> enumOr(key: String, default: E): E =
         enumValues<E>().firstOrNull { it.name == prefs.getString(key, null) } ?: default
 
-    private val _reminderFrequency = MutableStateFlow(enumOr(KEY_REMINDER_FREQUENCY, ReminderFrequency.WEEKLY))
+    private val _reminderSchedule = MutableStateFlow(loadReminderSchedule())
 
-    /** How often to repeat a service reminder once it's due soon. */
-    val reminderFrequency: StateFlow<ReminderFrequency> = _reminderFrequency.asStateFlow()
+    /** Which days and at what time reminders arrive (or Off). */
+    val reminderSchedule: StateFlow<ReminderSchedule> = _reminderSchedule.asStateFlow()
 
-    private val _reminderHour = MutableStateFlow(prefs.getInt(KEY_REMINDER_HOUR, 9))
+    fun setReminderSchedule(schedule: ReminderSchedule) {
+        saveReminderSchedule(schedule)
+        _reminderSchedule.value = schedule
+    }
 
-    /** The hour of the day reminders arrive, 0–23. */
-    val reminderHour: StateFlow<Int> = _reminderHour.asStateFlow()
+    private fun saveReminderSchedule(s: ReminderSchedule) {
+        prefs.edit()
+            .putString(KEY_REMINDER_REPEAT, s.kind.name)
+            .putInt(KEY_REMINDER_HOUR, s.time.hour)
+            .putInt(KEY_REMINDER_MINUTE, s.time.minute)
+            .putInt(KEY_REMINDER_EVERY_DAYS, s.everyDays)
+            .putLong(KEY_REMINDER_ANCHOR, s.anchor.toEpochDay())
+            .putString(KEY_REMINDER_WEEKDAYS, s.weekdays.sorted().joinToString(",") { it.value.toString() })
+            .putInt(KEY_REMINDER_MONTH_DAY, s.dayOfMonth)
+            .remove(KEY_OLD_REMINDER_FREQUENCY)
+            .apply()
+    }
 
-    fun setReminders(frequency: ReminderFrequency = _reminderFrequency.value, hour: Int = _reminderHour.value) {
-        prefs.edit().putString(KEY_REMINDER_FREQUENCY, frequency.name).putInt(KEY_REMINDER_HOUR, hour).apply()
-        _reminderFrequency.value = frequency
-        _reminderHour.value = hour
+    /**
+     * The saved schedule. Older versions only had a daily/weekly frequency and an
+     * hour; those are turned into a schedule (see [migrateOldReminders]) and saved straight away,
+     * so "weekly on today's weekday" stays on the same weekday afterwards.
+     */
+    private fun loadReminderSchedule(): ReminderSchedule {
+        val kind = RepeatKind.entries.firstOrNull { it.name == prefs.getString(KEY_REMINDER_REPEAT, null) }
+            ?: return migrateOldReminders(prefs.getString(KEY_OLD_REMINDER_FREQUENCY, null), prefs.getInt(KEY_REMINDER_HOUR, 9), LocalDate.now())
+                .also(::saveReminderSchedule)
+        val today = LocalDate.now()
+        return ReminderSchedule(
+            kind = kind,
+            time = LocalTime.of(prefs.getInt(KEY_REMINDER_HOUR, 9).coerceIn(0, 23), prefs.getInt(KEY_REMINDER_MINUTE, 0).coerceIn(0, 59)),
+            everyDays = prefs.getInt(KEY_REMINDER_EVERY_DAYS, 1).coerceIn(1, MAX_EVERY_DAYS),
+            anchor = LocalDate.ofEpochDay(prefs.getLong(KEY_REMINDER_ANCHOR, today.toEpochDay())),
+            weekdays = prefs.getString(KEY_REMINDER_WEEKDAYS, null).orEmpty().split(',')
+                .mapNotNull { it.toIntOrNull()?.takeIf { d -> d in 1..7 }?.let(DayOfWeek::of) }.toSet()
+                .ifEmpty { setOf(today.dayOfWeek) },
+            dayOfMonth = prefs.getInt(KEY_REMINDER_MONTH_DAY, today.dayOfMonth).coerceIn(1, 31),
+        )
     }
 
     private val _paperworkReminders = MutableStateFlow(loadPaperworkReminders())
@@ -224,8 +259,7 @@ class Settings private constructor(context: Context) {
         _ideasUnlocked.value = prefs.getBoolean(KEY_IDEAS_UNLOCKED, false)
         _units.value = loadUnits()
         _appearance.value = loadAppearance()
-        _reminderFrequency.value = enumOr(KEY_REMINDER_FREQUENCY, ReminderFrequency.WEEKLY)
-        _reminderHour.value = prefs.getInt(KEY_REMINDER_HOUR, 9)
+        _reminderSchedule.value = loadReminderSchedule()
         _appIcon.value = enumOr(KEY_APP_ICON, AppIcon.MONOCHROME)
         _tripKm.value = loadTripKm()
         _paperworkReminders.value = loadPaperworkReminders()
@@ -251,8 +285,15 @@ class Settings private constructor(context: Context) {
         private const val KEY_UNIT_DISTANCE_COST = "unit_distance_cost"
         private const val KEY_UNIT_TIME_COST = "unit_time_cost"
         private const val KEY_UNIT_PRICE = "unit_price"
-        private const val KEY_REMINDER_FREQUENCY = "reminder_frequency"
+        /** Replaced by [KEY_REMINDER_REPEAT] and friends; only read when upgrading. */
+        private const val KEY_OLD_REMINDER_FREQUENCY = "reminder_frequency"
+        private const val KEY_REMINDER_REPEAT = "reminder_repeat"
         private const val KEY_REMINDER_HOUR = "reminder_hour"
+        private const val KEY_REMINDER_MINUTE = "reminder_minute"
+        private const val KEY_REMINDER_EVERY_DAYS = "reminder_every_days"
+        private const val KEY_REMINDER_ANCHOR = "reminder_anchor"
+        private const val KEY_REMINDER_WEEKDAYS = "reminder_weekdays"
+        private const val KEY_REMINDER_MONTH_DAY = "reminder_month_day"
         private const val KEY_APP_ICON = "app_icon"
         private const val KEY_PAPERWORK_PREFIX = "paperwork_remind_"
         private const val KEY_PAPERWORK_LEAD_DAYS = "paperwork_lead_days"

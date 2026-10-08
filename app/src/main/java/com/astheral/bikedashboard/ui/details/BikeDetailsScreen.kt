@@ -60,12 +60,12 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.astheral.bikedashboard.calc.LegalItem
+import com.astheral.bikedashboard.calc.ReminderSchedule
 import com.astheral.bikedashboard.data.AppDatabase
 import com.astheral.bikedashboard.data.BikeDetails
 import com.astheral.bikedashboard.data.Profile
 import com.astheral.bikedashboard.data.Profiles
 import com.astheral.bikedashboard.data.Settings
-import com.astheral.bikedashboard.reminders.ReminderFrequency
 import com.astheral.bikedashboard.reminders.Reminders
 import com.astheral.bikedashboard.ui.components.AccentChip
 import com.astheral.bikedashboard.ui.components.GroupCard
@@ -104,7 +104,7 @@ class BikeDetailsViewModel(application: Application) : AndroidViewModel(applicat
     /** Which expiries to be reminded about, for every bike. */
     val paperworkReminders: StateFlow<Map<Long, Set<LegalItem>>> = settings.paperworkReminders
     val leadDays: StateFlow<Int> = settings.paperworkLeadDays
-    val reminderFrequency: StateFlow<ReminderFrequency> = settings.reminderFrequency
+    val reminderSchedule: StateFlow<ReminderSchedule> = settings.reminderSchedule
 
     fun update(change: (BikeDetails) -> BikeDetails) {
         val current = state.value?.details ?: return
@@ -198,7 +198,7 @@ fun BikeDetailsScreen(onBack: () -> Unit, viewModel: BikeDetailsViewModel = view
     val state by viewModel.state.collectAsState()
     val reminders by viewModel.paperworkReminders.collectAsState()
     val leadDays by viewModel.leadDays.collectAsState()
-    val frequency by viewModel.reminderFrequency.collectAsState()
+    val schedule by viewModel.reminderSchedule.collectAsState()
     val s = state ?: return
     var editing by remember { mutableStateOf<DetailField?>(null) }
     var editingLegal by remember { mutableStateOf<LegalItem?>(null) }
@@ -264,7 +264,7 @@ fun BikeDetailsScreen(onBack: () -> Unit, viewModel: BikeDetailsViewModel = view
             ) {
                 Icon(Icons.Filled.Edit, contentDescription = "Change", Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            if (remindOn.isNotEmpty() && (frequency == ReminderFrequency.OFF || !Reminders.allowed(context))) {
+            if (remindOn.isNotEmpty() && (!schedule.on || !Reminders.allowed(context))) {
                 Text(
                     "Reminders are off. Turn them on in Settings → Reminders to get these.",
                     Modifier.padding(start = 20.dp, end = 20.dp, bottom = 16.dp),
