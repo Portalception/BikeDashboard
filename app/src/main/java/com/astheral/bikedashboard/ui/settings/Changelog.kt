@@ -7,6 +7,19 @@ data class Release(val version: String, val date: LocalDate, val changes: List<S
 /** Major changes in each version, newest first. Add an entry here with every version you share. */
 val CHANGELOG = listOf(
     Release(
+        version = "0.5",
+        date = LocalDate.of(2026, 10, 9),
+        changes = listOf(
+            "Everything from 0.4.1 to 0.4.10 together:",
+            "Custom colours can be any colour, or typed in as a hex code, and are used exactly as picked. Presets show just the brand.",
+            "The trip into Malaysia taken off your savings is one setting for all your bikes.",
+            "Your own service categories and interval items: add, rename or remove them. They're kept in backups.",
+            "Adding a service goes one question at a time, with an optional odometer that can be estimated from your fill-ups.",
+            "Bike details is tidier, and each legal item shows its number and expiry together, with optional expiry reminders.",
+            "Reminders at any time you pick: every few days, on chosen weekdays, or a day of the month.",
+        ),
+    ),
+    Release(
         version = "0.4.10",
         date = LocalDate.of(2026, 10, 9),
         changes = listOf(
