@@ -161,11 +161,16 @@ private fun AnimatedContentTransitionScope<NavBackStackEntry>.backEnter(): Enter
 private fun AnimatedContentTransitionScope<NavBackStackEntry>.backExit(): ExitTransition =
     if (initialState.destination.isOverlay()) slideOutOfContainer(SlideDirection.Down, tween(SLIDE_MS)) else tabExit()
 
-/** [openServicingFor] opens that bike's servicing page, e.g. after tapping a reminder. */
+/**
+ * [openServicingFor] opens that bike's servicing page, e.g. after tapping a reminder, and
+ * [openDetailsFor] its details page, after tapping a paperwork reminder.
+ */
 @Composable
 fun BikeDashboardApp(
     openServicingFor: Long? = null,
     onOpenedServicing: () -> Unit = {},
+    openDetailsFor: Long? = null,
+    onOpenedDetails: () -> Unit = {},
     profilesViewModel: ProfilesViewModel = viewModel(),
 ) {
     val profiles by profilesViewModel.state.collectAsState()
@@ -189,6 +194,14 @@ fun BikeDashboardApp(
             nav.navigate(ServicingRoute) { launchSingleTop = true }
         }
         onOpenedServicing()
+    }
+    LaunchedEffect(openDetailsFor) {
+        val id = openDetailsFor ?: return@LaunchedEffect
+        if (all.any { it.id == id }) {
+            profilesViewModel.switchTo(id)
+            nav.navigate(BikeDetailsRoute) { launchSingleTop = true }
+        }
+        onOpenedDetails()
     }
 
     AppBackground {

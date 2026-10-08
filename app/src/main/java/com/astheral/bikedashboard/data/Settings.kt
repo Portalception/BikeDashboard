@@ -3,7 +3,9 @@ package com.astheral.bikedashboard.data
 import android.content.Context
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import com.astheral.bikedashboard.calc.DEFAULT_PAPERWORK_LEAD_DAYS
 import com.astheral.bikedashboard.calc.DEFAULT_TRIP_KM
+import com.astheral.bikedashboard.calc.LegalItem
 import com.astheral.bikedashboard.reminders.ReminderFrequency
 import com.astheral.bikedashboard.ui.DistanceCostUnit
 import com.astheral.bikedashboard.ui.EconomyUnit
@@ -109,6 +111,39 @@ class Settings private constructor(context: Context) {
         _reminderHour.value = hour
     }
 
+    private val _paperworkReminders = MutableStateFlow(loadPaperworkReminders())
+
+    /**
+     * Which paperwork expiries to be reminded about, per bike. Off unless switched on. Each is
+     * its own saved setting ("paperwork_remind_<bike id>_<item>"), so full backups include them.
+     */
+    val paperworkReminders: StateFlow<Map<Long, Set<LegalItem>>> = _paperworkReminders.asStateFlow()
+
+    fun setPaperworkReminder(profileId: Long, item: LegalItem, on: Boolean) {
+        prefs.edit().putBoolean(paperworkKey(profileId, item), on).apply()
+        _paperworkReminders.value = loadPaperworkReminders()
+    }
+
+    private fun loadPaperworkReminders(): Map<Long, Set<LegalItem>> =
+        prefs.all.mapNotNull { (key, value) ->
+            if (value != true || !key.startsWith(KEY_PAPERWORK_PREFIX)) return@mapNotNull null
+            val (id, name) = key.removePrefix(KEY_PAPERWORK_PREFIX).split('_', limit = 2).takeIf { it.size == 2 } ?: return@mapNotNull null
+            val item = LegalItem.entries.firstOrNull { it.name == name } ?: return@mapNotNull null
+            id.toLongOrNull()?.let { it to item }
+        }.groupBy({ it.first }, { it.second }).mapValues { it.value.toSet() }
+
+    private fun paperworkKey(profileId: Long, item: LegalItem) = "$KEY_PAPERWORK_PREFIX${profileId}_${item.name}"
+
+    private val _paperworkLeadDays = MutableStateFlow(prefs.getInt(KEY_PAPERWORK_LEAD_DAYS, DEFAULT_PAPERWORK_LEAD_DAYS))
+
+    /** How many days before a paperwork expiry the reminders start. */
+    val paperworkLeadDays: StateFlow<Int> = _paperworkLeadDays.asStateFlow()
+
+    fun setPaperworkLeadDays(days: Int) {
+        prefs.edit().putInt(KEY_PAPERWORK_LEAD_DAYS, days).apply()
+        _paperworkLeadDays.value = days
+    }
+
     private val _appIcon = MutableStateFlow(enumOr(KEY_APP_ICON, AppIcon.MONOCHROME))
 
     /** The launcher icon picked in Personalisation. */
@@ -193,6 +228,8 @@ class Settings private constructor(context: Context) {
         _reminderHour.value = prefs.getInt(KEY_REMINDER_HOUR, 9)
         _appIcon.value = enumOr(KEY_APP_ICON, AppIcon.MONOCHROME)
         _tripKm.value = loadTripKm()
+        _paperworkReminders.value = loadPaperworkReminders()
+        _paperworkLeadDays.value = prefs.getInt(KEY_PAPERWORK_LEAD_DAYS, DEFAULT_PAPERWORK_LEAD_DAYS)
     }
 
     companion object {
@@ -217,6 +254,8 @@ class Settings private constructor(context: Context) {
         private const val KEY_REMINDER_FREQUENCY = "reminder_frequency"
         private const val KEY_REMINDER_HOUR = "reminder_hour"
         private const val KEY_APP_ICON = "app_icon"
+        private const val KEY_PAPERWORK_PREFIX = "paperwork_remind_"
+        private const val KEY_PAPERWORK_LEAD_DAYS = "paperwork_lead_days"
 
         @Volatile
         private var instance: Settings? = null

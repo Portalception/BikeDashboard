@@ -19,6 +19,9 @@ class MainActivity : ComponentActivity() {
     /** Set when a service reminder was tapped: the bike whose servicing page to open. */
     private val openServicing = MutableStateFlow<Long?>(null)
 
+    /** Set when a paperwork reminder was tapped: the bike whose details page to open. */
+    private val openDetails = MutableStateFlow<Long?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -28,8 +31,14 @@ class MainActivity : ComponentActivity() {
         setContent {
             val appearance by settings.appearance.collectAsState()
             val servicing by openServicing.collectAsState()
+            val details by openDetails.collectAsState()
             BikeDashboardTheme(appearance) {
-                BikeDashboardApp(openServicingFor = servicing, onOpenedServicing = { openServicing.value = null })
+                BikeDashboardApp(
+                    openServicingFor = servicing,
+                    onOpenedServicing = { openServicing.value = null },
+                    openDetailsFor = details,
+                    onOpenedDetails = { openDetails.value = null },
+                )
             }
         }
     }
@@ -69,5 +78,7 @@ class MainActivity : ComponentActivity() {
     private fun readIntent(intent: Intent?) {
         val id = intent?.getLongExtra(Reminders.EXTRA_OPEN_SERVICING, -1L) ?: -1L
         if (id > 0) openServicing.value = id
+        val detailsId = intent?.getLongExtra(Reminders.EXTRA_OPEN_DETAILS, -1L) ?: -1L
+        if (detailsId > 0) openDetails.value = detailsId
     }
 }

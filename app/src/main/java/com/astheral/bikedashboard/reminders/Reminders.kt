@@ -15,6 +15,8 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.astheral.bikedashboard.MainActivity
 import com.astheral.bikedashboard.R
+import com.astheral.bikedashboard.calc.LegalDue
+import com.astheral.bikedashboard.calc.legalDue
 import com.astheral.bikedashboard.data.AppDatabase
 import com.astheral.bikedashboard.data.DueLevel
 import com.astheral.bikedashboard.data.IntervalStatus
@@ -49,6 +51,10 @@ fun hourLabel(hour: Int) = when {
  * Service reminders. Once a day (at the hour picked in Settings) the app looks at every bike's
  * intervals. When something enters its warning window you get a notification, then another one
  * each day or each week (as picked) until it's done, which you mark by adding a service record.
+ *
+ * The same check also covers paperwork (COE, insurance, road tax, inspection) switched on in
+ * Bike details: from a set number of days before it expires until a new date is entered. Those
+ * go to their own "Paperwork reminders" channel and open the bike's details page.
  */
 object Reminders {
     private const val CHANNEL = "service_reminders"
@@ -57,6 +63,14 @@ object Reminders {
     private const val GROUP = "service_reminders"
     private const val SUMMARY_ID = 1 // reminders use a number made from the bike and category, never 1
     const val EXTRA_OPEN_SERVICING = "open_servicing_for_profile"
+    const val EXTRA_OPEN_DETAILS = "open_details_for_profile"
+    private const val PAPERWORK_CHANNEL = "paperwork_reminders"
+    private const val PAPERWORK_GROUP = "paperwork_reminders"
+    /** Paperwork notifications are tagged, so their ids never clash with the service ones. */
+    private const val PAPERWORK_TAG = "paperwork"
+    private const val PAPERWORK_SUMMARY_ID = 0
+    /** Added to paperwork tap request codes, so they never replace a servicing one. */
+    private const val PAPERWORK_REQUEST_BASE = 1_000_000
 
     /** Sets up (or cancels) the daily check to match Settings. Safe to call any number of times. */
     fun schedule(context: Context) {
@@ -95,13 +109,27 @@ object Reminders {
         }.filter { (_, s) -> s.level == DueLevel.SOON || s.level == DueLevel.OVERDUE }
     }
 
+    /** Every paperwork expiry, on every bike, that's switched on and within its reminder window. */
+    suspend fun paperworkDue(context: Context, today: LocalDate = LocalDate.now()): List<Pair<Profile, LegalDue>> {
+        val db = AppDatabase.get(context)
+        val settings = Settings.get(context)
+        val remind = settings.paperworkReminders.value
+        val lead = settings.paperworkLeadDays.value
+        return db.profileDao().getAll().flatMap { profile ->
+            val items = remind[profile.id].orEmpty()
+            val details = if (items.isEmpty()) null else db.bikeDetailsDao().get(profile.id)
+            details?.let { legalDue(it, items, lead, today) }.orEmpty().map { profile to it }
+        }
+    }
+
     /** Posts the notifications that are due today, following the daily or weekly choice. */
     suspend fun check(context: Context, today: LocalDate = LocalDate.now()) {
         val frequency = Settings.get(context).reminderFrequency.value
         if (frequency == ReminderFrequency.OFF) return
         val sent = context.getSharedPreferences("reminders", Context.MODE_PRIVATE)
         val due = dueNow(context, today)
-        val dueKeys = due.map { (p, s) -> key(p, s) }.toSet()
+        val paperwork = paperworkDue(context, today)
+        val dueKeys = due.map { (p, s) -> key(p, s) }.toSet() + paperwork.map { (p, l) -> key(p, l) }
         // Anything no longer due (it was done) starts afresh next time.
         sent.edit().apply { sent.all.keys.filter { it !in dueKeys }.forEach { remove(it) } }.apply()
         if (!allowed(context)) return
@@ -116,15 +144,79 @@ object Reminders {
             sent.edit().putLong(key(profile, s), today.toEpochDay()).apply()
         }
         if (toSend.size > 1) notifySummary(context, toSend)
+
+        val papersToSend = paperwork.filter { (profile, l) ->
+            val lastSent = sent.getLong(key(profile, l), Long.MIN_VALUE)
+            lastSent == Long.MIN_VALUE || today.toEpochDay() - lastSent >= gap
+        }
+        if (papersToSend.isNotEmpty()) createPaperworkChannel(context)
+        papersToSend.forEach { (profile, l) ->
+            notifyPaperwork(context, profile, l)
+            sent.edit().putLong(key(profile, l), today.toEpochDay()).apply()
+        }
+        if (papersToSend.size > 1) notifyPaperworkSummary(context, papersToSend)
     }
 
     private fun key(profile: Profile, s: IntervalStatus) = "${profile.id}:${s.type}"
+
+    private fun key(profile: Profile, l: LegalDue) = "paperwork:${profile.id}:${l.item.name}"
 
     private fun createChannel(context: Context) {
         val channel = NotificationChannel(CHANNEL, "Service reminders", NotificationManager.IMPORTANCE_DEFAULT).apply {
             description = "When an oil change or service is coming up"
         }
         context.getSystemService(NotificationManager::class.java)?.createNotificationChannel(channel)
+    }
+
+    private fun createPaperworkChannel(context: Context) {
+        val channel = NotificationChannel(PAPERWORK_CHANNEL, "Paperwork reminders", NotificationManager.IMPORTANCE_DEFAULT).apply {
+            description = "When the COE, insurance, road tax or inspection is about to run out"
+        }
+        context.getSystemService(NotificationManager::class.java)?.createNotificationChannel(channel)
+    }
+
+    /** Opens [profileId]'s Bike details page. */
+    private fun openDetails(context: Context, profileId: Long, requestCode: Int): PendingIntent {
+        val open = Intent(context, MainActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            .putExtra(EXTRA_OPEN_DETAILS, profileId)
+        return PendingIntent.getActivity(
+            context, PAPERWORK_REQUEST_BASE + requestCode, open,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+    }
+
+    /** "COE expires soon · R3", saying how long is left and the date. */
+    @Suppress("MissingPermission") // checked by allowed() first
+    private fun notifyPaperwork(context: Context, profile: Profile, l: LegalDue) {
+        val id = (profile.id * 10 + l.item.ordinal + 1).toInt() // never PAPERWORK_SUMMARY_ID
+        val title = "${l.item.label} ${if (l.expired) "has expired" else "expires soon"} · ${profile.name}"
+        val text = "${l.summary()} (${l.expiry.short()})."
+        val notification = NotificationCompat.Builder(context, PAPERWORK_CHANNEL)
+            .setSmallIcon(R.drawable.ic_stat_fuel)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setContentIntent(openDetails(context, profile.id, id))
+            .setGroup(PAPERWORK_GROUP)
+            .setAutoCancel(true)
+            .build()
+        NotificationManagerCompat.from(context).notify(PAPERWORK_TAG, id, notification)
+    }
+
+    /** Our own summary for a bundle of paperwork reminders, so tapping it opens Bike details. */
+    @Suppress("MissingPermission") // checked by allowed() first
+    private fun notifyPaperworkSummary(context: Context, due: List<Pair<Profile, LegalDue>>) {
+        val (profile, _) = due.first()
+        val notification = NotificationCompat.Builder(context, PAPERWORK_CHANNEL)
+            .setSmallIcon(R.drawable.ic_stat_fuel)
+            .setContentTitle("Paperwork reminders")
+            .setContentText("${due.size} expiry dates need attention")
+            .setGroup(PAPERWORK_GROUP)
+            .setGroupSummary(true)
+            .setContentIntent(openDetails(context, profile.id, PAPERWORK_SUMMARY_ID))
+            .setAutoCancel(true)
+            .build()
+        NotificationManagerCompat.from(context).notify(PAPERWORK_TAG, PAPERWORK_SUMMARY_ID, notification)
     }
 
     /** Opens [profileId]'s Servicing page. */
