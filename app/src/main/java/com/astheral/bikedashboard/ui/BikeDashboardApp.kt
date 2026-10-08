@@ -52,6 +52,7 @@ import com.astheral.bikedashboard.ui.profile.ProfileSetupScreen
 import com.astheral.bikedashboard.ui.profile.ProfileSwitcherSheet
 import com.astheral.bikedashboard.ui.profile.ProfilesViewModel
 import com.astheral.bikedashboard.ui.settings.IdeasScreen
+import com.astheral.bikedashboard.ui.settings.PersonalisationScreen
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.NavBackStackEntry
@@ -82,6 +83,7 @@ import kotlinx.serialization.Serializable
 @Serializable data class ProfileSetupRoute(val id: Long = 0)
 
 @Serializable object IdeasRoute
+@Serializable object PersonalisationRoute
 
 private data class Tab(val route: Any, val label: String, val icon: ImageVector)
 
@@ -218,6 +220,7 @@ fun BikeDashboardApp(profilesViewModel: ProfilesViewModel = viewModel()) {
                         onProfileClick = openSwitcher,
                         onEditProfile = { id -> nav.navigate(ProfileSetupRoute(id)) },
                         onOpenIdeas = { nav.navigate(IdeasRoute) },
+                        onOpenPersonalisation = { nav.navigate(PersonalisationRoute) },
                     )
                 }
                 composable<ProfileSetupRoute>(
@@ -233,6 +236,12 @@ fun BikeDashboardApp(profilesViewModel: ProfilesViewModel = viewModel()) {
                     popExitTransition = { slideOutOfContainer(SlideDirection.Down, tween(SLIDE_MS)) },
                 ) {
                     AppBackground { IdeasScreen(onBack = { nav.popBackStack() }) }
+                }
+                composable<PersonalisationRoute>(
+                    enterTransition = { slideIntoContainer(SlideDirection.Up, tween(SLIDE_MS)) },
+                    popExitTransition = { slideOutOfContainer(SlideDirection.Down, tween(SLIDE_MS)) },
+                ) {
+                    AppBackground { PersonalisationScreen(onBack = { nav.popBackStack() }) }
                 }
                 composable<ImportRoute>(
                     enterTransition = { slideIntoContainer(SlideDirection.Up, tween(SLIDE_MS)) },
