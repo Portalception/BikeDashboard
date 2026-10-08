@@ -17,9 +17,6 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AllInclusive
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.LocalGasStation
 import androidx.compose.material.icons.filled.TwoWheeler
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
@@ -49,6 +46,7 @@ import com.astheral.bikedashboard.calc.PeriodSummary
 import com.astheral.bikedashboard.calc.chartData
 import com.astheral.bikedashboard.calc.computeStats
 import com.astheral.bikedashboard.calc.hasOldMixed
+import com.astheral.bikedashboard.calc.inLastDays
 import com.astheral.bikedashboard.calc.summarizeDashboard
 import com.astheral.bikedashboard.calc.DEFAULT_TRIP_KM
 import com.astheral.bikedashboard.data.FillUp
@@ -98,7 +96,7 @@ data class TileSeries(
 data class DashboardData(
     val summary: DashboardSummary,
     val lastFillUp: FillUp?,
-    /** Chart data for each period: the last 10 fill-ups, the last 30 days, and everything. */
+    /** Chart data for each period: the last 10 fill-ups, the last 7 and 30 days, and everything. */
     val charts: Map<Period, ChartData>,
     val hasOldMixed: Boolean,
     val tiles: TileSeries,
@@ -125,14 +123,14 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
             val today = LocalDate.now()
             val stats = computeStats(all, profile?.tripKm ?: DEFAULT_TRIP_KM)
             val gaps = stats.mapNotNull { it.days }.filter { it > 0 }.sorted()
-            val windowStart = today.minusDays(29)
             DashboardData(
                 summary = summarizeDashboard(stats, today),
                 lastFillUp = stats.lastOrNull()?.fillUp,
                 charts = mapOf(
                     // One fill-up makes an empty chart, so "last fill-up" shows it with the ones before it.
                     Period.LAST to chartData(stats.takeLast(RECENT_FILL_UPS)),
-                    Period.DAYS_30 to chartData(stats.filter { !it.fillUp.date.isBefore(windowStart) }),
+                    Period.WEEK to chartData(inLastDays(stats, today, 7)),
+                    Period.MONTH to chartData(inLastDays(stats, today, 30)),
                     Period.LIFETIME to chartData(stats),
                 ),
                 hasOldMixed = hasOldMixed(stats),
@@ -151,10 +149,19 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 }
 
-enum class Period(val label: String, val chartLabel: String) {
-    LAST("Last fill-up", "Last 10"),
-    DAYS_30("30 days", "30 days"),
+/** The dashboard's tabs. Week and month are rolling: the last 7 and 30 days up to today. */
+enum class Period(val label: String, val chartLabel: String, val days: Long? = null) {
+    LAST("Last fill", "Last 10"),
+    WEEK("Week", "7 days", 7),
+    MONTH("Month", "30 days", 30),
     LIFETIME("Lifetime", "All time"),
+}
+
+fun DashboardSummary.of(period: Period): PeriodSummary = when (period) {
+    Period.LAST -> lastFillUp
+    Period.WEEK -> last7Days
+    Period.MONTH -> last30Days
+    Period.LIFETIME -> lifetime
 }
 
 /** How many fill-ups the charts show on the "Last fill-up" tab. */
@@ -189,11 +196,7 @@ fun DashboardScreen(
         } else {
             Header(d, units, profile, onProfileClick, edges)
             PillTabs(
-                listOf(
-                    Icons.Filled.LocalGasStation to Period.LAST.label,
-                    Icons.Filled.CalendarMonth to Period.DAYS_30.label,
-                    Icons.Filled.AllInclusive to Period.LIFETIME.label,
-                ),
+                Period.entries.map { null to it.label },
                 selected = pager.currentPage,
                 onSelect = { scope.launch { pager.animateScrollToPage(it) } },
                 modifier = edges,
@@ -214,16 +217,11 @@ fun DashboardScreen(
 private fun PeriodPage(period: Period, d: DashboardData, units: Units, onUnits: ((Units) -> Units) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         GroupCard(contentPadding = 12.dp, edge = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.45f)) {
-            val summary = when (period) {
-                Period.LAST -> d.summary.lastFillUp
-                Period.DAYS_30 -> d.summary.last30Days
-                Period.LIFETIME -> d.summary.lifetime
-            }
-            PeriodTiles(period, summary, d, units, onUnits)
+            PeriodTiles(period, d.summary.of(period), d, units, onUnits)
         }
         val charts = d.charts.getValue(period)
-        if (period == Period.DAYS_30 && d.summary.last30Days.fillUpCount == 0) {
-            Text("No fill-ups in the last 30 days, so there's nothing to chart.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (period.days != null && d.summary.of(period).fillUpCount == 0) {
+            Text("No fill-ups in the last ${period.days} days, so there's nothing to chart.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         } else {
             PriceChart(charts, d.hasOldMixed, period.chartLabel)
             EconomyChart(charts, period.chartLabel, units.economy)
@@ -286,11 +284,10 @@ private fun Empty(onAddFillUp: () -> Unit, onImport: () -> Unit) {
 
 @Composable
 private fun PeriodTiles(period: Period, summary: PeriodSummary, d: DashboardData, units: Units, onUnits: ((Units) -> Units) -> Unit) {
-    val windowStart = d.today.minusDays(29)
     fun highlight(series: List<DatedValue>) = when (period) {
         Period.LAST -> if (series.lastOrNull()?.date == d.lastFillUp?.date) 1 else 0
-        Period.DAYS_30 -> series.count { !it.date.isBefore(windowStart) }
         Period.LIFETIME -> series.size
+        else -> series.count { !it.date.isBefore(d.today.minusDays(period.days!! - 1)) }
     }
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(
@@ -300,7 +297,7 @@ private fun PeriodTiles(period: Period, summary: PeriodSummary, d: DashboardData
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         if (summary.fillUpCount == 0) {
-            Text("No fill-ups in the last 30 days.", Modifier.padding(6.dp))
+            Text("No fill-ups in the last ${period.days} days.", Modifier.padding(6.dp))
             return
         }
         val accent = MaterialTheme.colorScheme.tertiary

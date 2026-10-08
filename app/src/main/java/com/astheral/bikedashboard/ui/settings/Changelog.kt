@@ -7,6 +7,13 @@ data class Release(val version: String, val date: LocalDate, val changes: List<S
 /** Major changes in each version, newest first. Add an entry here with every version you share. */
 val CHANGELOG = listOf(
     Release(
+        version = "0.3.6",
+        date = LocalDate.of(2026, 10, 8),
+        changes = listOf(
+            "The dashboard tabs are now Last fill, Week, Month and Lifetime. Week and Month cover the last 7 and 30 days.",
+        ),
+    ),
+    Release(
         version = "0.3.5",
         date = LocalDate.of(2026, 10, 8),
         changes = listOf(

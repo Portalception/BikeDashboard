@@ -22,6 +22,7 @@ data class PeriodSummary(
 
 data class DashboardSummary(
     val lastFillUp: PeriodSummary,
+    val last7Days: PeriodSummary,
     val last30Days: PeriodSummary,
     val lifetime: PeriodSummary,
 )
@@ -51,15 +52,20 @@ fun summarize(stats: List<FillUpStats>): PeriodSummary {
     )
 }
 
+/** Fill-ups in the last [days] days: from [days] − 1 days before [today] up to [today]. */
+fun inLastDays(stats: List<FillUpStats>, today: LocalDate, days: Long): List<FillUpStats> {
+    val windowStart = today.minusDays(days - 1)
+    return stats.filter { !it.fillUp.date.isBefore(windowStart) && !it.fillUp.date.isAfter(today) }
+}
+
 /**
  * [stats] must be oldest first, as returned by [computeStats].
- * "Last 30 days" covers fill-ups dated from 29 days before [today] up to [today].
+ * "Last 30 days" covers fill-ups dated from 29 days before [today] up to [today]; the week likewise.
  */
-fun summarizeDashboard(stats: List<FillUpStats>, today: LocalDate): DashboardSummary {
-    val windowStart = today.minusDays(29)
-    return DashboardSummary(
+fun summarizeDashboard(stats: List<FillUpStats>, today: LocalDate): DashboardSummary =
+    DashboardSummary(
         lastFillUp = summarize(stats.takeLast(1)),
-        last30Days = summarize(stats.filter { !it.fillUp.date.isBefore(windowStart) && !it.fillUp.date.isAfter(today) }),
+        last7Days = summarize(inLastDays(stats, today, 7)),
+        last30Days = summarize(inLastDays(stats, today, 30)),
         lifetime = summarize(stats),
     )
-}

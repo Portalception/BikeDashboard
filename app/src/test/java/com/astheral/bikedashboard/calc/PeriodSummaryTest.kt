@@ -80,6 +80,15 @@ class PeriodSummaryTest {
     }
 
     @Test
+    fun lastWeekIncludesTodayAnd6DaysBefore() {
+        // 17 Mar minus 6 days = 11 Mar, so the two Malaysian fill-ups are in the week
+        val week = summarizeDashboard(stats, today = LocalDate.parse("2025-03-17")).last7Days
+        assertEquals(2, week.fillUpCount)
+        assertEquals(131796 - 131308, week.distanceKm)
+        assertEquals(15.95 + 10.39, week.costSgd, 1e-9)
+    }
+
+    @Test
     fun last30DaysIsEmptyAfterLongBreak() {
         val window = summarizeDashboard(stats, today = LocalDate.parse("2025-06-01")).last30Days
         assertEquals(0, window.fillUpCount)
