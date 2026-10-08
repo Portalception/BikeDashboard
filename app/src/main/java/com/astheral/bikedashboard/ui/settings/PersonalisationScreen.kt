@@ -166,7 +166,7 @@ fun PersonalisationScreen(onBack: () -> Unit, viewModel: PersonalisationViewMode
             Column {
                 SectionHeader(Icons.Filled.ColorLens, "Colours")
                 GroupCard(contentPadding = 16.dp) {
-                    Label("Presets", "Monochrome, or colours from each maker's flagship sports bike")
+                    Label("Presets", "Monochrome, or each maker's racing colours")
                     PresetRow(appearance) { preset -> update { it.copy(primary = preset.primary, accent = preset.accent) } }
                     Spacer(Modifier.height(18.dp))
                     Label("Primary colour", "Buttons, the bottom bar and charts")
@@ -332,7 +332,6 @@ private fun PresetRow(appearance: AppearanceSettings, onPick: (ColorPreset) -> U
                     checkTint = Color.White,
                 )
                 Text(preset.brand, style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = 4.dp), maxLines = 1, softWrap = false)
-                Text(preset.model, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, softWrap = false)
             }
         }
     }

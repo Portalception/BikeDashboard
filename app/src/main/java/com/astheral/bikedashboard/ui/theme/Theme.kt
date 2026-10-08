@@ -48,21 +48,21 @@ enum class ProgressStyle(val label: String) {
 val LocalProgressStyle = staticCompositionLocalOf { ProgressStyle.WAVE }
 
 /**
- * Ready-made primary + accent pairs. Apart from Monochrome, each takes its colours from a
- * maker's flagship sports bike and its racing colours.
+ * Ready-made primary + accent pairs. Apart from Monochrome, each uses a motorcycle maker's
+ * racing colours, and is shown by the brand name only.
  */
-enum class ColorPreset(val brand: String, val model: String, val primary: Color, val accent: Color) {
-    MONOCHROME("Monochrome", "Greys", Color(0xFF8E8E8E), Color(0xFFE0E0E0)),
-    YAMAHA("Yamaha", "YZF-R1", Color(0xFF1B3F9A), Color(0xFF00B0FF)),
-    HONDA("Honda", "Fireblade", Color(0xFFCC0000), Color(0xFF1E4DB7)),
-    KAWASAKI("Kawasaki", "ZX-10R", Color(0xFF5FB52A), Color(0xFF3C3C3C)),
-    SUZUKI("Suzuki", "GSX-R1000", Color(0xFF1C5AA8), Color(0xFFB0BEC5)),
-    DUCATI("Ducati", "Panigale V4", Color(0xFFC8102E), Color(0xFFE6E6E6)),
-    BMW("BMW", "M 1000 RR", Color(0xFF1C69D4), Color(0xFFE2231A)),
-    KTM("KTM", "RC 8C", Color(0xFFFF6600), Color(0xFF263238)),
-    APRILIA("Aprilia", "RSV4", Color(0xFFD7191C), Color(0xFF7B2D8E)),
-    MV_AGUSTA("MV Agusta", "F3 RR", Color(0xFFB71C1C), Color(0xFFB0B0B0)),
-    TRIUMPH("Triumph", "Daytona", Color(0xFF2B2B2B), Color(0xFFFFC72C)),
+enum class ColorPreset(val brand: String, val primary: Color, val accent: Color) {
+    MONOCHROME("Monochrome", Color(0xFF8E8E8E), Color(0xFFE0E0E0)),
+    YAMAHA("Yamaha", Color(0xFF1B3F9A), Color(0xFF00B0FF)),
+    HONDA("Honda", Color(0xFFCC0000), Color(0xFF1E4DB7)),
+    KAWASAKI("Kawasaki", Color(0xFF5FB52A), Color(0xFF3C3C3C)),
+    SUZUKI("Suzuki", Color(0xFF1C5AA8), Color(0xFFB0BEC5)),
+    DUCATI("Ducati", Color(0xFFC8102E), Color(0xFFE6E6E6)),
+    BMW("BMW", Color(0xFF1C69D4), Color(0xFFE2231A)),
+    KTM("KTM", Color(0xFFFF6600), Color(0xFF263238)),
+    APRILIA("Aprilia", Color(0xFFD7191C), Color(0xFF7B2D8E)),
+    MV_AGUSTA("MV Agusta", Color(0xFFB71C1C), Color(0xFFB0B0B0)),
+    TRIUMPH("Triumph", Color(0xFF2B2B2B), Color(0xFFFFC72C)),
 }
 
 /** Colours offered for primary and accent; any other colour can be picked with "Custom". */
