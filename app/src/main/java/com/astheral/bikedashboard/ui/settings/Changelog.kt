@@ -7,6 +7,13 @@ data class Release(val version: String, val date: LocalDate, val changes: List<S
 /** Major changes in each version, newest first. Add an entry here with every version you share. */
 val CHANGELOG = listOf(
     Release(
+        version = "0.3.3",
+        date = LocalDate.of(2026, 10, 8),
+        changes = listOf(
+            "Spend bars are coloured by where you pumped: Singapore, Malaysia, or old mixed fill-ups, with a legend. A fill-up or month with both is stacked.",
+        ),
+    ),
+    Release(
         version = "0.3.2",
         date = LocalDate.of(2026, 10, 8),
         changes = listOf(

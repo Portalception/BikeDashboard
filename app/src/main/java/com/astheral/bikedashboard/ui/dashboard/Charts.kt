@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.astheral.bikedashboard.calc.ChartData
 import com.astheral.bikedashboard.calc.DatedValue
+import com.astheral.bikedashboard.calc.SpendSplit
 import com.astheral.bikedashboard.ui.components.AccentChip
 import com.astheral.bikedashboard.ui.components.GroupCard
 import com.astheral.bikedashboard.ui.theme.CountryColors
@@ -52,9 +53,8 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 private val MONTH_YEAR = DateTimeFormatter.ofPattern("MMM yy", Locale.ENGLISH)
-// Economy and spend charts follow the colour theme.
+// The economy chart follows the colour theme; price and spend use the country colours.
 private val EconomyColor @Composable get() = MaterialTheme.colorScheme.tertiary
-private val SpendColor @Composable get() = MaterialTheme.colorScheme.primary
 
 /** Dates on the x axis are stored as day numbers; show them as "Mar 25", or "3 Oct" over short spans. */
 private fun dateAxis(short: Boolean) = CartesianValueFormatter { _, x, _ ->
@@ -220,37 +220,51 @@ fun EconomyChart(data: ChartData, period: String) {
 
 /**
  * Spending as bars: one per month over a lifetime, or one per fill-up over a short period
- * ([byMonth] false), where months would only be one or two bars.
+ * ([byMonth] false), where months would only be one or two bars. Each bar is coloured by where
+ * the petrol was pumped, stacked when a fill-up or month has both.
  */
 @Composable
 fun SpendChart(data: ChartData, period: String, byMonth: Boolean) {
     val labels: List<String>
-    val values: List<Double>
+    val splits: List<SpendSplit>
     if (byMonth) {
         labels = data.monthlySpend.map { it.month.format(MONTH_YEAR) }
-        values = data.monthlySpend.map { it.costSgd }
+        splits = data.monthlySpend.map { it.split }
     } else {
         labels = data.fillSpend.map { it.date.format(DAY_MONTH) }
-        values = data.fillSpend.map { it.value }
+        splits = data.fillSplit
     }
-    if (values.isEmpty()) return
+    if (splits.isEmpty()) return
+    // Only countries that appear get a series and a legend entry.
+    val parts = listOf<Triple<String, Color, (SpendSplit) -> Double>>(
+        Triple("Singapore", CountryColors.sg, { it.sg }),
+        Triple("Malaysia", CountryColors.my, { it.my }),
+        Triple("Old mixed", CountryColors.mixed, { it.unsplit }),
+    ).filter { (_, _, part) -> splits.any { part(it) > 0 } }
+    if (parts.isEmpty()) return
     val producer = remember { CartesianChartModelProducer() }
-    LaunchedEffect(labels, values) {
-        producer.runTransaction { columnSeries { series(values.indices.toList(), values) } }
+    LaunchedEffect(labels, splits) {
+        producer.runTransaction {
+            columnSeries { parts.forEach { (_, _, part) -> series(splits.indices.toList(), splits.map(part)) } }
+        }
     }
     // While switching period the chart can briefly ask about bars from the old data, so stay in range:
     // the chart library doesn't allow a blank label.
     val axis = remember(labels) { CartesianValueFormatter { _, x, _ -> labels[x.toInt().coerceIn(0, labels.lastIndex)] } }
-    ChartCard(if (byMonth) "Monthly spend (SGD)" else "Spend per fill-up (SGD)", period) {
+    val thickness = if (splits.size > 12) 8.dp else 14.dp
+    ChartCard(
+        if (byMonth) "Monthly spend (SGD)" else "Spend per fill-up (SGD)",
+        period,
+        legend = parts.map { (name, color, _) -> name to color },
+    ) {
         FittedChart(
             rememberCartesianChart(
                 rememberColumnCartesianLayer(
-                    ColumnCartesianLayer.ColumnProvider.series(
-                        rememberLineComponent(fill = Fill(SpendColor), thickness = if (values.size > 12) 8.dp else 14.dp),
-                    ),
+                    ColumnCartesianLayer.ColumnProvider.series(parts.map { (_, color, _) -> rememberLineComponent(fill = Fill(color), thickness = thickness) }),
+                    mergeMode = { ColumnCartesianLayer.MergeMode.Stacked },
                 ),
                 startAxis = startAxis(yFormatter(0, "S$")),
-                bottomAxis = bottomAxis(axis, if (values.size > 12) 3 else 2),
+                bottomAxis = bottomAxis(axis, if (splits.size > 12) 3 else 2),
             ),
             producer,
         )

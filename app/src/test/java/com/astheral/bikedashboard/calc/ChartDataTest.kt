@@ -42,6 +42,15 @@ class ChartDataTest {
     }
 
     @Test
+    fun spendIsSplitByCountry() {
+        assertEquals(SpendSplit(sg = 25.0, my = 10.0), data.monthlySpend[0].split)
+        assertEquals(SpendSplit(unsplit = 20.0), data.monthlySpend[1].split)
+        assertEquals(SpendSplit(), data.monthlySpend[2].split)
+        assertEquals(SpendSplit(sg = 10.4, my = 9.6), data.fillSplit.last())
+        assertEquals(data.fillSpend.map { it.value }, data.fillSplit.map { it.total })
+    }
+
+    @Test
     fun emptyApp() {
         val empty = chartData(emptyList())
         assertTrue(empty.monthlySpend.isEmpty() && empty.sgPrice.isEmpty())
