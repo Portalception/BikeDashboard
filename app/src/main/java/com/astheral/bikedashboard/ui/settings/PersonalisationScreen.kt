@@ -92,10 +92,8 @@ class PersonalisationViewModel(application: Application) : AndroidViewModel(appl
     val units: StateFlow<Units> = settings.units
     val appIcon: StateFlow<AppIcon> = settings.appIcon
 
-    fun setAppIcon(icon: AppIcon) {
-        settings.setAppIcon(icon)
-        AppIcon.apply(getApplication(), icon)
-    }
+    /** Saved now; the launcher switches over once you leave the app (see MainActivity). */
+    fun setAppIcon(icon: AppIcon) = settings.setAppIcon(icon)
 
     fun updateAppearance(change: (AppearanceSettings) -> AppearanceSettings) = settings.updateAppearance(change)
     fun updateUnits(change: (Units) -> Units) = settings.updateUnits(change)
@@ -177,7 +175,7 @@ fun PersonalisationScreen(onBack: () -> Unit, viewModel: PersonalisationViewMode
 
         SectionHeader(Icons.Filled.Apps, "App icon")
         GroupCard(contentPadding = 16.dp) {
-            Label("Launcher icon", "Your home screen may take a few seconds to show the new one")
+            Label("Launcher icon", "Your home screen shows the new one once you leave the app")
             IconPicker(appIcon, viewModel::setAppIcon)
         }
 

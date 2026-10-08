@@ -7,6 +7,18 @@ data class Release(val version: String, val date: LocalDate, val changes: List<S
 /** Major changes in each version, newest first. Add an entry here with every version you share. */
 val CHANGELOG = listOf(
     Release(
+        version = "0.4.1",
+        date = LocalDate.of(2026, 10, 9),
+        changes = listOf(
+            "Picking a new app icon, or restoring a backup with one, no longer closes the app. The home screen switches to the new icon once you leave the app.",
+            "Service reminders arrive within half an hour of the time you pick, instead of up to 18 hours late.",
+            "Tapping a bundle of service reminders opens the Servicing page, like tapping a single one.",
+            "Coming-up services that haven't been done yet no longer squash their names into one letter per line.",
+            "\"1 fill-up\" instead of \"1 fill-ups\" (and the same for services and records) everywhere.",
+            "The restore preview now lists service records and intervals too.",
+        ),
+    ),
+    Release(
         version = "0.4",
         date = LocalDate.of(2026, 10, 9),
         changes = listOf(

@@ -24,6 +24,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.ui.text.font.FontWeight
+import com.astheral.bikedashboard.ui.count
 import com.astheral.bikedashboard.ui.components.CountUpText
 import com.astheral.bikedashboard.ui.components.GroupCard
 import com.astheral.bikedashboard.ui.components.NumberFont
@@ -94,8 +95,8 @@ fun ImportScreen(onBack: () -> Unit, viewModel: ImportViewModel = viewModel()) {
                 is ImportState.FullPreview -> FullPreview(s, onConfirm = viewModel::confirmFull, onCancel = viewModel::reset)
                 is ImportState.Done -> {
                     Text(
-                        if (s.restoredAll) "Restored everything: ${s.count} fill-ups, your bikes, settings and ideas."
-                        else "Imported ${s.count} fill-ups.",
+                        if (s.restoredAll) "Restored everything: ${count(s.count, "fill-up")}, your bikes, settings and ideas."
+                        else "Imported ${count(s.count, "fill-up")}.",
                         style = MaterialTheme.typography.titleMedium,
                     )
                     Button(onClick = onBack) { Text("Done") }
@@ -116,13 +117,17 @@ private fun FullPreview(s: ImportState.FullPreview, onConfirm: () -> Unit, onCan
     GroupCard(contentPadding = 20.dp, edge = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.5f)) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(s.fileName, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            CountUpText(b.bikes.size.toDouble(), { if (it.toInt() == 1) "1 bike" else "${it.toInt()} bikes" }, style = MaterialTheme.typography.headlineSmall)
-            b.bikes.forEach { bike -> Text("${bike.profile.name} · ${bike.fillUps.size} fill-ups") }
+            CountUpText(b.bikes.size.toDouble(), { count(it.toInt(), "bike") }, style = MaterialTheme.typography.headlineSmall)
+            b.bikes.forEach { bike ->
+                val services = if (bike.services.isEmpty()) "" else " · ${count(bike.services.size, "service")}"
+                Text("${bike.profile.name} · ${count(bike.fillUps.size, "fill-up")}$services")
+            }
             Text(
                 listOfNotNull(
                     "settings",
                     if (b.ideas.isNotBlank()) "ideas notebook" else null,
                     if (b.bikes.any { it.details != null }) "bike details" else null,
+                    if (b.bikes.any { it.intervals.isNotEmpty() }) "service intervals" else null,
                 ).joinToString(", ", prefix = "Also: "),
             )
             if (b.exportedAt.isNotEmpty()) {
@@ -135,8 +140,8 @@ private fun FullPreview(s: ImportState.FullPreview, onConfirm: () -> Unit, onCan
         }
     }
     Text(
-        "Restoring replaces everything in the app: your ${s.existingBikes} ${if (s.existingBikes == 1) "bike" else "bikes"} " +
-            "and ${s.existingFillUps} fill-ups, your personalisation and the ideas notebook.",
+        "Restoring replaces everything in the app: your ${count(s.existingBikes, "bike")} " +
+            "and ${count(s.existingFillUps, "fill-up")}, their servicing, your personalisation and the ideas notebook.",
         color = MaterialTheme.colorScheme.error,
     )
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -150,7 +155,7 @@ private fun Preview(s: ImportState.Preview, onConfirm: () -> Unit, onCancel: () 
     GroupCard(contentPadding = 20.dp, edge = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.5f)) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(s.fileName, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            CountUpText(s.fillUps.size.toDouble(), { "${it.toInt()} fill-ups" }, style = MaterialTheme.typography.headlineSmall)
+            CountUpText(s.fillUps.size.toDouble(), { count(it.toInt(), "fill-up") }, style = MaterialTheme.typography.headlineSmall)
             Text("${s.firstDate.format(DATE)} – ${s.lastDate.format(DATE)}")
             Text(
                 "SG ${s.countByCountry[Country.SG] ?: 0} · MY ${s.countByCountry[Country.MY] ?: 0} · " +
@@ -174,13 +179,13 @@ private fun Preview(s: ImportState.Preview, onConfirm: () -> Unit, onCancel: () 
 
     if (s.existingCount > 0) {
         Text(
-            "This replaces the ${s.existingCount} fill-ups already on ${s.profileName}.",
+            "This replaces the ${count(s.existingCount, "fill-up")} already on ${s.profileName}.",
             color = MaterialTheme.colorScheme.error,
         )
     }
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedButton(onClick = onCancel) { Text("Cancel") }
-        Button(onClick = onConfirm) { Text("Import ${s.fillUps.size} fill-ups") }
+        Button(onClick = onConfirm) { Text("Import ${count(s.fillUps.size, "fill-up")}") }
     }
 }
 

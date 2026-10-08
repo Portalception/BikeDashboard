@@ -55,6 +55,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.astheral.bikedashboard.data.Currency
 import com.astheral.bikedashboard.data.ServiceRecord
 import com.astheral.bikedashboard.data.ServiceType
+import com.astheral.bikedashboard.ui.count
 import com.astheral.bikedashboard.ui.components.CountUpText
 import com.astheral.bikedashboard.ui.components.DotLabel
 import com.astheral.bikedashboard.ui.components.GroupCard
@@ -208,12 +209,12 @@ fun ServicingScreen(
     pending?.let { p ->
         AlertDialog(
             onDismissRequest = viewModel::cancelImport,
-            title = { Text("Import ${p.records.size} services?") },
+            title = { Text("Import ${count(p.records.size, "service")}?") },
             text = {
                 Text(
                     buildString {
                         append("From ${p.fileName}, for ${s.profile.name}.")
-                        if (p.existing > 0) append(" This replaces the ${p.existing} services already there.")
+                        if (p.existing > 0) append(" This replaces the ${count(p.existing, "service")} already there.")
                         if (p.problems.isNotEmpty()) {
                             append("\n\n${p.problems.size} rows couldn't be read and will be left out:\n")
                             p.problems.take(10).forEach { append("#${it.rowNumber}: ${it.message}\n") }
@@ -260,12 +261,12 @@ private fun SpendCard(s: ServicingState, today: LocalDate) {
             Column(Modifier.weight(1f)) {
                 Text("All time", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 CountUpText(s.records.sumOf { s.sgd(it) }, ::sgd, style = MaterialTheme.typography.titleLarge)
-                Text("${s.records.size} records", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(count(s.records.size, "record"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Column(Modifier.weight(1f)) {
                 Text("${today.year}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 CountUpText(thisYear.sumOf { s.sgd(it) }, ::sgd, style = MaterialTheme.typography.titleLarge)
-                Text("${thisYear.size} records", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(count(thisYear.size, "record"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         if (hasMyr) {

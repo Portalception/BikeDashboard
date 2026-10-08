@@ -598,7 +598,7 @@ private fun ReviewCard(state: EditState, vm: EditViewModel) {
         if (form.country != Country.SG) {
             GroupCard {
                 Row(Modifier.padding(horizontal = 20.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
+                    Column(Modifier.weight(1f).padding(end = 16.dp)) {
                         Text("No special trip to MY", style = MaterialTheme.typography.titleMedium)
                         Text(
                             "Already in Malaysia, so no trip cost is taken off the savings.",

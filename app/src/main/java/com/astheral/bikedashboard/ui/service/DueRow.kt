@@ -10,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.astheral.bikedashboard.data.DueLevel
 import com.astheral.bikedashboard.data.IntervalStatus
@@ -32,11 +33,14 @@ fun DueRow(status: IntervalStatus, modifier: Modifier = Modifier) {
     val color = status.levelColor()
     Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Row(Modifier.weight(1f)) { DotLabel(status.type.label, status.type.color()) }
+            // The label keeps its width; a long summary wraps instead of squeezing it.
+            DotLabel(status.type.label, status.type.color())
             Text(
                 status.summary(),
+                modifier = Modifier.weight(1f).padding(start = 12.dp),
                 style = MaterialTheme.typography.labelLarge,
                 fontFamily = NumberFont,
+                textAlign = TextAlign.End,
                 color = if (status.level == DueLevel.OK || status.level == DueLevel.UNKNOWN) MaterialTheme.colorScheme.onSurface else color,
             )
         }

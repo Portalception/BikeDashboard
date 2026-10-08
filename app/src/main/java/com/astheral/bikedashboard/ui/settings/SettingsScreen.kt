@@ -14,6 +14,7 @@ import com.astheral.bikedashboard.reminders.REMINDER_HOURS
 import com.astheral.bikedashboard.reminders.ReminderFrequency
 import com.astheral.bikedashboard.reminders.Reminders
 import com.astheral.bikedashboard.reminders.hourLabel
+import com.astheral.bikedashboard.ui.count
 import com.astheral.bikedashboard.ui.components.ChoiceTile
 import com.astheral.bikedashboard.ui.components.PillTabs
 import androidx.compose.foundation.layout.Arrangement
@@ -154,7 +155,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                         ?: throw IOException("couldn't open the file")
                     out.bufferedWriter(Charsets.UTF_8).use { it.write(writeBackup(fillUps)) }
                 }
-                "Exported ${fillUps.size} fill-ups."
+                "Exported ${count(fillUps.size, "fill-up")}."
             } catch (e: IOException) {
                 "Export failed: ${e.message}"
             } catch (e: SecurityException) {

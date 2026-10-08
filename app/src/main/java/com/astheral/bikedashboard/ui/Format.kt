@@ -20,6 +20,9 @@ fun litres(value: Double): String = "${f(2, value)} L"
 fun kmPerLitre(value: Double): String = "${f(1, value)} km/L"
 fun km(value: Int): String = "${String.format(Locale.ENGLISH, "%,d", value)} km"
 
+/** "1 fill-up", "2 fill-ups". */
+fun count(n: Int, word: String): String = "${String.format(Locale.ENGLISH, "%,d", n)} $word${if (n == 1) "" else "s"}"
+
 fun Country.label(): String = when (this) {
     Country.SG -> "SG"
     Country.MY -> "MY"

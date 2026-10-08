@@ -22,6 +22,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import com.astheral.bikedashboard.data.Country
 import com.astheral.bikedashboard.data.Profile
+import com.astheral.bikedashboard.ui.count
 import com.astheral.bikedashboard.ui.profile.ProfileTitle
 import com.astheral.bikedashboard.ui.components.CountUpText
 import com.astheral.bikedashboard.ui.components.GroupCard
@@ -130,7 +131,7 @@ fun HistoryScreen(
                     val since = list.last().fillUp.date.format(MONTH_YEAR)
                     CountUpText(
                         list.size.toDouble(),
-                        { "History · ${it.toInt()} fill-ups since $since" },
+                        { "History · ${count(it.toInt(), "fill-up")} since $since" },
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                         color = MaterialTheme.colorScheme.tertiary,
                         fontFamily = null,

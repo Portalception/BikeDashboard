@@ -52,6 +52,9 @@ fun hourLabel(hour: Int) = when {
 object Reminders {
     private const val CHANNEL = "service_reminders"
     private const val REQUEST_CHECK = 1
+    private const val WINDOW_MS = 30 * 60 * 1000L
+    private const val GROUP = "service_reminders"
+    private const val SUMMARY_ID = 1 // reminders use bike id × 100 + type, so never 1
     const val EXTRA_OPEN_SERVICING = "open_servicing_for_profile"
 
     /** Sets up (or cancels) the daily check to match Settings. Safe to call any number of times. */
@@ -67,8 +70,9 @@ object Reminders {
         var next = LocalDateTime.now().withHour(settings.reminderHour.value).withMinute(0).withSecond(0).withNano(0)
         if (!next.isAfter(LocalDateTime.now())) next = next.plusDays(1)
         val at = next.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
-        // Inexact: Android may shift it a little to save battery, which is fine for a reminder.
-        alarms.setInexactRepeating(AlarmManager.RTC_WAKEUP, at, AlarmManager.INTERVAL_DAY, pending)
+        // Within half an hour of the chosen time. A repeating inexact alarm can run up to 18 hours
+        // late, so this is a one-off that the receiver sets again for the next day.
+        alarms.setWindow(AlarmManager.RTC_WAKEUP, at, WINDOW_MS, pending)
     }
 
     /** Whether the app may post notifications (Android 13+ asks the user). */
@@ -100,15 +104,16 @@ object Reminders {
         sent.edit().apply { sent.all.keys.filter { it !in dueKeys }.forEach { remove(it) } }.apply()
         if (!allowed(context)) return
         createChannel(context)
-        due.forEach { (profile, s) ->
-            val k = key(profile, s)
-            val lastSent = sent.getLong(k, Long.MIN_VALUE)
-            val gap = if (frequency == ReminderFrequency.WEEKLY) 7 else 1
-            if (lastSent == Long.MIN_VALUE || today.toEpochDay() - lastSent >= gap) {
-                notify(context, profile, s)
-                sent.edit().putLong(k, today.toEpochDay()).apply()
-            }
+        val gap = if (frequency == ReminderFrequency.WEEKLY) 7 else 1
+        val toSend = due.filter { (profile, s) ->
+            val lastSent = sent.getLong(key(profile, s), Long.MIN_VALUE)
+            lastSent == Long.MIN_VALUE || today.toEpochDay() - lastSent >= gap
         }
+        toSend.forEach { (profile, s) ->
+            notify(context, profile, s)
+            sent.edit().putLong(key(profile, s), today.toEpochDay()).apply()
+        }
+        if (toSend.size > 1) notifySummary(context, toSend)
     }
 
     private fun key(profile: Profile, s: IntervalStatus) = "${profile.id}:${s.type.name}"
@@ -120,13 +125,38 @@ object Reminders {
         context.getSystemService(NotificationManager::class.java)?.createNotificationChannel(channel)
     }
 
-    @Suppress("MissingPermission") // checked by allowed() first
-    private fun notify(context: Context, profile: Profile, s: IntervalStatus) {
+    /** Opens [profileId]'s Servicing page. */
+    private fun openServicing(context: Context, profileId: Long, requestCode: Int): PendingIntent {
         val open = Intent(context, MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-            .putExtra(EXTRA_OPEN_SERVICING, profile.id)
+            .putExtra(EXTRA_OPEN_SERVICING, profileId)
+        return PendingIntent.getActivity(context, requestCode, open, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+    }
+
+    /**
+     * Our own summary for the bundle Android makes of several reminders, so tapping the bundle
+     * opens Servicing too (Android's own summary only opens the app).
+     */
+    @Suppress("MissingPermission") // checked by allowed() first
+    private fun notifySummary(context: Context, due: List<Pair<Profile, IntervalStatus>>) {
+        val (profile, _) = due.first()
+        val text = "${due.size} services need attention"
+        val notification = NotificationCompat.Builder(context, CHANNEL)
+            .setSmallIcon(R.drawable.ic_stat_fuel)
+            .setContentTitle("Service reminders")
+            .setContentText(text)
+            .setGroup(GROUP)
+            .setGroupSummary(true)
+            .setContentIntent(openServicing(context, profile.id, SUMMARY_ID))
+            .setAutoCancel(true)
+            .build()
+        NotificationManagerCompat.from(context).notify(SUMMARY_ID, notification)
+    }
+
+    @Suppress("MissingPermission") // checked by allowed() first
+    private fun notify(context: Context, profile: Profile, s: IntervalStatus) {
         val id = (profile.id * 100 + s.type.ordinal).toInt()
-        val tap = PendingIntent.getActivity(context, id, open, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val tap = openServicing(context, profile.id, id)
         val title = if (s.level == DueLevel.OVERDUE) "${s.type.label} is due · ${profile.name}" else "${s.type.label} coming up · ${profile.name}"
         val last = s.last?.let { r -> "Last done ${r.date.short()}" + (r.odometerKm?.let { " at ${km(it)}" } ?: "") + "." }
         val text = s.summary() + "."
@@ -136,6 +166,7 @@ object Reminders {
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(listOfNotNull(text, last).joinToString(" ")))
             .setContentIntent(tap)
+            .setGroup(GROUP)
             .setAutoCancel(true)
             .build()
         NotificationManagerCompat.from(context).notify(id, notification)
@@ -150,6 +181,7 @@ class ReminderReceiver : BroadcastReceiver() {
             try {
                 Reminders.check(context.applicationContext)
             } finally {
+                Reminders.schedule(context.applicationContext) // tomorrow's check
                 result.finish()
             }
         }

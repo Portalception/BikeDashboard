@@ -41,6 +41,7 @@ import com.astheral.bikedashboard.calc.chartData
 import com.astheral.bikedashboard.calc.inLastDays
 import com.astheral.bikedashboard.calc.totalCostSgd
 import com.astheral.bikedashboard.data.Profile
+import com.astheral.bikedashboard.ui.count
 import com.astheral.bikedashboard.ui.DisplayUnit
 import com.astheral.bikedashboard.ui.DistanceCostUnit
 import com.astheral.bikedashboard.ui.EconomyUnit
@@ -206,7 +207,7 @@ private fun DetailPage(metric: Metric, period: Period, d: DashboardData, unit: D
                 CountUpText(unit.convert(value), unit::format, style = MaterialTheme.typography.displaySmall)
             }
             Text(
-                "${summary.fillUpCount} fill-ups · ${km(summary.distanceKm)} · ${sgd(summary.costSgd)} spent",
+                "${count(summary.fillUpCount, "fill-up")} · ${km(summary.distanceKm)} · ${sgd(summary.costSgd)} spent",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -230,7 +231,7 @@ private fun DetailPage(metric: Metric, period: Period, d: DashboardData, unit: D
         }
 
         if (perFill.size >= 2) {
-            SectionHeader(Icons.Filled.Analytics, if (period == Period.LAST) "Last ${perFill.size} fill-ups" else "Per fill-up")
+            SectionHeader(Icons.Filled.Analytics, if (period == Period.LAST) "Last ${count(perFill.size, "fill-up")}" else "Per fill-up")
             StatsCard(metric, perFill, unit)
         }
 

@@ -57,6 +57,7 @@ import com.astheral.bikedashboard.data.IntervalStatus
 import com.astheral.bikedashboard.data.Settings
 import com.astheral.bikedashboard.data.currentOdometer
 import com.astheral.bikedashboard.data.withDefaults
+import com.astheral.bikedashboard.ui.count
 import com.astheral.bikedashboard.ui.service.DueRow
 import com.astheral.bikedashboard.ui.service.dueList
 import com.astheral.bikedashboard.ui.service.levelColor
@@ -293,7 +294,7 @@ private fun Header(d: DashboardData?, units: Units, profile: Profile?, onProfile
                 color = MaterialTheme.colorScheme.tertiary,
                 fontWeight = FontWeight.SemiBold,
             )
-            AccentChip(d.summary.lifetime.fillUpCount.toDouble(), { "${it.toInt()} fills" })
+            AccentChip(d.summary.lifetime.fillUpCount.toDouble(), { count(it.toInt(), "fill") })
             Spacer(Modifier.size(8.dp))
             d.summary.lifetime.kmPerLitre?.let { AccentChip(units.economy.convert(it), units.economy::format) }
         }
@@ -395,7 +396,7 @@ private fun PeriodTiles(
 private fun caption(period: Period, s: PeriodSummary, last: FillUp): String = when (period) {
     Period.LAST -> "${last.date.short()} · ${last.country.label()} · ${sgd(s.costSgd)}" +
         (if (s.distanceKm > 0) " · ${km(s.distanceKm)}" else "")
-    else -> "${s.fillUpCount} fill-ups · ${km(s.distanceKm)} · ${sgd(s.costSgd)} spent"
+    else -> "${count(s.fillUpCount, "fill-up")} · ${km(s.distanceKm)} · ${sgd(s.costSgd)} spent"
 }
 
 /**

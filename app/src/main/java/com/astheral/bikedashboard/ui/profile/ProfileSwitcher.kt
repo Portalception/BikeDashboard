@@ -43,6 +43,7 @@ import androidx.lifecycle.viewModelScope
 import com.astheral.bikedashboard.data.Profile
 import com.astheral.bikedashboard.data.ProfileKind
 import com.astheral.bikedashboard.data.Profiles
+import com.astheral.bikedashboard.ui.count
 import com.astheral.bikedashboard.ui.components.NumberFont
 import com.astheral.bikedashboard.ui.components.TileShape
 import com.astheral.bikedashboard.ui.components.outline
@@ -139,7 +140,7 @@ fun ProfileSwitcherSheet(
                         Column(Modifier.weight(1f)) {
                             Text(profile.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Text(
-                                "${profile.kind.label} · ${state.counts[profile.id] ?: 0} fill-ups",
+                                "${profile.kind.label} · ${count(state.counts[profile.id] ?: 0, "fill-up")}",
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontFamily = NumberFont,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,

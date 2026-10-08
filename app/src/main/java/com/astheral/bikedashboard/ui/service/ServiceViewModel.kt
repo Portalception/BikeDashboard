@@ -6,6 +6,7 @@ import android.provider.OpenableColumns
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.astheral.bikedashboard.csv.SheetProblem
+import com.astheral.bikedashboard.ui.count
 import com.astheral.bikedashboard.csv.looksLikeServiceSheet
 import com.astheral.bikedashboard.csv.readServiceSheet
 import com.astheral.bikedashboard.data.AppDatabase
@@ -135,7 +136,7 @@ class ServicingViewModel(application: Application) : AndroidViewModel(applicatio
         _pending.value = null
         viewModelScope.launch {
             services.replaceAll(profile.id, p.records)
-            _message.value = "Imported ${p.records.size} services."
+            _message.value = "Imported ${count(p.records.size, "service")}."
         }
     }
 
