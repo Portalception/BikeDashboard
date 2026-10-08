@@ -22,8 +22,12 @@ data class BikeDetails(
     val plate: String? = null,
     val chassisNumber: String? = null,
     val engineNumber: String? = null,
+    /** No longer shown on the Bike details page; kept so older data and backups still load. */
     val iuNumber: String? = null,
     val registeredIu: String? = null,
+
+    // The money fields and start odometer are no longer shown on the Bike details page (the
+    // "Value" section was removed); they're kept so older data and backups still load.
 
     /** What you paid for the bike, in SGD. */
     val purchasePrice: Double? = null,

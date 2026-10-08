@@ -215,7 +215,7 @@ fun SettingsScreen(
                 SettingRow(
                     Icons.Filled.Description,
                     "Bike details",
-                    "Plate, chassis and engine numbers, value, COE, road tax and insurance",
+                    "Plate, chassis and engine numbers, COE, road tax and insurance",
                     onClick = onOpenDetails,
                 ) { Chevron() }
                 GroupDivider()

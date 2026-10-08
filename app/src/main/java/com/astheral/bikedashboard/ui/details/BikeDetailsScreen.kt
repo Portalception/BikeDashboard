@@ -20,15 +20,12 @@ import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Category
-import androidx.compose.material.icons.filled.Contactless
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Factory
 import androidx.compose.material.icons.filled.Gavel
-import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Pin
 import androidx.compose.material.icons.filled.Policy
-import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.TwoWheeler
@@ -63,9 +60,6 @@ import com.astheral.bikedashboard.ui.components.PickDateDialog
 import com.astheral.bikedashboard.ui.components.SectionHeader
 import com.astheral.bikedashboard.ui.components.SettingRow
 import com.astheral.bikedashboard.ui.components.TextFieldDialog
-import com.astheral.bikedashboard.ui.edit.parseNumber
-import com.astheral.bikedashboard.ui.km
-import com.astheral.bikedashboard.ui.sgd
 import com.astheral.bikedashboard.ui.short
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
@@ -77,7 +71,6 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
-import kotlin.math.roundToInt
 
 /** Details shown for the bike, or null while loading. */
 data class DetailsState(val profile: Profile, val details: BikeDetails)
@@ -98,7 +91,7 @@ class BikeDetailsViewModel(application: Application) : AndroidViewModel(applicat
 }
 
 /** How a field is typed in and shown. */
-private enum class Kind { TEXT, MONEY, KM, DATE, LONG_TEXT }
+private enum class Kind { TEXT, DATE, LONG_TEXT }
 
 private class DetailField(
     val label: String,
@@ -111,13 +104,14 @@ private class DetailField(
 private fun text(label: String, icon: ImageVector, get: (BikeDetails) -> String?, set: BikeDetails.(String?) -> BikeDetails) =
     DetailField(label, icon, Kind.TEXT, get) { d, v -> d.set(v as String?) }
 
-private fun money(label: String, icon: ImageVector, get: (BikeDetails) -> Double?, set: BikeDetails.(Double?) -> BikeDetails) =
-    DetailField(label, icon, Kind.MONEY, get) { d, v -> d.set(v as Double?) }
-
 private fun date(label: String, icon: ImageVector, get: (BikeDetails) -> LocalDate?, set: BikeDetails.(LocalDate?) -> BikeDetails) =
     DetailField(label, icon, Kind.DATE, get) { d, v -> d.set(v as LocalDate?) }
 
-/** The groups of fields, following the spreadsheet's dashboard. */
+/**
+ * The groups of fields, following the spreadsheet's dashboard. The current IU number and the
+ * money fields (amount paid, COE paid, open market value) and the odometer when you got the bike
+ * are no longer shown, but [BikeDetails] still keeps them, so older data and backups load as before.
+ */
 private val SECTIONS: List<Triple<String, ImageVector, List<DetailField>>> = listOf(
     Triple(
         "Bike", Icons.Filled.TwoWheeler,
@@ -127,19 +121,7 @@ private val SECTIONS: List<Triple<String, ImageVector, List<DetailField>>> = lis
             text("Licence plate", Icons.Filled.Pin, { it.plate }) { copy(plate = it?.uppercase()) },
             text("Chassis number", Icons.Filled.Build, { it.chassisNumber }) { copy(chassisNumber = it?.uppercase()) },
             text("Engine number", Icons.Filled.Speed, { it.engineNumber }) { copy(engineNumber = it?.uppercase()) },
-            text("IU number (current)", Icons.Filled.Contactless, { it.iuNumber }) { copy(iuNumber = it) },
             text("Registered IU", Icons.Filled.Badge, { it.registeredIu }) { copy(registeredIu = it) },
-        ),
-    ),
-    Triple(
-        "Value", Icons.Filled.Savings,
-        listOf(
-            money("Amount paid", Icons.Filled.Payments, { it.purchasePrice }) { copy(purchasePrice = it) },
-            money("COE paid", Icons.Filled.Payments, { it.coePaid }) { copy(coePaid = it) },
-            money("Open market value", Icons.Filled.Payments, { it.openMarketValue }) { copy(openMarketValue = it) },
-            DetailField("Odometer when you got it", Icons.Filled.Speed, Kind.KM, { it.startOdometerKm }) { d, v ->
-                d.copy(startOdometerKm = (v as Double?)?.roundToInt())
-            },
         ),
     ),
     Triple(
@@ -159,13 +141,9 @@ private val SECTIONS: List<Triple<String, ImageVector, List<DetailField>>> = lis
     ),
 )
 
-private fun trim(v: Double) = if (v == Math.rint(v)) v.toLong().toString() else v.toString()
-
 private fun shown(value: Any?): String? = when (value) {
     null -> null
     is LocalDate -> value.short()
-    is Double -> sgd(value)
-    is Int -> km(value)
     else -> value.toString()
 }
 
@@ -185,7 +163,7 @@ fun dueIn(date: LocalDate, today: LocalDate = LocalDate.now()): String {
 private const val SOON_DAYS = 30
 
 /**
- * The bike's paperwork: plate, chassis and engine numbers, value, and when the COE, road tax,
+ * The bike's paperwork: plate, chassis and engine numbers, and when the COE, road tax,
  * inspection and insurance run out. Tap any row to fill it in.
  */
 @Composable
@@ -228,19 +206,6 @@ fun BikeDetailsScreen(onBack: () -> Unit, viewModel: BikeDetailsViewModel = view
         val save = { v: Any? -> viewModel.update { field.set(it, v) }; editing = null }
         when (field.kind) {
             Kind.DATE -> PickDateDialog(current as LocalDate?, onDismiss = close, onPick = save)
-            Kind.MONEY, Kind.KM -> TextFieldDialog(
-                title = field.label,
-                initial = when (current) {
-                    is Double -> trim(current)
-                    is Int -> current.toString()
-                    else -> ""
-                },
-                onDismiss = close,
-                onSave = { t -> save(parseNumber(t)) },
-                number = true,
-                suffix = if (field.kind == Kind.KM) "km" else "S$",
-                validate = { t -> if (parseNumber(t)?.takeIf { it >= 0 } == null) "Enter a number" else null },
-            )
             Kind.TEXT, Kind.LONG_TEXT -> TextFieldDialog(
                 title = field.label,
                 initial = current as String? ?: "",
