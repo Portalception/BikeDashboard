@@ -3,13 +3,6 @@
 package com.astheral.bikedashboard.ui.edit
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -21,27 +14,16 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.LocalGasStation
 import androidx.compose.material.icons.filled.Warning
@@ -50,7 +32,6 @@ import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -82,7 +63,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.astheral.bikedashboard.data.Country
-import com.astheral.bikedashboard.ui.components.AccentChip
 import com.astheral.bikedashboard.ui.components.ChoiceTile
 import com.astheral.bikedashboard.ui.components.CountUpText
 import com.astheral.bikedashboard.ui.components.GroupCard
@@ -90,7 +70,6 @@ import com.astheral.bikedashboard.ui.components.GroupDivider
 import com.astheral.bikedashboard.ui.components.NumberFont
 import com.astheral.bikedashboard.ui.components.PillShape
 import com.astheral.bikedashboard.ui.components.TileShape
-import com.astheral.bikedashboard.ui.components.ProgressLine
 import com.astheral.bikedashboard.ui.components.outline
 import com.astheral.bikedashboard.ui.km
 import com.astheral.bikedashboard.ui.kmPerLitre
@@ -118,35 +97,35 @@ fun EditScreen(fillUpId: Long, onDone: () -> Unit, onDeleted: (Long) -> Unit) {
     BackHandler(enabled = !state.loading && state.index > 0 && state.isNew) { viewModel.back() }
 
     if (state.loading) return
-    Column(
-        Modifier
-            .fillMaxSize()
-            .statusBarsPadding()
-            .navigationBarsPadding()
-            .imePadding()
-            .padding(horizontal = 16.dp),
-    ) {
-        TopRow(state, onClose = onDone, onDelete = { confirmDelete = true })
-        ProgressLine((state.index + 1f) / state.steps.size, Modifier.padding(horizontal = 4.dp, vertical = 8.dp))
-
-        // Each question is its own card; moving on slides the next one in from the side.
-        AnimatedContent(
-            targetState = state.step,
-            transitionSpec = {
-                val dir = state.direction
-                (slideInHorizontally(tween(320)) { it * dir } + fadeIn(tween(320)))
-                    .togetherWith(slideOutHorizontally(tween(320)) { -it * dir } + fadeOut(tween(200)))
-            },
-            modifier = Modifier.weight(1f).padding(top = 8.dp),
-            label = "step",
-        ) { step ->
-            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-                StepCard(step, state, viewModel)
+    // When editing, the final check is the starting point, so "back" from it closes.
+    val editingReview = !state.isNew && state.step == Step.REVIEW
+    StepFlow(
+        title = if (state.isNew) "New fill-up" else "Edit fill-up",
+        step = state.step,
+        index = state.index,
+        count = state.steps.size,
+        direction = state.direction,
+        onClose = onDone,
+        onDelete = if (state.isNew) null else ({ confirmDelete = true }),
+        backCloses = state.index == 0 || editingReview,
+        onBack = { if (editingReview) onDone() else if (!viewModel.back()) onDone() },
+        primaryText = when {
+            state.step == Step.REVIEW && state.warnings.isNotEmpty() -> "Save anyway"
+            state.step == Step.REVIEW -> "Save"
+            state.step == Step.FUEL_LEFT && state.form.barsLeft.isBlank() && state.form.reserveKm.isBlank() -> "Skip"
+            !state.isNew -> "Done"
+            else -> "Next"
+        },
+        primaryIsFinal = state.step == Step.REVIEW,
+        onPrimary = {
+            when {
+                state.step == Step.REVIEW -> viewModel.save()
+                // When editing, each card returns to the final check once it's answered.
+                !state.isNew -> if (state.form.errorFor(state.step, null) == null) viewModel.goTo(Step.REVIEW) else viewModel.next()
+                else -> viewModel.next()
             }
-        }
-
-        BottomButtons(state, viewModel, onClose = onDone)
-    }
+        },
+    ) { step -> StepCard(step, state, viewModel) }
 
     if (confirmDelete) {
         AlertDialog(
@@ -160,57 +139,6 @@ fun EditScreen(fillUpId: Long, onDone: () -> Unit, onDeleted: (Long) -> Unit) {
             },
             dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } },
         )
-    }
-}
-
-@Composable
-private fun TopRow(state: EditState, onClose: () -> Unit, onDelete: () -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = onClose) { Icon(Icons.Filled.Close, contentDescription = "Close without saving") }
-        Text(
-            if (state.isNew) "New fill-up" else "Edit fill-up",
-            Modifier.weight(1f),
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.SemiBold,
-        )
-        if (!state.isNew) {
-            IconButton(onClick = onDelete) { Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error) }
-        }
-        AccentChip("${state.index + 1} / ${state.steps.size}")
-    }
-}
-
-@Composable
-private fun BottomButtons(state: EditState, viewModel: EditViewModel, onClose: () -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        PillButton(
-            text = if (state.index == 0 || !state.isNew && state.step == Step.REVIEW) "Cancel" else "Back",
-            icon = if (state.index == 0 || !state.isNew && state.step == Step.REVIEW) Icons.Filled.Close else Icons.AutoMirrored.Filled.ArrowBack,
-            filled = false,
-            modifier = Modifier.weight(1f),
-        ) {
-            if (!state.isNew && state.step == Step.REVIEW) onClose() else if (!viewModel.back()) onClose()
-        }
-        val primaryText = when {
-            state.step == Step.REVIEW && state.warnings.isNotEmpty() -> "Save anyway"
-            state.step == Step.REVIEW -> "Save"
-            state.step == Step.FUEL_LEFT && state.form.barsLeft.isBlank() && state.form.reserveKm.isBlank() -> "Skip"
-            !state.isNew -> "Done"
-            else -> "Next"
-        }
-        PillButton(
-            text = primaryText,
-            icon = if (state.step == Step.REVIEW) Icons.Filled.Check else Icons.AutoMirrored.Filled.ArrowForward,
-            filled = true,
-            modifier = Modifier.weight(1f),
-        ) {
-            when {
-                state.step == Step.REVIEW -> viewModel.save()
-                // When editing, each card returns to the final check once it's answered.
-                !state.isNew -> if (state.form.errorFor(state.step, null) == null) viewModel.goTo(Step.REVIEW) else viewModel.next()
-                else -> viewModel.next()
-            }
-        }
     }
 }
 
@@ -364,6 +292,9 @@ internal fun NumberCard(
     selectAll: Boolean = false,
     /** A word answer (like a name) rather than a number. */
     text: Boolean = false,
+    capitalization: KeyboardCapitalization = if (text) KeyboardCapitalization.Words else KeyboardCapitalization.None,
+    /** More under the hint, like buttons that fill in the answer. */
+    extra: @Composable ColumnScope.() -> Unit = {},
 ) {
     val focus = remember { FocusRequester() }
     // Keep the cursor position while typing; a pre-filled rate starts fully selected so typing replaces it.
@@ -393,7 +324,7 @@ internal fun NumberCard(
                     whole -> KeyboardType.Number
                     else -> KeyboardType.Decimal
                 },
-                capitalization = if (text) KeyboardCapitalization.Words else KeyboardCapitalization.None,
+                capitalization = capitalization,
                 imeAction = ImeAction.Next,
             ),
             keyboardActions = KeyboardActions(onNext = { onNext() }),
@@ -412,6 +343,7 @@ internal fun NumberCard(
                 }
             }
         }
+        extra()
     }
 }
 

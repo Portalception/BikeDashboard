@@ -232,7 +232,7 @@ private fun SinceTile(type: String, name: String, last: ServiceRecord?, odometer
                 CountUpText(days.toDouble(), { "${it.toInt()} days" }, style = MaterialTheme.typography.titleMedium)
                 val kmSince = if (odometer != null && last.odometerKm != null) odometer - last.odometerKm else null
                 Text(
-                    listOfNotNull(kmSince?.let { km(it) }, last.date.short()).joinToString(" · "),
+                    listOfNotNull(kmSince?.let { (if (last.odometerEstimated) "≈ " else "") + km(it) }, last.date.short()).joinToString(" · "),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -308,7 +308,7 @@ private fun RecordRow(record: ServiceRecord, name: String, onClick: () -> Unit) 
         Column(Modifier.weight(1f)) {
             Text(record.description.ifBlank { name }, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Text(
-                listOfNotNull(name, record.date.short(), record.odometerKm?.let { km(it) }).joinToString(" · "),
+                listOfNotNull(name, record.date.short(), record.odometerKm?.let { (if (record.odometerEstimated) "≈ " else "") + km(it) }).joinToString(" · "),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

@@ -1,5 +1,6 @@
 package com.astheral.bikedashboard.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Entity
@@ -29,6 +30,8 @@ data class ServiceRecord(
     val description: String = "",
     val cost: Double? = null,
     val currency: Currency = Currency.SGD,
+    /** True when [odometerKm] was guessed from the fill-ups around the date rather than read off the bike. */
+    @ColumnInfo(defaultValue = "0") val odometerEstimated: Boolean = false,
 )
 
 /** The highest odometer reading among fill-ups and services, i.e. roughly where the bike is now. */

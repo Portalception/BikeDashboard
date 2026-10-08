@@ -69,6 +69,19 @@ class MigrationTest {
         }
     }
 
+    /** Version 7 adds the "odometer was estimated" mark; records from before were all read off the bike. */
+    @Test
+    fun version6RecordsAreNotEstimated() {
+        helper.createDatabase(dbName, 6).apply {
+            execSQL("INSERT INTO service_records (id, profileId, date, odometerKm, type, description, cost, currency) VALUES (1, 1, 20364, 159057, 'ENGINE_OIL', '', NULL, 'SGD')")
+            close()
+        }
+        helper.runMigrationsAndValidate(dbName, 7, true).apply {
+            query("SELECT odometerEstimated FROM service_records").use { it.moveToFirst(); assertEquals(0, it.getInt(0)) }
+            close()
+        }
+    }
+
     @Test
     fun version2GainsAnEmptyDetailsTable() {
         helper.createDatabase(dbName, 2).apply {

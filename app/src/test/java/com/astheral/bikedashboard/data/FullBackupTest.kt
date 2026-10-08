@@ -23,7 +23,7 @@ class FullBackupTest {
                         sgLitres = 4.0, sgCostSgd = 10.4, myLitres = 8.0, myCostSgd = 9.6, rmPerSgd = 3.1847, reserveKm = 12.5,
                     ),
                 ),
-                services = listOf(ServiceRecord(id = 4, profileId = 3, date = LocalDate.of(2026, 1, 2), odometerKm = 150000, type = "CHAIN")),
+                services = listOf(ServiceRecord(id = 4, profileId = 3, date = LocalDate.of(2026, 1, 2), odometerKm = 150000, type = "CHAIN", odometerEstimated = true)),
                 intervals = listOf(ServiceInterval(3, "CHAIN", everyKm = 800)),
             ),
         ),
