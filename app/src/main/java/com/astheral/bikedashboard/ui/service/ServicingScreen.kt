@@ -93,6 +93,7 @@ fun ServicingScreen(
     onAdd: () -> Unit,
     onOpen: (Long) -> Unit,
     onOpenIntervals: () -> Unit,
+    onOpenCategories: () -> Unit,
     viewModel: ServicingViewModel = viewModel(),
 ) {
     val state by viewModel.state.collectAsState()
@@ -167,7 +168,10 @@ fun ServicingScreen(
             SectionHeader(Icons.Filled.Payments, "Spent")
             SpendCard(s, today)
 
-            SectionHeader(Icons.Filled.Build, "Records")
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                SectionHeader(Icons.Filled.Build, "Records", Modifier.weight(1f))
+                TextButton(onClick = onOpenCategories) { Text("Categories") }
+            }
             TypeFilter(s.categories, s.records, filter) { filter = it }
             val shown = s.records.filter { filter == null || it.type == filter }
             shown.groupBy { it.date.year }.forEach { (year, inYear) ->

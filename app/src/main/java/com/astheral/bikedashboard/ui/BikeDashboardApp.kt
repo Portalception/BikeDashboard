@@ -53,6 +53,7 @@ import com.astheral.bikedashboard.ui.profile.ProfileSetupScreen
 import com.astheral.bikedashboard.ui.profile.ProfileSwitcherSheet
 import com.astheral.bikedashboard.ui.profile.ProfilesViewModel
 import com.astheral.bikedashboard.ui.details.BikeDetailsScreen
+import com.astheral.bikedashboard.ui.service.CategoriesScreen
 import com.astheral.bikedashboard.ui.service.IntervalsScreen
 import com.astheral.bikedashboard.ui.service.ServiceEditScreen
 import com.astheral.bikedashboard.ui.service.ServicingScreen
@@ -94,6 +95,7 @@ import kotlinx.serialization.Serializable
 @Serializable object BikeDetailsRoute
 @Serializable object ServicingRoute
 @Serializable object IntervalsRoute
+@Serializable object ServiceCategoriesRoute
 
 /** A dashboard number's detail page: [metric] is a [Metric] name, [period] the tab it opened on. */
 @Serializable data class MetricRoute(val metric: String, val period: Int)
@@ -307,8 +309,15 @@ fun BikeDashboardApp(
                             onAdd = { nav.navigate(ServiceEditRoute()) },
                             onOpen = { id -> nav.navigate(ServiceEditRoute(id)) },
                             onOpenIntervals = { nav.navigate(IntervalsRoute) },
+                            onOpenCategories = { nav.navigate(ServiceCategoriesRoute) },
                         )
                     }
+                }
+                composable<ServiceCategoriesRoute>(
+                    enterTransition = { slideIntoContainer(SlideDirection.Up, tween(SLIDE_MS)) },
+                    popExitTransition = { slideOutOfContainer(SlideDirection.Down, tween(SLIDE_MS)) },
+                ) {
+                    AppBackground { CategoriesScreen(onBack = { nav.popBackStack() }) }
                 }
                 composable<IntervalsRoute>(
                     enterTransition = { slideIntoContainer(SlideDirection.Up, tween(SLIDE_MS)) },
