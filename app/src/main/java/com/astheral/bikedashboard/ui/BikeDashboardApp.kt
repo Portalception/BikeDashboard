@@ -130,6 +130,17 @@ private fun AnimatedContentTransitionScope<NavBackStackEntry>.tabExit(): ExitTra
     }
 }
 
+/**
+ * The back gesture follows your finger with the same slides as a tap would: a tab slides back
+ * towards the dashboard, and a page opened over the tabs slides down. Without this the library
+ * shrinks the page while you swipe, which looked like a glitchy zoom.
+ */
+private fun AnimatedContentTransitionScope<NavBackStackEntry>.backEnter(): EnterTransition =
+    if (initialState.destination.isOverlay()) EnterTransition.None else tabEnter()
+
+private fun AnimatedContentTransitionScope<NavBackStackEntry>.backExit(): ExitTransition =
+    if (initialState.destination.isOverlay()) slideOutOfContainer(SlideDirection.Down, tween(SLIDE_MS)) else tabExit()
+
 @Composable
 fun BikeDashboardApp(profilesViewModel: ProfilesViewModel = viewModel()) {
     val profiles by profilesViewModel.state.collectAsState()
@@ -179,6 +190,8 @@ fun BikeDashboardApp(profilesViewModel: ProfilesViewModel = viewModel()) {
                 exitTransition = { tabExit() },
                 popEnterTransition = { tabEnter() },
                 popExitTransition = { tabExit() },
+                predictivePopEnterTransition = { backEnter() },
+                predictivePopExitTransition = { backExit() },
             ) {
                 composable<DashboardRoute> {
                     DashboardScreen(
