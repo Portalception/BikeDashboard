@@ -7,6 +7,13 @@ data class Release(val version: String, val date: LocalDate, val changes: List<S
 /** Major changes in each version, newest first. Add an entry here with every version you share. */
 val CHANGELOG = listOf(
     Release(
+        version = "0.5.3",
+        date = LocalDate.of(2026, 10, 9),
+        changes = listOf(
+            "Progress bars now default to a plain Standard style, with two new racing looks (Race stripe and On the road) replacing Kerb, Chequered and Wave.",
+        ),
+    ),
+    Release(
         version = "0.5.2",
         date = LocalDate.of(2026, 10, 9),
         changes = listOf(

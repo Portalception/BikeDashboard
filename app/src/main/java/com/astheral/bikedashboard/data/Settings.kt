@@ -222,8 +222,7 @@ class Settings private constructor(context: Context) {
             wallpaper = WallpaperSupported && prefs.getBoolean(KEY_WALLPAPER, old == "WALLPAPER"),
             primary = Color(prefs.getInt(KEY_PRIMARY, default.primary.toArgb())),
             accent = Color(prefs.getInt(KEY_ACCENT, default.accent.toArgb())),
-            progressStyle = ProgressStyle.entries.firstOrNull { it.name == prefs.getString(KEY_PROGRESS_STYLE, null) }
-                ?: ProgressStyle.CHAIN,
+            progressStyle = ProgressStyle.fromName(prefs.getString(KEY_PROGRESS_STYLE, null)),
         )
     }
 

@@ -63,9 +63,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.astheral.bikedashboard.ui.theme.LocalProgressStyle
 import com.astheral.bikedashboard.ui.theme.ProgressStyle
-import kotlin.math.PI
 import kotlin.math.max
-import kotlin.math.sin
 
 val CardShape = RoundedCornerShape(24.dp)
 val TileShape = RoundedCornerShape(20.dp)
@@ -324,7 +322,7 @@ fun AccentChip(value: Double, format: (Double) -> String, modifier: Modifier = M
 }
 
 /**
- * A progress bar: the filled part is drawn in the chosen [style] (wave, zigzag, chain …),
+ * A progress bar: the filled part is drawn in the chosen [style] (plain, chain, tyre tread …),
  * followed by a flat track for the rest. The style comes from Settings unless given.
  */
 @Composable
@@ -357,6 +355,10 @@ private fun DrawScope.drawProgressShape(style: ProgressStyle, end: Float, color:
     // A darker shade of the colour for depth (holes, inner plates) that works on any background.
     val shade = lerp(color, Color.Black, 0.45f)
     when (style) {
+        ProgressStyle.STANDARD -> {
+            // A plain rounded bar.
+            drawLine(color, Offset(stroke / 2, mid), Offset(maxOf(stroke / 2, end - stroke / 2), mid), strokeWidth = stroke, cap = StrokeCap.Round)
+        }
         ProgressStyle.CHAIN -> {
             // A motorcycle roller chain seen from the side: rollers joined by plates, with outer
             // plates (outlined) and inner plates (solid) taking turns, and a pin in each roller.
@@ -379,44 +381,6 @@ private fun DrawScope.drawProgressShape(style: ProgressStyle, end: Float, color:
                 if (x - roller > end) break
                 drawCircle(color, radius = roller, center = Offset(x, mid))
                 drawCircle(shade, radius = roller * 0.42f, center = Offset(x, mid))
-            }
-        }
-        ProgressStyle.KERB -> {
-            // Racing kerb: slanted blocks taking turns between the colour and white.
-            val block = 10.dp.toPx()
-            val h = size.height * 0.7f
-            val top = mid - h / 2
-            val slant = h * 0.45f
-            var x = 0f
-            var i = 0
-            while (x < end) {
-                val w = minOf(block, end - x)
-                val path = Path().apply {
-                    moveTo(x + slant, top)
-                    lineTo(x + w + slant, top)
-                    lineTo(x + w, top + h)
-                    lineTo(x, top + h)
-                    close()
-                }
-                drawPath(path, if (i % 2 == 0) color else Color.White.copy(alpha = 0.9f))
-                x += block
-                i++
-            }
-        }
-        ProgressStyle.CHECKERED -> {
-            // Chequered flag: two rows of squares.
-            val sq = size.height * 0.4f
-            val top = mid - sq
-            var col = 0
-            var x = 0f
-            while (x < end) {
-                val w = minOf(sq, end - x)
-                for (row in 0..1) {
-                    val dark = (col + row) % 2 == 0
-                    drawRect(if (dark) color else Color.White.copy(alpha = 0.9f), Offset(x, top + row * sq), Size(w, sq))
-                }
-                x += sq
-                col++
             }
         }
         ProgressStyle.TREAD -> {
@@ -447,17 +411,88 @@ private fun DrawScope.drawProgressShape(style: ProgressStyle, end: Float, color:
                 x += pitch
             }
         }
-        ProgressStyle.WAVE -> {
-            val wavelength = 22.dp.toPx()
-            val path = Path().apply {
-                moveTo(0f, mid)
-                var x = 0f
-                while (x <= end) {
-                    lineTo(x, mid + amp * sin(2 * PI * x / wavelength).toFloat())
-                    x += 2f
+        ProgressStyle.STRIPE -> {
+            // Race stripe: a bold livery stripe with a thin pinstripe under it, cut at a slant at
+            // the front. Towards the start it breaks up into speed streaks.
+            val top = mid - amp
+            val total = amp * 2
+            val thickH = total * 0.58f
+            val thinTop = top + total * 0.74f
+            val slant = total * 0.6f
+            // The right edge leans back, so the stripe and pinstripe share one slanted cut.
+            fun edge(y: Float) = end - slant * (y - top) / total
+            val solidFrom = end * 0.45f
+            fun stripe(x0: Float, y0: Float, y1: Float, alpha: Float, cut: Boolean) {
+                val x1top = if (cut) edge(y0) else x0
+                val x1bottom = if (cut) edge(y1) else x0
+                drawPath(
+                    Path().apply {
+                        moveTo(x0, y0)
+                        lineTo(maxOf(x0, x1top), y0)
+                        lineTo(maxOf(x0, x1bottom), y1)
+                        lineTo(x0, y1)
+                        close()
+                    },
+                    color.copy(alpha = alpha),
+                )
+            }
+            stripe(solidFrom, top, top + thickH, 1f, cut = true)
+            stripe(solidFrom, thinTop, top + total, 1f, cut = true)
+            // Speed streaks: short dashes that get longer and stronger towards the solid stripe.
+            val streakGap = 3.dp.toPx()
+            var x = solidFrom - streakGap
+            var len = 10.dp.toPx()
+            var alpha = 0.8f
+            while (x > 0f && alpha > 0.1f) {
+                val x0 = maxOf(0f, x - len)
+                drawRect(color.copy(alpha = alpha), Offset(x0, top), Size(x - x0, thickH))
+                drawRect(color.copy(alpha = alpha * 0.7f), Offset(x0 + len * 0.3f, thinTop), Size(maxOf(0f, x - x0 - len * 0.3f), top + total - thinTop))
+                x = x0 - streakGap
+                len *= 0.7f
+                alpha *= 0.72f
+            }
+        }
+        ProgressStyle.ROAD -> {
+            // On the road: a little sports bike riding along a road with a dashed centre line.
+            val h = size.height
+            val bikeW = h * 1.75f
+            val bx = maxOf(end, bikeW) - bikeW
+            val roadH = stroke * 1.5f
+            if (bx > 0f) {
+                drawRoundRect(shade, Offset(0f, mid - roadH / 2), Size(bx + bikeW * 0.5f, roadH), CornerRadius(roadH / 2))
+                val dash = 5.dp.toPx()
+                var x = dash * 0.4f
+                while (x + dash * 0.6f < bx) {
+                    drawLine(color, Offset(x, mid), Offset(x + dash * 0.6f, mid), strokeWidth = stroke * 0.3f, cap = StrokeCap.Round)
+                    x += dash * 1.4f
                 }
             }
-            drawPath(path, color, style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
+            val r = h * 0.24f
+            val wy = h - r - stroke * 0.15f
+            val rear = Offset(bx + r + stroke * 0.2f, wy)
+            val front = Offset(bx + bikeW - r - stroke * 0.2f, wy)
+            // Bodywork: tail, seat, tank and fairing as one shape between the wheels.
+            drawPath(
+                Path().apply {
+                    moveTo(rear.x, rear.y)
+                    lineTo(bx + h * 0.12f, h * 0.36f)
+                    lineTo(bx + h * 0.7f, h * 0.38f)
+                    lineTo(bx + h * 0.95f, h * 0.2f)
+                    lineTo(bx + h * 1.42f, h * 0.3f)
+                    lineTo(front.x, front.y)
+                    lineTo(bx + h * 0.85f, h * 0.78f)
+                    close()
+                },
+                color,
+            )
+            // Rider tucked in behind the screen.
+            drawLine(color, Offset(bx + h * 0.55f, h * 0.36f), Offset(bx + h * 0.85f, h * 0.12f), strokeWidth = stroke * 0.8f, cap = StrokeCap.Round)
+            drawCircle(color, radius = h * 0.12f, center = Offset(bx + h * 1.0f, h * 0.12f))
+            for (wheel in listOf(rear, front)) {
+                drawCircle(shade, radius = r, center = wheel)
+                drawCircle(color, radius = r, center = wheel, style = Stroke(stroke * 0.45f))
+                drawCircle(color, radius = r * 0.25f, center = wheel)
+            }
         }
     }
 }

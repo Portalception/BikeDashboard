@@ -37,15 +37,20 @@ data class AppearanceSettings(
     val primary: Color = ColorPreset.MONOCHROME.primary,
     val accent: Color = ColorPreset.MONOCHROME.accent,
     /** Shape of the progress line on the dashboard and while adding a fill-up. */
-    val progressStyle: ProgressStyle = ProgressStyle.CHAIN,
+    val progressStyle: ProgressStyle = ProgressStyle.STANDARD,
 )
 
 enum class ProgressStyle(val label: String) {
-    CHAIN("Chain"), KERB("Kerb"), CHECKERED("Chequered"), TREAD("Tyre tread"), REV("Rev counter"), WAVE("Wave"),
+    STANDARD("Standard"), CHAIN("Chain"), TREAD("Tyre tread"), REV("Rev counter"), STRIPE("Race stripe"), ROAD("On the road");
+
+    companion object {
+        /** The style saved under [name], or Standard for nothing saved or a removed style (Kerb, Chequered, Wave). */
+        fun fromName(name: String?): ProgressStyle = entries.firstOrNull { it.name == name } ?: STANDARD
+    }
 }
 
 /** The progress line shape picked in Settings. */
-val LocalProgressStyle = staticCompositionLocalOf { ProgressStyle.WAVE }
+val LocalProgressStyle = staticCompositionLocalOf { ProgressStyle.STANDARD }
 
 /**
  * Ready-made primary + accent pairs. Apart from Monochrome, each uses a motorcycle maker's
