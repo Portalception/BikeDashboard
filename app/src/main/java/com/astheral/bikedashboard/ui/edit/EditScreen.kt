@@ -23,13 +23,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.LocalGasStation
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -38,7 +35,6 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -79,9 +75,6 @@ import com.astheral.bikedashboard.ui.sgd
 import com.astheral.bikedashboard.ui.sgdPerLitre
 import com.astheral.bikedashboard.ui.short
 import com.astheral.bikedashboard.ui.theme.CountryColors
-import java.time.Instant
-import java.time.LocalDate
-import java.time.ZoneOffset
 import java.util.Locale
 
 @Composable
@@ -169,6 +162,7 @@ private fun StepCard(step: Step, state: EditState, vm: EditViewModel) {
     val mixed = form.country == Country.MIXED && !form.legacyMixed
     when (step) {
         Step.WHERE -> WhereCard(state, vm)
+        Step.DATE -> DateCard("When did you fill up?", form.date, onPick = { d -> vm.edit { it.copy(date = d) } }, onNext = vm::next)
         Step.RM_PAID -> NumberCard(
             part = if (mixed) "Malaysia part" else null,
             question = "How much did you pay?",
@@ -362,10 +356,9 @@ internal fun QuickChip(label: String, onClick: () -> Unit) {
     )
 }
 
-/** First card: big tiles for where you filled up, and the date (today unless you change it). */
+/** First card: big tiles for where you filled up; tapping one moves on. */
 @Composable
 private fun WhereCard(state: EditState, vm: EditViewModel) {
-    var pickDate by remember { mutableStateOf(false) }
     val form = state.form
     QuestionCard(null, "Where did you fill up?") {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -386,41 +379,6 @@ private fun WhereCard(state: EditState, vm: EditViewModel) {
                 )
             }
         }
-        Spacer(Modifier.height(20.dp))
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .clip(TileShape)
-                .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f))
-                .border(outline(), TileShape)
-                .clickable { pickDate = true }
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(Icons.Filled.DateRange, contentDescription = null)
-            Spacer(Modifier.width(14.dp))
-            Column(Modifier.weight(1f)) {
-                Text(if (form.date == LocalDate.now()) "Today" else "Date", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(form.date.long(), style = MaterialTheme.typography.titleMedium)
-            }
-            Text("Change", color = MaterialTheme.colorScheme.tertiary, style = MaterialTheme.typography.labelLarge)
-        }
-    }
-    if (pickDate) {
-        val picker = rememberDatePickerState(initialSelectedDateMillis = form.date.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli())
-        DatePickerDialog(
-            onDismissRequest = { pickDate = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    picker.selectedDateMillis?.let { ms ->
-                        val date = Instant.ofEpochMilli(ms).atZone(ZoneOffset.UTC).toLocalDate()
-                        vm.edit { it.copy(date = date) }
-                    }
-                    pickDate = false
-                }) { Text("OK") }
-            },
-            dismissButton = { TextButton(onClick = { pickDate = false }) { Text("Cancel") } },
-        ) { DatePicker(picker) }
     }
 }
 
@@ -508,7 +466,7 @@ private fun ReviewCard(state: EditState, vm: EditViewModel) {
 
         GroupCard {
             val rows = buildList {
-                add(Triple(Step.WHERE, "Where", "${form.country.label()} · ${form.date.long()}"))
+                add(Triple(Step.WHERE, "Where", form.country.label()))
                 state.steps.forEach { step ->
                     answer(step, form)?.let { add(Triple(step, label(step, form), it)) }
                 }
@@ -577,6 +535,7 @@ private fun label(step: Step, form: FillUpForm): String {
         Step.SG_LITRES -> if (mixed) "Litres in SG" else "Litres"
         Step.ODOMETER -> "Odometer"
         Step.FUEL_LEFT -> "Fuel left"
+        Step.DATE -> "Date"
         Step.WHERE, Step.REVIEW -> ""
     }
 }
@@ -599,6 +558,7 @@ private fun answer(step: Step, form: FillUpForm): String? {
             form.reserveKm.isNotBlank() -> "${form.reserveKm} km on reserve"
             else -> "Not recorded"
         }
+        Step.DATE -> form.date.long()
         Step.WHERE, Step.REVIEW -> null
     }
 }

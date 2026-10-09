@@ -6,6 +6,7 @@ import com.astheral.bikedashboard.data.FillUp
 /** One question card in the add/edit flow. [fields] are the form fields it fills in. */
 enum class Step(vararg val fields: Field) {
     WHERE,
+    DATE,
     RM_PAID(Field.RM_PAID),
     RATE(Field.RATE),
     RM_CHARGED(Field.RM_CHARGED),
@@ -21,12 +22,13 @@ enum class Step(vararg val fields: Field) {
 }
 
 /**
- * The cards to show for this form, in pump order: where, then for Malaysia what you paid,
+ * The cards to show for this form, in pump order: where and when, then for Malaysia what you paid,
  * the rate, what the pump charged and the litres, then Singapore's part, then the odometer,
  * fuel left and a final check.
  */
 fun stepsFor(form: FillUpForm): List<Step> = buildList {
     add(Step.WHERE)
+    add(Step.DATE)
     if (form.country == Country.MIXED && form.legacyMixed) {
         add(Step.UNSPLIT_LITRES)
         add(Step.UNSPLIT_COST)

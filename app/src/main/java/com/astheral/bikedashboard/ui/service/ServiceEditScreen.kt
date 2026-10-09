@@ -2,11 +2,8 @@ package com.astheral.bikedashboard.ui.service
 
 import android.app.Application
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -18,7 +15,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoFixHigh
-import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilledTonalButton
@@ -35,7 +31,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -59,10 +54,8 @@ import com.astheral.bikedashboard.data.newCategory
 import com.astheral.bikedashboard.ui.components.GroupCard
 import com.astheral.bikedashboard.ui.components.GroupDivider
 import com.astheral.bikedashboard.ui.components.NumberFont
-import com.astheral.bikedashboard.ui.components.PickDateDialog
 import com.astheral.bikedashboard.ui.components.PillTabs
-import com.astheral.bikedashboard.ui.components.TileShape
-import com.astheral.bikedashboard.ui.components.outline
+import com.astheral.bikedashboard.ui.edit.DateCard
 import com.astheral.bikedashboard.ui.edit.NumberCard
 import com.astheral.bikedashboard.ui.edit.QuestionCard
 import com.astheral.bikedashboard.ui.edit.QuickChip
@@ -280,7 +273,7 @@ private fun ServiceStepCard(step: ServiceStep, s: ServiceEditState, vm: ServiceE
     val f = s.form
     when (step) {
         ServiceStep.CATEGORY -> CategoryCard(s, vm)
-        ServiceStep.DATE -> DateCard(s, vm)
+        ServiceStep.DATE -> DateCard("When was it done?", f.date, onPick = vm::setDate, onNext = vm::next)
         ServiceStep.DESCRIPTION -> NumberCard(
             question = "What was done exactly?",
             hint = "Optional, e.g. Motul 10w-40 + oil filter.",
@@ -333,44 +326,6 @@ private fun CategoryCard(s: ServiceEditState, vm: ServiceEditViewModel) {
             onDismiss = { adding = false },
             onSave = { name -> adding = false; vm.addCategory(name) },
         )
-    }
-}
-
-/** The date, today unless you change it, with one-tap answers for the last few days. */
-@Composable
-private fun DateCard(s: ServiceEditState, vm: ServiceEditViewModel) {
-    var pickDate by remember { mutableStateOf(false) }
-    val today = LocalDate.now()
-    QuestionCard(null, "When was it done?") {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .clip(TileShape)
-                .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f))
-                .border(outline(), TileShape)
-                .clickable { pickDate = true }
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(Icons.Filled.DateRange, contentDescription = null)
-            Spacer(Modifier.width(14.dp))
-            Column(Modifier.weight(1f)) {
-                Text(if (s.form.date == today) "Today" else "Date", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(s.form.date.long(), style = MaterialTheme.typography.titleMedium)
-            }
-            Text("Change", color = MaterialTheme.colorScheme.tertiary, style = MaterialTheme.typography.labelLarge)
-        }
-        Spacer(Modifier.height(16.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            QuickChip("Today") { vm.setDate(today); vm.next() }
-            QuickChip("Yesterday") { vm.setDate(today.minusDays(1)); vm.next() }
-        }
-    }
-    if (pickDate) {
-        PickDateDialog(s.form.date, onDismiss = { pickDate = false }, canClear = false, onPick = { d ->
-            d?.let { vm.setDate(it) }
-            pickDate = false
-        })
     }
 }
 
