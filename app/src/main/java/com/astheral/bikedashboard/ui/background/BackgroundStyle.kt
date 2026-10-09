@@ -12,7 +12,12 @@ enum class BackgroundStyle(val label: String) {
     SHAPES("Shapes"),
     SNOW("Snow"),
     SPACE("Space"),
-    MATRIX("Matrix");
+    MATRIX("Matrix"),
+    RACETRACK("Racetrack"),
+    NIGHT_RIDE("Night Ride"),
+    SPEED_LINES("Speed Lines"),
+    CHEQUERED_FLAG("Chequered Flag"),
+    RAIN("Rain on Visor");
 
     companion object {
         /** The style saved under [name], or Circles (the app's original look) for nothing saved or an unknown one. */

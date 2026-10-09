@@ -104,4 +104,9 @@ private fun sceneFor(style: BackgroundStyle): BackgroundScene = when (style) {
     BackgroundStyle.SNOW -> SnowScene()
     BackgroundStyle.SPACE -> SpaceScene()
     BackgroundStyle.MATRIX -> MatrixScene()
+    BackgroundStyle.RACETRACK -> RacetrackScene()
+    BackgroundStyle.NIGHT_RIDE -> NightRideScene()
+    BackgroundStyle.SPEED_LINES -> SpeedLinesScene()
+    BackgroundStyle.CHEQUERED_FLAG -> ChequeredFlagScene()
+    BackgroundStyle.RAIN -> RainScene()
 }
