@@ -5,6 +5,7 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.astheral.bikedashboard.diagnostics.CrashLogs
 import com.astheral.bikedashboard.csv.SheetProblem
 import com.astheral.bikedashboard.ui.count
 import com.astheral.bikedashboard.csv.looksLikeServiceSheet
@@ -147,6 +148,7 @@ class ServicingViewModel(application: Application) : AndroidViewModel(applicatio
                 }
                 _pending.value = PendingServiceImport(name, result.records, result.problems, services.getAll(profile.id).size, result.newCategories)
             } catch (e: IOException) {
+                CrashLogs.error("Opening a servicing sheet to import", e)
                 _message.value = "Couldn't open the file: ${e.message}"
             }
         }

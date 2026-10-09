@@ -30,6 +30,7 @@ import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
+import com.astheral.bikedashboard.diagnostics.CrashLogs
 import com.astheral.bikedashboard.calc.MAX_EVERY_DAYS
 import com.astheral.bikedashboard.calc.ReminderSchedule
 import com.astheral.bikedashboard.calc.RepeatKind
@@ -62,6 +63,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Download
@@ -164,8 +166,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 val fills = backup.bikes.sumOf { it.fillUps.size }
                 "Backed up ${backup.bikes.size} ${if (backup.bikes.size == 1) "bike" else "bikes"}, $fills fill-ups and your settings."
             } catch (e: IOException) {
+                CrashLogs.error("Saving a full backup", e)
                 "Backup failed: ${e.message}"
             } catch (e: SecurityException) {
+                CrashLogs.error("Saving a full backup", e)
                 "Backup failed: ${e.message}"
             }
         }
@@ -182,8 +186,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 }
                 "Exported ${count(fillUps.size, "fill-up")}."
             } catch (e: IOException) {
+                CrashLogs.error("Exporting fill-ups to CSV", e)
                 "Export failed: ${e.message}"
             } catch (e: SecurityException) {
+                CrashLogs.error("Exporting fill-ups to CSV", e)
                 "Export failed: ${e.message}"
             }
         }
@@ -196,6 +202,7 @@ fun SettingsScreen(
     onProfileClick: () -> Unit,
     onEditProfile: (Long) -> Unit,
     onOpenIdeas: () -> Unit,
+    onOpenLogs: () -> Unit,
     onOpenPersonalisation: () -> Unit,
     onOpenDetails: () -> Unit,
     onOpenServicing: () -> Unit,
@@ -303,7 +310,7 @@ fun SettingsScreen(
         }
 
         SectionHeader(Icons.Filled.Info, "About")
-        GroupCard { AboutCard(ideasUnlocked, onFound = viewModel::unlockIdeas, onOpenIdeas = onOpenIdeas) }
+        GroupCard { AboutCard(ideasUnlocked, onFound = viewModel::unlockIdeas, onOpenIdeas = onOpenIdeas, onOpenLogs = onOpenLogs) }
     }
 }
 
@@ -532,11 +539,11 @@ private fun TripKmField(saved: Double, onSave: (Double) -> Unit) {
 }
 
 /**
- * About: the version, the changelog, and a hidden ideas notebook. Tap the version seven times to
- * find the notebook (like Android's developer options); after that it stays in the list.
+ * About: the version, the changelog, a hidden ideas notebook and the diagnostic logs. Tap the
+ * version seven times to find them (like Android's developer options); after that they stay in the list.
  */
 @Composable
-private fun AboutCard(ideasUnlocked: Boolean, onFound: () -> Unit, onOpenIdeas: () -> Unit) {
+private fun AboutCard(ideasUnlocked: Boolean, onFound: () -> Unit, onOpenIdeas: () -> Unit, onOpenLogs: () -> Unit) {
     var open by remember { mutableStateOf(false) }
     var taps by remember { mutableIntStateOf(0) }
     val turn by animateFloatAsState(if (open) 180f else 0f, label = "chevron")
@@ -557,6 +564,8 @@ private fun AboutCard(ideasUnlocked: Boolean, onFound: () -> Unit, onOpenIdeas: 
     if (ideasUnlocked) {
         GroupDivider()
         SettingRow(Icons.Filled.Lightbulb, "Ideas notebook", "Jot down feature ideas in plain text", onClick = onOpenIdeas) { Chevron() }
+        GroupDivider()
+        SettingRow(Icons.Filled.BugReport, "Diagnostic logs", "Crash reports to share when something breaks", onClick = onOpenLogs) { Chevron() }
     }
     GroupDivider()
     SettingRow(Icons.Filled.History, "Changelog", "What's new in each version", onClick = { open = !open }) {

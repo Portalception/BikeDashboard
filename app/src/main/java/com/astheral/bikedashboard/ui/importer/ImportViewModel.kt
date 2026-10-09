@@ -5,6 +5,7 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.astheral.bikedashboard.diagnostics.CrashLogs
 import com.astheral.bikedashboard.csv.SheetMismatch
 import com.astheral.bikedashboard.csv.SheetProblem
 import com.astheral.bikedashboard.csv.checkAgainstSheet
@@ -75,6 +76,7 @@ class ImportViewModel(application: Application) : AndroidViewModel(application) 
                 val (name, text) = withContext(Dispatchers.IO) { fileName(uri) to readText(uri) }
                 preview(name, text)
             } catch (e: IOException) {
+                CrashLogs.error("Opening a file to import", e)
                 ImportState.Failed("Couldn't open the file: ${e.message}")
             }
         }

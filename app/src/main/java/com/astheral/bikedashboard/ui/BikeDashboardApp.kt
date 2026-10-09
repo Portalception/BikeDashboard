@@ -31,6 +31,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import com.astheral.bikedashboard.diagnostics.CrashLogs
 import com.astheral.bikedashboard.ui.components.AppBackground
 import com.astheral.bikedashboard.ui.components.PillShape
 import com.astheral.bikedashboard.ui.components.outline
@@ -64,6 +65,7 @@ import com.astheral.bikedashboard.ui.service.CategoriesScreen
 import com.astheral.bikedashboard.ui.service.IntervalsScreen
 import com.astheral.bikedashboard.ui.service.ServiceEditScreen
 import com.astheral.bikedashboard.ui.service.ServicingScreen
+import com.astheral.bikedashboard.ui.settings.DiagnosticLogsScreen
 import com.astheral.bikedashboard.ui.settings.IdeasScreen
 import com.astheral.bikedashboard.ui.settings.PersonalisationScreen
 import androidx.compose.ui.Modifier
@@ -100,6 +102,7 @@ import kotlinx.serialization.Serializable
 @Serializable data class ProfileSetupRoute(val id: Long = 0)
 
 @Serializable object IdeasRoute
+@Serializable object DiagnosticLogsRoute
 @Serializable object PersonalisationRoute
 @Serializable object BikeDetailsRoute
 @Serializable object ServicingRoute
@@ -188,6 +191,13 @@ fun BikeDashboardApp(
     val tabPager = rememberPagerState { tabs.size }
     val periodPager = rememberPagerState { Period.entries.size }
     val scope = rememberCoroutineScope()
+    // Each screen opened goes into the diagnostic log's recent events.
+    LaunchedEffect(destination?.route) {
+        destination?.route?.let { CrashLogs.event("Opened ${screenName(it)}") }
+    }
+    LaunchedEffect(tabPager.currentPage) {
+        if (showTabs) CrashLogs.event("Opened ${tabs[tabPager.currentPage].label} tab")
+    }
     LaunchedEffect(openServicingFor) {
         val id = openServicingFor ?: return@LaunchedEffect
         if (all.any { it.id == id }) {
@@ -280,6 +290,7 @@ fun BikeDashboardApp(
                                 onProfileClick = openSwitcher,
                                 onEditProfile = { id -> nav.navigate(ProfileSetupRoute(id)) },
                                 onOpenIdeas = { nav.navigate(IdeasRoute) },
+                                onOpenLogs = { nav.navigate(DiagnosticLogsRoute) },
                                 onOpenPersonalisation = { nav.navigate(PersonalisationRoute) },
                                 onOpenDetails = { nav.navigate(BikeDetailsRoute) },
                                 onOpenServicing = { nav.navigate(ServicingRoute) },
@@ -301,6 +312,12 @@ fun BikeDashboardApp(
                     popExitTransition = { slideOutOfContainer(SlideDirection.Down, tween(SLIDE_MS)) },
                 ) {
                     AppBackground { IdeasScreen(onBack = { nav.popBackStack() }) }
+                }
+                composable<DiagnosticLogsRoute>(
+                    enterTransition = { slideIntoContainer(SlideDirection.Up, tween(SLIDE_MS)) },
+                    popExitTransition = { slideOutOfContainer(SlideDirection.Down, tween(SLIDE_MS)) },
+                ) {
+                    AppBackground { DiagnosticLogsScreen(onBack = { nav.popBackStack() }) }
                 }
                 composable<PersonalisationRoute>(
                     enterTransition = { slideIntoContainer(SlideDirection.Up, tween(SLIDE_MS)) },
@@ -463,3 +480,6 @@ private fun FloatingTabBar(selected: Int, onSelect: (Int) -> Unit, onAdd: () -> 
         }
     }
 }
+
+/** "com.example.EditRoute?id={id}" becomes "EditRoute", for the diagnostic log. */
+private fun screenName(route: String) = route.substringBefore('?').substringBefore('/').substringAfterLast('.')
