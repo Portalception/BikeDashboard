@@ -50,7 +50,6 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -67,7 +66,6 @@ import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.SwapHoriz
@@ -90,7 +88,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -114,7 +111,6 @@ import com.astheral.bikedashboard.ui.components.SettingRow
 import com.astheral.bikedashboard.ui.edit.parseNumber
 import com.astheral.bikedashboard.ui.profile.ProfileTitle
 import com.astheral.bikedashboard.ui.profile.icon
-import com.astheral.bikedashboard.ui.short
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -209,6 +205,7 @@ fun SettingsScreen(
     onOpenDetails: () -> Unit,
     onOpenServicing: () -> Unit,
     onOpenIntervals: () -> Unit,
+    onOpenChangelog: () -> Unit,
     viewModel: SettingsViewModel = viewModel(),
 ) {
     val ideasUnlocked by viewModel.ideasUnlocked.collectAsState()
@@ -219,7 +216,7 @@ fun SettingsScreen(
     val exportTo = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
         if (uri != null) viewModel.export(uri)
     }
-    val version = appVersion()
+    val version = appVersionName()
     val backupTo = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         if (uri != null) viewModel.exportAll(uri, version)
     }
@@ -313,7 +310,7 @@ fun SettingsScreen(
         }
 
         SectionHeader(Icons.Filled.Info, "About")
-        GroupCard { AboutCard(ideasUnlocked, legacyIconUnlocked, onFound = viewModel::unlockIdeas, onFoundLegacyIcon = viewModel::unlockLegacyIcon, onOpenIdeas = onOpenIdeas, onOpenLogs = onOpenLogs) }
+        GroupCard { AboutCard(ideasUnlocked, legacyIconUnlocked, onFound = viewModel::unlockIdeas, onFoundLegacyIcon = viewModel::unlockLegacyIcon, onOpenIdeas = onOpenIdeas, onOpenLogs = onOpenLogs, onOpenChangelog = onOpenChangelog) }
     }
 }
 
@@ -542,7 +539,7 @@ private fun TripKmField(saved: Double, onSave: (Double) -> Unit) {
 }
 
 /**
- * About: the version, the changelog, a hidden ideas notebook and the diagnostic logs. Tap the
+ * About: the version, a link to the changelog page, a hidden ideas notebook and the diagnostic logs. Tap the
  * version seven times to find them (like Android's developer options); after that they stay in the list.
  * Keep tapping, to fifteen, and the Legacy app icon appears under Personalisation > App Icon.
  */
@@ -554,20 +551,19 @@ private fun AboutCard(
     onFoundLegacyIcon: () -> Unit,
     onOpenIdeas: () -> Unit,
     onOpenLogs: () -> Unit,
+    onOpenChangelog: () -> Unit,
 ) {
-    var open by remember { mutableStateOf(false) }
     var taps by remember { mutableIntStateOf(0) }
-    val turn by animateFloatAsState(if (open) 180f else 0f, label = "chevron")
     val tapsLeft = SECRET_TAPS - taps
     SettingRow(
         Icons.Filled.TwoWheeler,
         "Bike Dashboard",
         when {
-            legacyIconUnlocked && taps >= LEGACY_ICON_TAPS -> "Version ${appVersion()} · You found the Legacy app icon"
-            ideasUnlocked && !legacyIconUnlocked && taps >= LEGACY_ICON_TAPS - 5 -> "Version ${appVersion()} · ${LEGACY_ICON_TAPS - taps} more…"
-            ideasUnlocked && taps >= SECRET_TAPS -> "Version ${appVersion()} · You found the ideas notebook"
-            !ideasUnlocked && taps >= 3 -> "Version ${appVersion()} · $tapsLeft more…"
-            else -> "Version ${appVersion()}"
+            legacyIconUnlocked && taps >= LEGACY_ICON_TAPS -> "Version ${appVersionName()} · You found the Legacy app icon"
+            ideasUnlocked && !legacyIconUnlocked && taps >= LEGACY_ICON_TAPS - 5 -> "Version ${appVersionName()} · ${LEGACY_ICON_TAPS - taps} more…"
+            ideasUnlocked && taps >= SECRET_TAPS -> "Version ${appVersionName()} · You found the ideas notebook"
+            !ideasUnlocked && taps >= 3 -> "Version ${appVersionName()} · $tapsLeft more…"
+            else -> "Version ${appVersionName()}"
         },
         onClick = {
             taps++
@@ -582,40 +578,10 @@ private fun AboutCard(
         SettingRow(Icons.Filled.BugReport, "Diagnostic Logs", "Crash reports to share when something breaks", onClick = onOpenLogs) { Chevron() }
     }
     GroupDivider()
-    SettingRow(Icons.Filled.History, "Changelog", "What's new in each version", onClick = { open = !open }) {
-        Icon(Icons.Filled.ExpandMore, contentDescription = null, modifier = Modifier.rotate(turn), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-    AnimatedVisibility(open) {
-        Column(Modifier.padding(start = 20.dp, end = 20.dp, bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            CHANGELOG.forEach { release ->
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        "Version ${release.version} · ${release.date.short()}",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.tertiary,
-                    )
-                    release.changes.forEach { change ->
-                        Row {
-                            Text("•  ")
-                            Text(change, style = MaterialTheme.typography.bodyMedium)
-                        }
-                    }
-                }
-            }
-        }
-    }
+    SettingRow(Icons.Filled.History, "Changelog", "What's new in ${CHANGELOG.first().version}", onClick = onOpenChangelog) { Chevron() }
 }
 
 private const val SECRET_TAPS = 7
 private const val LEGACY_ICON_TAPS = 15
 
 private fun trimKm(v: Double) = if (v == Math.rint(v)) v.toLong().toString() else v.toString()
-
-/** The versionName set in app/build.gradle.kts. */
-@Composable
-private fun appVersion(): String {
-    val context = LocalContext.current
-    return remember {
-        runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull().orEmpty()
-    }
-}

@@ -85,6 +85,7 @@ import com.astheral.bikedashboard.ui.dashboard.MetricDetailScreen
 import com.astheral.bikedashboard.ui.edit.EditScreen
 import com.astheral.bikedashboard.ui.history.HistoryScreen
 import com.astheral.bikedashboard.ui.importer.ImportScreen
+import com.astheral.bikedashboard.ui.settings.ChangelogScreen
 import com.astheral.bikedashboard.ui.settings.SettingsScreen
 import com.astheral.bikedashboard.ui.summary.FillSummaryScreen
 import kotlinx.serialization.Serializable
@@ -110,6 +111,7 @@ import kotlinx.serialization.Serializable
 @Serializable object ServicingRoute
 @Serializable object IntervalsRoute
 @Serializable object ServiceCategoriesRoute
+@Serializable object ChangelogRoute
 
 /** A dashboard number's detail page: [metric] is a [Metric] name, [period] the tab it opened on. */
 @Serializable data class MetricRoute(val metric: String, val period: Int)
@@ -297,6 +299,7 @@ fun BikeDashboardApp(
                                 onOpenDetails = { nav.navigate(BikeDetailsRoute) },
                                 onOpenServicing = { nav.navigate(ServicingRoute) },
                                 onOpenIntervals = { nav.navigate(IntervalsRoute) },
+                                onOpenChangelog = { nav.navigate(ChangelogRoute) },
                             )
                         }
                     }
@@ -334,6 +337,12 @@ fun BikeDashboardApp(
                     popExitTransition = { slideOutOfContainer(SlideDirection.Down, tween(SLIDE_MS)) },
                 ) {
                     AppBackground { BackgroundScreen(onBack = { nav.popBackStack() }) }
+                }
+                composable<ChangelogRoute>(
+                    enterTransition = { slideIntoContainer(SlideDirection.Up, tween(SLIDE_MS)) },
+                    popExitTransition = { slideOutOfContainer(SlideDirection.Down, tween(SLIDE_MS)) },
+                ) {
+                    AppBackground { ChangelogScreen(onBack = { nav.popBackStack() }) }
                 }
                 composable<BikeDetailsRoute>(
                     enterTransition = { slideIntoContainer(SlideDirection.Up, tween(SLIDE_MS)) },
