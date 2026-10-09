@@ -11,6 +11,7 @@ import com.astheral.bikedashboard.calc.ReminderSchedule
 import com.astheral.bikedashboard.calc.RepeatKind
 import com.astheral.bikedashboard.calc.migrateOldReminders
 import com.astheral.bikedashboard.calc.CardLayout
+import com.astheral.bikedashboard.calc.SummaryDetails
 import com.astheral.bikedashboard.calc.ChartLayout
 import com.astheral.bikedashboard.ui.DistanceCostUnit
 import com.astheral.bikedashboard.ui.DistanceTimeUnit
@@ -149,6 +150,16 @@ class Settings private constructor(context: Context) {
         if (_dashboardCardsTipSeen.value) return
         prefs.edit().putBoolean(KEY_DASHBOARD_CARDS_TIP_SEEN, true).apply()
         _dashboardCardsTipSeen.value = true
+    }
+
+    private val _summaryDetails = MutableStateFlow(SummaryDetails.parse(prefs.getString(KEY_SUMMARY_DETAILS, null)))
+
+    /** Which small lines show under the big number after adding a fill-up. The same for every bike. */
+    val summaryDetails: StateFlow<SummaryDetails> = _summaryDetails.asStateFlow()
+
+    fun setSummaryDetails(details: SummaryDetails) {
+        prefs.edit().putString(KEY_SUMMARY_DETAILS, details.format()).apply()
+        _summaryDetails.value = details
     }
 
     private val _dashboardCharts = MutableStateFlow(ChartLayout.parse(prefs.getString(KEY_DASHBOARD_CHARTS, null)))
@@ -396,6 +407,7 @@ class Settings private constructor(context: Context) {
         _dashboardCards.value = CardLayout.parse(prefs.getString(KEY_DASHBOARD_CARDS, null))
         _dashboardCardsTipSeen.value = prefs.getBoolean(KEY_DASHBOARD_CARDS_TIP_SEEN, false)
         _dashboardCharts.value = ChartLayout.parse(prefs.getString(KEY_DASHBOARD_CHARTS, null))
+        _summaryDetails.value = SummaryDetails.parse(prefs.getString(KEY_SUMMARY_DETAILS, null))
         _dashboardChartsTipSeen.value = prefs.getBoolean(KEY_DASHBOARD_CHARTS_TIP_SEEN, false)
         _periodComparisons.value = prefs.getBoolean(KEY_PERIOD_COMPARISONS, true)
         _appearances.value = loadAppearances()
@@ -447,6 +459,8 @@ class Settings private constructor(context: Context) {
         private const val KEY_DASHBOARD_CHARTS = "dashboard_charts"
         private const val KEY_DASHBOARD_CHARTS_TIP_SEEN = "dashboard_charts_tip_seen"
         private const val KEY_PERIOD_COMPARISONS = "period_comparisons"
+        /** The fill-up summary's detail lines (see [SummaryDetails.format]). */
+        private const val KEY_SUMMARY_DETAILS = "fill_summary_details"
         /** Replaced by [KEY_REMINDER_REPEAT] and friends; only read when upgrading. */
         private const val KEY_OLD_REMINDER_FREQUENCY = "reminder_frequency"
         private const val KEY_REMINDER_REPEAT = "reminder_repeat"

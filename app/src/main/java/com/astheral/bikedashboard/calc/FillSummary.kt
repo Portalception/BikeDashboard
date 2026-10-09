@@ -1,6 +1,7 @@
 package com.astheral.bikedashboard.calc
 
 import com.astheral.bikedashboard.data.FillUp
+import java.time.temporal.ChronoUnit
 import kotlin.math.abs
 
 /** Which way is better for a number: more (km/L) or less (price, cost per km), or neither (litres). */
@@ -77,7 +78,44 @@ data class FillSummary(
     val isPartial: Boolean = false,
     /** For a full tank: how many partial fills since the previous full tank its figures include. */
     val partialsIncluded: Int = 0,
-)
+    /** Savings of the latest earlier fill-up that had any, to compare this one's with. */
+    val previousSavingsSgd: Double? = null,
+    /** Savings added up over the 30 days up to this fill-up (it included), or null if none of them had any. */
+    val savingsLast30DaysSgd: Double? = null,
+    /** Km on the odometer since [previous], or null without one. */
+    val kmSincePrevious: Int? = null,
+    /** Days since [previous], or null without one. */
+    val daysSincePrevious: Long? = null,
+) {
+    /** This fill-up's savings next to the last ones; more is better. */
+    val savings: MetricChange get() = MetricChange(savingsSgd, previousSavingsSgd, Better.HIGHER)
+
+    /** The big number on the summary page. */
+    val headline: SummaryHeadline get() = when {
+        (savingsSgd ?: 0.0) > 0.0 -> SummaryHeadline.SAVINGS
+        isPartial -> SummaryHeadline.PARTIAL
+        kmPerLitre.current != null -> SummaryHeadline.ECONOMY
+        else -> SummaryHeadline.FIRST_TANK
+    }
+
+    /** Which kind of flavour text suits this fill-up. */
+    val mood: SummaryMood get() = when {
+        (savingsSgd ?: 0.0) > 0.0 -> SummaryMood.SAVED
+        hasMalaysiaPart && savingsSgd == null -> SummaryMood.MALAYSIA_PENDING
+        hasMalaysiaPart -> SummaryMood.MALAYSIA_NO_SAVINGS
+        isPartial -> SummaryMood.PARTIAL
+        else -> SummaryMood.SINGAPORE
+    }
+}
+
+/**
+ * What the summary page puts up big: Malaysia savings when there were some, otherwise the fuel
+ * economy, or for a partial fill (or the very first full tank, which has no economy) the litres.
+ */
+enum class SummaryHeadline { SAVINGS, ECONOMY, PARTIAL, FIRST_TANK }
+
+/** The flavour of a fill-up, for the cheeky line at the top of the summary page. */
+enum class SummaryMood { SAVED, MALAYSIA_PENDING, MALAYSIA_NO_SAVINGS, PARTIAL, SINGAPORE }
 
 /**
  * The summary for fill-up [id] among [stats] (from [computeStats], oldest first), or null if it
@@ -91,6 +129,7 @@ fun summarizeFill(stats: List<FillUpStats>, id: Long, recent: Int = 10): FillSum
     val partial = !s.fillUp.fullTank
     val prev = if (partial) stats.getOrNull(i - 1) else stats.subList(0, i).lastOrNull { it.fillUp.fullTank }
     val window = stats.subList((i + 1 - recent).coerceAtLeast(0), i + 1)
+    val month = inLastDays(stats.subList(0, i + 1), s.fillUp.date, 30).mapNotNull { it.savingsSgd }
     fun change(better: Better, of: (FillUpStats) -> Double?) = MetricChange(of(s), prev?.let(of), better)
     // A partial fill's cost and litres aren't comparable with a whole tank's, so only its price is compared.
     fun own(better: Better, of: (FillUpStats) -> Double?) =
@@ -113,6 +152,10 @@ fun summarizeFill(stats: List<FillUpStats>, id: Long, recent: Int = 10): FillSum
         hasMalaysiaPart = s.fillUp.hasMalaysiaPart,
         isPartial = partial,
         partialsIncluded = s.partialCount,
+        previousSavingsSgd = stats.subList(0, i).lastOrNull { it.savingsSgd != null }?.savingsSgd,
+        savingsLast30DaysSgd = month.takeIf { it.isNotEmpty() }?.sum(),
+        kmSincePrevious = prev?.let { s.fillUp.odometerKm - it.fillUp.odometerKm }?.takeIf { it >= 0 },
+        daysSincePrevious = prev?.let { ChronoUnit.DAYS.between(it.fillUp.date, s.fillUp.date) }?.takeIf { it >= 0 },
     )
 }
 

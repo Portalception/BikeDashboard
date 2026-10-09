@@ -45,6 +45,19 @@ import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material.icons.filled.Wallpaper
 import androidx.compose.material.icons.filled.WavingHand
+import androidx.compose.material.icons.filled.Eco
+import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.LocalGasStation
+import androidx.compose.material.icons.filled.Payments
+import androidx.compose.material.icons.filled.Route
+import androidx.compose.material.icons.filled.Savings
+import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.Toll
+import androidx.compose.ui.graphics.vector.ImageVector
+import com.astheral.bikedashboard.calc.SummaryDetail
+import com.astheral.bikedashboard.calc.SummaryDetails
+import com.astheral.bikedashboard.ui.components.GroupDivider
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -125,6 +138,11 @@ class PersonalisationViewModel(application: Application) : AndroidViewModel(appl
 
     fun setPeriodComparisons(on: Boolean) = settings.setPeriodComparisons(on)
 
+    val summaryDetails: StateFlow<SummaryDetails> = settings.summaryDetails
+
+    fun setSummaryDetail(detail: SummaryDetail, on: Boolean) =
+        settings.setSummaryDetails(settings.summaryDetails.value.setShown(detail, on))
+
     /** Saved now; the launcher switches over once you leave the app (see MainActivity). */
     fun setAppIcon(icon: AppIcon) = settings.setAppIcon(icon)
 
@@ -144,6 +162,7 @@ fun PersonalisationScreen(onBack: () -> Unit, onOpenBackground: () -> Unit, view
     val bikeName by viewModel.bikeName.collectAsState()
     val greetings by viewModel.greetings.collectAsState()
     val comparisons by viewModel.periodComparisons.collectAsState()
+    val summaryDetails by viewModel.summaryDetails.collectAsState()
     val update = viewModel::updateAppearance
 
     Column(
@@ -256,6 +275,24 @@ fun PersonalisationScreen(onBack: () -> Unit, onOpenBackground: () -> Unit, view
             }
         }
 
+        SectionHeader(Icons.Filled.EmojiEvents, "After a Fill-Up")
+        GroupCard {
+            Text(
+                "Pick the small lines shown under your savings or fuel economy once a fill-up is saved.",
+                Modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 4.dp),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            SummaryDetail.entries.forEachIndexed { i, detail ->
+                if (i > 0) GroupDivider()
+                val on = detail in summaryDetails.shown
+                val (icon, title, example) = detail.describe()
+                SettingRow(icon, title, example, onClick = { viewModel.setSummaryDetail(detail, !on) }) {
+                    Switch(checked = on, onCheckedChange = { viewModel.setSummaryDetail(detail, it) })
+                }
+            }
+        }
+
         SectionHeader(Icons.Filled.Apps, "App Icon")
         GroupCard(contentPadding = 16.dp) {
             Label("Launcher Icon", "Your home screen shows the new one once you leave the app")
@@ -287,6 +324,18 @@ fun PersonalisationScreen(onBack: () -> Unit, onOpenBackground: () -> Unit, view
             )
         }
     }
+}
+
+/** The icon, name and an example for each fill-up summary line. */
+private fun SummaryDetail.describe(): Triple<ImageVector, String, String> = when (this) {
+    SummaryDetail.COST_LITRES -> Triple(Icons.Filled.Payments, "Cost & Litres", "S$10.27 for 6.54 L")
+    SummaryDetail.PRICE -> Triple(Icons.Filled.LocalGasStation, "Price per Litre", "Paid S$1.57/L")
+    SummaryDetail.DISTANCE -> Triple(Icons.Filled.Route, "Distance Since Last Fill", "163 km since your last fill-up")
+    SummaryDetail.ECONOMY -> Triple(Icons.Filled.Eco, "Fuel Economy", "When it isn't the big number already")
+    SummaryDetail.COST_PER_KM -> Triple(Icons.Filled.Toll, "Cost per KM", "S$0.063/km to ride")
+    SummaryDetail.DAYS -> Triple(Icons.Filled.Event, "Days Since Last Fill", "5 days since your last fill-up")
+    SummaryDetail.ODOMETER -> Triple(Icons.Filled.Speed, "Odometer", "12,345 km on the clock")
+    SummaryDetail.SAVINGS_30_DAYS -> Triple(Icons.Filled.Savings, "Savings in 30 Days", "S$25.40 saved in the last 30 days")
 }
 
 /** Each launcher icon as a small preview; the chosen one has a ring around it. */
