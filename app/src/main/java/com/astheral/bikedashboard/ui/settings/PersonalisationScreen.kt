@@ -13,6 +13,9 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -30,7 +33,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Apps
-import androidx.compose.material.icons.filled.LocalGasStation
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ColorLens
 import androidx.compose.material.icons.filled.Contrast
@@ -69,6 +71,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -278,20 +281,21 @@ private fun IconPicker(selected: AppIcon, onPick: (AppIcon) -> Unit) {
                         .size(56.dp)
                         .border(ring, MaterialTheme.colorScheme.onSurface, RoundedCornerShape(18.dp))
                         .padding(if (isSelected) 5.dp else 0.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(Brush.linearGradient(listOf(icon.top, icon.bottom))),
+                        .clip(RoundedCornerShape(14.dp)),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Box(Modifier.size(34.dp).clip(CircleShape).background(icon.glyph.copy(alpha = 0.14f)).border(1.dp, icon.glyph.copy(alpha = 0.45f), CircleShape))
-                    Icon(Icons.Filled.LocalGasStation, contentDescription = null, tint = icon.glyph, modifier = Modifier.size(22.dp))
+                    // The real icon layers. Launchers show the middle 72 of the 108dp layers, so zoom in to match.
+                    val zoom = Modifier.fillMaxSize().graphicsLayer { scaleX = 1.5f; scaleY = 1.5f }
+                    Image(painterResource(icon.background), contentDescription = null, modifier = zoom)
+                    Image(painterResource(icon.foreground), contentDescription = null, modifier = zoom)
                 }
                 Text(
                     icon.label,
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                     modifier = Modifier.padding(top = 4.dp),
-                    maxLines = 1,
-                    softWrap = false,
+                    maxLines = 2,
+                    textAlign = TextAlign.Center,
                 )
             }
         }

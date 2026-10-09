@@ -61,11 +61,65 @@
             </intent-filter>
         </activity-alias>
         <activity-alias
+            android:name=".IconModern"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_modern"
+            android:roundIcon="@mipmap/ic_launcher_modern"
+            android:label="@string/app_name"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".IconModernYellow"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_modern_yellow"
+            android:roundIcon="@mipmap/ic_launcher_modern_yellow"
+            android:label="@string/app_name"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".IconMinimal"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_minimal"
+            android:roundIcon="@mipmap/ic_launcher_minimal"
+            android:label="@string/app_name"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".IconMinimalYellow"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_minimal_yellow"
+            android:roundIcon="@mipmap/ic_launcher_minimal_yellow"
+            android:label="@string/app_name"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <!-- Retired brand-colour icons. Kept (showing the Classic icon) so anyone still on one has
+             an icon until the app next switches them to Classic. -->
+        <activity-alias
             android:name=".IconYamaha"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_yamaha"
-            android:roundIcon="@mipmap/ic_launcher_yamaha"
+            android:icon="@mipmap/ic_launcher_monochrome"
+            android:roundIcon="@mipmap/ic_launcher_monochrome"
             android:label="@string/app_name"
             android:targetActivity=".MainActivity">
             <intent-filter>
@@ -77,8 +131,8 @@
             android:name=".IconHonda"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_honda"
-            android:roundIcon="@mipmap/ic_launcher_honda"
+            android:icon="@mipmap/ic_launcher_monochrome"
+            android:roundIcon="@mipmap/ic_launcher_monochrome"
             android:label="@string/app_name"
             android:targetActivity=".MainActivity">
             <intent-filter>
@@ -90,8 +144,8 @@
             android:name=".IconKawasaki"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_kawasaki"
-            android:roundIcon="@mipmap/ic_launcher_kawasaki"
+            android:icon="@mipmap/ic_launcher_monochrome"
+            android:roundIcon="@mipmap/ic_launcher_monochrome"
             android:label="@string/app_name"
             android:targetActivity=".MainActivity">
             <intent-filter>
@@ -103,8 +157,8 @@
             android:name=".IconSuzuki"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_suzuki"
-            android:roundIcon="@mipmap/ic_launcher_suzuki"
+            android:icon="@mipmap/ic_launcher_monochrome"
+            android:roundIcon="@mipmap/ic_launcher_monochrome"
             android:label="@string/app_name"
             android:targetActivity=".MainActivity">
             <intent-filter>
@@ -116,8 +170,8 @@
             android:name=".IconDucati"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_ducati"
-            android:roundIcon="@mipmap/ic_launcher_ducati"
+            android:icon="@mipmap/ic_launcher_monochrome"
+            android:roundIcon="@mipmap/ic_launcher_monochrome"
             android:label="@string/app_name"
             android:targetActivity=".MainActivity">
             <intent-filter>
@@ -129,8 +183,8 @@
             android:name=".IconBmw"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_bmw"
-            android:roundIcon="@mipmap/ic_launcher_bmw"
+            android:icon="@mipmap/ic_launcher_monochrome"
+            android:roundIcon="@mipmap/ic_launcher_monochrome"
             android:label="@string/app_name"
             android:targetActivity=".MainActivity">
             <intent-filter>
@@ -142,8 +196,8 @@
             android:name=".IconKtm"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_ktm"
-            android:roundIcon="@mipmap/ic_launcher_ktm"
+            android:icon="@mipmap/ic_launcher_monochrome"
+            android:roundIcon="@mipmap/ic_launcher_monochrome"
             android:label="@string/app_name"
             android:targetActivity=".MainActivity">
             <intent-filter>
@@ -155,8 +209,8 @@
             android:name=".IconAprilia"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_aprilia"
-            android:roundIcon="@mipmap/ic_launcher_aprilia"
+            android:icon="@mipmap/ic_launcher_monochrome"
+            android:roundIcon="@mipmap/ic_launcher_monochrome"
             android:label="@string/app_name"
             android:targetActivity=".MainActivity">
             <intent-filter>
@@ -168,8 +222,8 @@
             android:name=".IconMvAgusta"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_mv_agusta"
-            android:roundIcon="@mipmap/ic_launcher_mv_agusta"
+            android:icon="@mipmap/ic_launcher_monochrome"
+            android:roundIcon="@mipmap/ic_launcher_monochrome"
             android:label="@string/app_name"
             android:targetActivity=".MainActivity">
             <intent-filter>
@@ -181,8 +235,8 @@
             android:name=".IconTriumph"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_triumph"
-            android:roundIcon="@mipmap/ic_launcher_triumph"
+            android:icon="@mipmap/ic_launcher_monochrome"
+            android:roundIcon="@mipmap/ic_launcher_monochrome"
             android:label="@string/app_name"
             android:targetActivity=".MainActivity">
             <intent-filter>

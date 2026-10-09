@@ -7,6 +7,13 @@ data class Release(val version: String, val date: LocalDate, val changes: List<S
 /** Major changes in each version, newest first. Add an entry here with every version you share. */
 val CHANGELOG = listOf(
     Release(
+        version = "0.6.6",
+        date = LocalDate.of(2026, 10, 9),
+        changes = listOf(
+            "New app icons: Classic, Fuel Light, a Modern fuel gauge and a Minimal fuel drop, each of the new ones in monochrome or fuel check yellow. The brand-colour icons are gone; if you used one, you get Classic.",
+        ),
+    ),
+    Release(
         version = "0.6.5",
         date = LocalDate.of(2026, 10, 9),
         changes = listOf(
