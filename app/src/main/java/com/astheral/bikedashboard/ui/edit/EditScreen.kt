@@ -77,15 +77,20 @@ import com.astheral.bikedashboard.ui.short
 import com.astheral.bikedashboard.ui.theme.CountryColors
 import java.util.Locale
 
+/** [onSaved] is called with the new id after adding a fill-up (not after editing one); otherwise [onDone]. */
 @Composable
-fun EditScreen(fillUpId: Long, onDone: () -> Unit, onDeleted: (Long) -> Unit) {
+fun EditScreen(fillUpId: Long, onDone: () -> Unit, onDeleted: (Long) -> Unit, onSaved: ((Long) -> Unit)? = null) {
     val viewModel: EditViewModel = viewModel(key = "edit-$fillUpId") {
         EditViewModel(this[APPLICATION_KEY]!!, fillUpId)
     }
     val state by viewModel.state.collectAsState()
     var confirmDelete by remember { mutableStateOf(false) }
 
-    LaunchedEffect(state.done) { if (state.done) onDone() }
+    LaunchedEffect(state.done) {
+        if (!state.done) return@LaunchedEffect
+        val newId = state.savedId
+        if (newId != null && onSaved != null) onSaved(newId) else onDone()
+    }
     // The phone's back gesture goes back a card, and only closes from the first one.
     BackHandler(enabled = !state.loading && state.index > 0 && state.isNew) { viewModel.back() }
 

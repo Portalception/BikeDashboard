@@ -77,6 +77,7 @@ import com.astheral.bikedashboard.ui.edit.EditScreen
 import com.astheral.bikedashboard.ui.history.HistoryScreen
 import com.astheral.bikedashboard.ui.importer.ImportScreen
 import com.astheral.bikedashboard.ui.settings.SettingsScreen
+import com.astheral.bikedashboard.ui.summary.FillSummaryScreen
 import kotlinx.serialization.Serializable
 
 @Serializable object DashboardRoute
@@ -86,6 +87,9 @@ import kotlinx.serialization.Serializable
 
 /** Add a fill-up when [id] is 0, otherwise edit the fill-up with that id. */
 @Serializable data class EditRoute(val id: Long = 0)
+
+/** The summary shown right after adding fill-up [id]. */
+@Serializable data class FillSummaryRoute(val id: Long)
 
 /** Add a bike when [id] is 0, otherwise edit that bike. */
 @Serializable data class ProfileSetupRoute(val id: Long = 0)
@@ -358,10 +362,28 @@ fun BikeDashboardApp(
                         EditScreen(
                             fillUpId = entry.toRoute<EditRoute>().id,
                             onDone = { nav.popBackStack() },
+                            // A new fill-up shows its summary in place of the form.
+                            onSaved = { id ->
+                                nav.navigate(FillSummaryRoute(id)) { popUpTo<EditRoute> { inclusive = true } }
+                            },
                             // History slides the row out and then deletes it, so you can see which one went.
                             onDeleted = { id ->
                                 nav.previousBackStackEntry?.savedStateHandle?.set(DELETED_FILL_UP_ID, id)
                                 nav.popBackStack()
+                            },
+                        )
+                    }
+                }
+                composable<FillSummaryRoute>(
+                    enterTransition = { fadeIn(tween(SLIDE_MS)) },
+                    popExitTransition = { slideOutOfContainer(SlideDirection.Down, tween(SLIDE_MS)) },
+                ) { entry ->
+                    AppBackground {
+                        FillSummaryScreen(
+                            id = entry.toRoute<FillSummaryRoute>().id,
+                            onDone = {
+                                // Back to the dashboard, wherever the fill-up was added from.
+                                if (!nav.popBackStack(DashboardRoute, inclusive = false)) nav.popBackStack()
                             },
                         )
                     }

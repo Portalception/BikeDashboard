@@ -45,6 +45,8 @@ data class EditState(
     val previous: FillUp? = null,
     val commonRmPaid: List<Double> = emptyList(),
     val done: Boolean = false,
+    /** The id of a newly added fill-up once it's saved, to show its summary. */
+    val savedId: Long? = null,
 ) {
     val steps: List<Step> get() = stepsFor(form)
     val index: Int get() = steps.indexOf(step).coerceAtLeast(0)
@@ -132,12 +134,13 @@ class EditViewModel(application: Application, private val fillUpId: Long) : Andr
                 _state.update { refresh(it.copy(step = step, direction = -1, error = s.form.errorFor(step, base))) }
             }
             is FormResult.Ok -> viewModelScope.launch {
-                if (base == null) {
+                val newId = if (base == null) {
                     dao.insert(result.fillUp.copy(profileId = profile?.id ?: 1))
                 } else {
                     dao.update(result.fillUp)
+                    null
                 }
-                _state.update { it.copy(done = true) }
+                _state.update { it.copy(done = true, savedId = newId) }
             }
         }
     }
