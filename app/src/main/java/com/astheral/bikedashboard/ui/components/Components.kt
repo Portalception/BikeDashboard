@@ -61,6 +61,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.astheral.bikedashboard.ui.background.AnimatedBackground
+import com.astheral.bikedashboard.ui.theme.LocalBackgroundStyle
 import com.astheral.bikedashboard.ui.theme.LocalProgressStyle
 import com.astheral.bikedashboard.ui.theme.ProgressStyle
 import kotlin.math.max
@@ -77,23 +79,18 @@ val NumberFont = FontFamily.Monospace
 fun outline(color: Color? = null, width: Dp = 1.dp) =
     BorderStroke(width, color ?: MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f))
 
-/** The app's backdrop: the theme background with a few large, faint circles behind everything. */
+/**
+ * The app's backdrop: the theme background with the animated picture picked in Personalisation
+ * (faint drifting circles unless changed) behind everything.
+ */
 @Composable
 fun AppBackground(modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit) {
-    val bubble = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.35f)
     Box(
         modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
     ) {
-        Canvas(Modifier.fillMaxSize()) {
-            val w = size.width
-            val h = size.height
-            drawCircle(bubble, radius = w * 0.55f, center = Offset(w * 0.05f, h * 0.22f))
-            drawCircle(bubble, radius = w * 0.45f, center = Offset(w * 1.0f, h * 0.12f))
-            drawCircle(bubble, radius = w * 0.5f, center = Offset(w * 0.85f, h * 0.62f))
-            drawCircle(bubble, radius = w * 0.35f, center = Offset(w * 0.1f, h * 0.9f))
-        }
+        AnimatedBackground(LocalBackgroundStyle.current)
         // Text and icons drawn straight on the backdrop take the theme's text colour.
         CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
             content()

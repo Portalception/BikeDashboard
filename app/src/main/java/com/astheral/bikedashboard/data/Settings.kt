@@ -15,6 +15,7 @@ import com.astheral.bikedashboard.ui.EconomyUnit
 import com.astheral.bikedashboard.ui.PriceUnit
 import com.astheral.bikedashboard.ui.TimeCostUnit
 import com.astheral.bikedashboard.ui.Units
+import com.astheral.bikedashboard.ui.background.BackgroundStyle
 import com.astheral.bikedashboard.ui.theme.AppIcon
 import com.astheral.bikedashboard.ui.theme.AppearanceSettings
 import com.astheral.bikedashboard.ui.theme.ColorPreset
@@ -214,6 +215,7 @@ class Settings private constructor(context: Context) {
             .putInt(k(KEY_PRIMARY), a.primary.toArgb())
             .putInt(k(KEY_ACCENT), a.accent.toArgb())
             .putString(k(KEY_PROGRESS_STYLE), a.progressStyle.name)
+            .putString(k(KEY_BACKGROUND_STYLE), a.backgroundStyle.name)
             .apply()
         _appearances.update { it.copy(perBike = it.perBike + (profileId to a)) }
     }
@@ -255,6 +257,7 @@ class Settings private constructor(context: Context) {
             primary = Color(prefs.getInt(k(KEY_PRIMARY), default.primary.toArgb())),
             accent = Color(prefs.getInt(k(KEY_ACCENT), default.accent.toArgb())),
             progressStyle = ProgressStyle.fromName(prefs.getString(k(KEY_PROGRESS_STYLE), null)),
+            backgroundStyle = BackgroundStyle.fromName(prefs.getString(k(KEY_BACKGROUND_STYLE), null)),
         )
     }
 
@@ -313,10 +316,11 @@ class Settings private constructor(context: Context) {
         private const val KEY_PRIMARY = "primary_color"
         private const val KEY_ACCENT = "accent_color"
         private const val KEY_PROGRESS_STYLE = "progress_style"
+        private const val KEY_BACKGROUND_STYLE = "background_style"
         private const val KEY_OLD_COLOR_THEME = "color_theme"
 
         /** The settings saved per bike, as "<key>@<bike id>". */
-        private val APPEARANCE_KEYS = setOf(KEY_THEME_MODE, KEY_PURE_BLACK, KEY_WALLPAPER, KEY_PRIMARY, KEY_ACCENT, KEY_PROGRESS_STYLE)
+        private val APPEARANCE_KEYS = setOf(KEY_THEME_MODE, KEY_PURE_BLACK, KEY_WALLPAPER, KEY_PRIMARY, KEY_ACCENT, KEY_PROGRESS_STYLE, KEY_BACKGROUND_STYLE)
         private const val KEY_UNIT_ECONOMY = "unit_economy"
         private const val KEY_UNIT_DISTANCE_COST = "unit_distance_cost"
         private const val KEY_UNIT_TIME_COST = "unit_time_cost"

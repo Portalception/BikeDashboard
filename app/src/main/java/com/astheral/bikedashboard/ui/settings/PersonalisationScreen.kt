@@ -78,6 +78,8 @@ import com.astheral.bikedashboard.ui.EconomyUnit
 import com.astheral.bikedashboard.ui.PriceUnit
 import com.astheral.bikedashboard.ui.TimeCostUnit
 import com.astheral.bikedashboard.ui.Units
+import com.astheral.bikedashboard.ui.background.AnimatedBackground
+import com.astheral.bikedashboard.ui.background.BackgroundStyle
 import com.astheral.bikedashboard.ui.components.ChoiceTile
 import com.astheral.bikedashboard.ui.components.GroupCard
 import com.astheral.bikedashboard.ui.components.NumberFont
@@ -183,6 +185,12 @@ fun PersonalisationScreen(onBack: () -> Unit, viewModel: PersonalisationViewMode
         GroupCard(contentPadding = 16.dp) {
             Label("Progress Line", "The line at the top of the dashboard and while adding a fill-up")
             ProgressStylePicker(appearance.progressStyle) { style -> update { it.copy(progressStyle = style) } }
+        }
+
+        Spacer(Modifier.height(12.dp))
+        GroupCard(contentPadding = 16.dp) {
+            Label("Background", "Moves gently behind every screen, in your colours")
+            BackgroundPicker(appearance.backgroundStyle) { style -> update { it.copy(backgroundStyle = style) } }
         }
 
         AnimatedVisibility(!appearance.wallpaper) {
@@ -330,6 +338,58 @@ private fun ProgressStylePicker(selected: ProgressStyle, onPick: (ProgressStyle)
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Each background as a small preview; the chosen one is outlined in the accent colour and moves,
+ * the others show a still frame.
+ */
+@Composable
+private fun BackgroundPicker(selected: BackgroundStyle, onPick: (BackgroundStyle) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        BackgroundStyle.entries.chunked(2).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                row.forEach { style ->
+                    val isSelected = style == selected
+                    Column(
+                        Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(18.dp))
+                            .background(
+                                if (isSelected) MaterialTheme.colorScheme.tertiary.copy(alpha = 0.14f)
+                                else MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f),
+                            )
+                            .border(
+                                if (isSelected) 2.dp else 1.dp,
+                                if (isSelected) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
+                                RoundedCornerShape(18.dp),
+                            )
+                            .clickable(role = Role.RadioButton) { onPick(style) }
+                            .padding(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .height(84.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.background),
+                        ) {
+                            AnimatedBackground(style, animate = isSelected)
+                        }
+                        Text(
+                            style.label,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                            modifier = Modifier.padding(start = 6.dp, bottom = 4.dp),
+                        )
+                    }
+                }
+                // Keep a lone last tile at half width.
+                if (row.size == 1) Spacer(Modifier.weight(1f))
             }
         }
     }

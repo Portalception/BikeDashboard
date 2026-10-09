@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+import com.astheral.bikedashboard.ui.background.BackgroundStyle
 import com.materialkolor.contrast.Contrast
 import com.materialkolor.hct.Hct
 import com.materialkolor.palettes.TonalPalette
@@ -38,6 +39,8 @@ data class AppearanceSettings(
     val accent: Color = ColorPreset.MONOCHROME.accent,
     /** Shape of the progress line on the dashboard and while adding a fill-up. */
     val progressStyle: ProgressStyle = ProgressStyle.STANDARD,
+    /** The moving picture behind every screen. */
+    val backgroundStyle: BackgroundStyle = BackgroundStyle.CIRCLES,
 )
 
 enum class ProgressStyle(val label: String) {
@@ -51,6 +54,9 @@ enum class ProgressStyle(val label: String) {
 
 /** The progress line shape picked in Settings. */
 val LocalProgressStyle = staticCompositionLocalOf { ProgressStyle.STANDARD }
+
+/** The background picked in Settings, drawn by AppBackground. */
+val LocalBackgroundStyle = staticCompositionLocalOf { BackgroundStyle.CIRCLES }
 
 /**
  * Ready-made primary + accent pairs. Apart from Monochrome, each uses a motorcycle maker's
@@ -118,7 +124,11 @@ fun BikeDashboardTheme(appearance: AppearanceSettings = AppearanceSettings(), co
         }
     }
 
-    CompositionLocalProvider(LocalDarkTheme provides dark, LocalProgressStyle provides appearance.progressStyle) {
+    CompositionLocalProvider(
+        LocalDarkTheme provides dark,
+        LocalProgressStyle provides appearance.progressStyle,
+        LocalBackgroundStyle provides appearance.backgroundStyle,
+    ) {
         MaterialTheme(colorScheme = colorScheme, typography = Typography, content = content)
     }
 }
