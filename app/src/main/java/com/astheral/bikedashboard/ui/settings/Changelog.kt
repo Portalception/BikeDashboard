@@ -7,6 +7,22 @@ data class Release(val version: String, val date: LocalDate, val changes: List<S
 /** Major changes in each version, newest first. Add an entry here with every version you share. */
 val CHANGELOG = listOf(
     Release(
+        version = "0.6",
+        date = LocalDate.of(2026, 10, 9),
+        changes = listOf(
+            "Everything from 0.5.1 to 0.5.9 together:",
+            "The fill-up date is its own step, with one-tap Today and Yesterday buttons.",
+            "After a fill-up you get a summary with green and red arrows against your last fill, recent trends, your Malaysia savings and a button back to Waze or Maps.",
+            "Progress bars default to a plain Standard style, with new Race stripe and On the road looks.",
+            "Each bike remembers its own theme and colours, with a racing-style animation when you switch bikes.",
+            "Swipe sideways between Dashboard, History and Settings, going through the dashboard periods on the way.",
+            "The ideas notebook has an Erase All button.",
+            "Crashes and errors are saved as diagnostic logs you can share, on a hidden page next to the ideas notebook.",
+            "Bike details can be filled in from your LTA Vehicle Log Card PDF, and expired dates are marked Expired.",
+            "Titles and labels use consistent Title Case.",
+        ),
+    ),
+    Release(
         version = "0.5.9",
         date = LocalDate.of(2026, 10, 9),
         changes = listOf(
