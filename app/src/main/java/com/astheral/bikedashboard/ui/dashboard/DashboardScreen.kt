@@ -12,7 +12,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerDefaults
+import androidx.compose.foundation.pager.PagerState
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -211,17 +217,24 @@ fun DashboardScreen(
     onImport: () -> Unit,
     onOpenServicing: () -> Unit,
     onOpenMetric: (Metric, Period) -> Unit,
+    // One choice of period for the whole page: the tabs, a swipe on the tiles, and every chart follow it.
+    periodPager: PagerState = rememberPagerState(pageCount = { Period.entries.size }),
     viewModel: DashboardViewModel = viewModel(),
 ) {
     val data by viewModel.data.collectAsState()
     val units by viewModel.units.collectAsState()
     val d = data ?: return
-    // One choice of period for the whole page: the tabs, a swipe on the tiles, and every chart follow it.
-    val pager = rememberPagerState(pageCount = { Period.entries.size })
+    val pager = periodPager
     val scope = rememberCoroutineScope()
     Column(
         Modifier
             .fillMaxSize()
+            // A sideways swipe anywhere on the page (not just below the tabs) changes the period,
+            // and past Lifetime it carries on to History.
+            .then(
+                if (d.lastFillUp == null) Modifier
+                else Modifier.scrollable(pager, Orientation.Horizontal, reverseDirection = LocalLayoutDirection.current == LayoutDirection.Ltr, flingBehavior = PagerDefaults.flingBehavior(pager)),
+            )
             .statusBarsPadding()
             .verticalScroll(rememberScrollState())
             .padding(bottom = 16.dp),

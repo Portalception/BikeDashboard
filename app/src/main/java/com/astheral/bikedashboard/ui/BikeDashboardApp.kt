@@ -1,5 +1,6 @@
 package com.astheral.bikedashboard.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection
 import androidx.compose.animation.AnimatedVisibility
@@ -47,6 +48,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.foundation.pager.rememberPagerState
+import com.astheral.bikedashboard.ui.dashboard.Period
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.astheral.bikedashboard.ui.profile.BikeSwitch
@@ -66,7 +71,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hasRoute
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -82,9 +86,8 @@ import com.astheral.bikedashboard.ui.settings.SettingsScreen
 import com.astheral.bikedashboard.ui.summary.FillSummaryScreen
 import kotlinx.serialization.Serializable
 
-@Serializable object DashboardRoute
-@Serializable object HistoryRoute
-@Serializable object SettingsRoute
+/** The three main tabs (Dashboard, History, Settings), side by side in a pager you can swipe. */
+@Serializable object TabsRoute
 @Serializable object ImportRoute
 
 /** Add a fill-up when [id] is 0, otherwise edit the fill-up with that id. */
@@ -109,12 +112,17 @@ import kotlinx.serialization.Serializable
 /** Add a service record when [id] is 0, otherwise edit that one. */
 @Serializable data class ServiceEditRoute(val id: Long = 0)
 
-private data class Tab(val route: Any, val label: String, val icon: ImageVector)
+private data class Tab(val label: String, val icon: ImageVector)
 
+private const val DASHBOARD_TAB = 0
+private const val HISTORY_TAB = 1
+private const val SETTINGS_TAB = 2
+
+/** In the order they sit in the bottom bar, which is also the order you swipe through them. */
 private val tabs = listOf(
-    Tab(DashboardRoute, "Dashboard", Icons.Filled.Speed),
-    Tab(HistoryRoute, "History", Icons.Filled.History),
-    Tab(SettingsRoute, "Settings", Icons.Filled.Settings),
+    Tab("Dashboard", Icons.Filled.Speed),
+    Tab("History", Icons.Filled.History),
+    Tab("Settings", Icons.Filled.Settings),
 )
 
 /** Top-level screens have the bottom bar under them, so they don't pad for the system bars again. */
@@ -125,41 +133,21 @@ const val DELETED_FILL_UP_ID = "deletedFillUpId"
 
 private const val SLIDE_MS = 300
 
-private fun NavDestination?.tabIndex() = tabs.indexOfFirst { this?.hasRoute(it.route::class) == true }
-private fun NavDestination?.isOverlay() = this != null && !hasRoute(DashboardRoute::class) && !hasRoute(HistoryRoute::class) && !hasRoute(SettingsRoute::class)
+private fun NavDestination?.isOverlay() = this != null && !hasRoute(TabsRoute::class)
 
 /**
- * Switching tabs slides the screens sideways, towards the tab you picked.
- * The add/edit form and the import screen slide up over whatever was showing.
+ * Pages opened over the tabs (the add/edit form, import, details…) slide up over whatever was
+ * showing, and what's underneath stays put. Moving between the tabs themselves is the pager's job.
  */
-private fun AnimatedContentTransitionScope<NavBackStackEntry>.tabEnter(): EnterTransition {
-    val from = initialState.destination.tabIndex()
-    val to = targetState.destination.tabIndex()
-    return when {
-        initialState.destination.isOverlay() -> EnterTransition.None
-        from >= 0 && to >= 0 -> slideIntoContainer(
-            if (to > from) SlideDirection.Left else SlideDirection.Right, tween(SLIDE_MS),
-        )
-        else -> fadeIn(tween(SLIDE_MS))
-    }
-}
+private fun AnimatedContentTransitionScope<NavBackStackEntry>.tabEnter(): EnterTransition =
+    if (initialState.destination.isOverlay()) EnterTransition.None else fadeIn(tween(SLIDE_MS))
 
-private fun AnimatedContentTransitionScope<NavBackStackEntry>.tabExit(): ExitTransition {
-    val from = initialState.destination.tabIndex()
-    val to = targetState.destination.tabIndex()
-    return when {
-        targetState.destination.isOverlay() -> ExitTransition.KeepUntilTransitionsFinished
-        from >= 0 && to >= 0 -> slideOutOfContainer(
-            if (to > from) SlideDirection.Left else SlideDirection.Right, tween(SLIDE_MS),
-        )
-        else -> fadeOut(tween(SLIDE_MS))
-    }
-}
+private fun AnimatedContentTransitionScope<NavBackStackEntry>.tabExit(): ExitTransition =
+    if (targetState.destination.isOverlay()) ExitTransition.KeepUntilTransitionsFinished else fadeOut(tween(SLIDE_MS))
 
 /**
- * The back gesture follows your finger with the same slides as a tap would: a tab slides back
- * towards the dashboard, and a page opened over the tabs slides down. Without this the library
- * shrinks the page while you swipe, which looked like a glitchy zoom.
+ * The back gesture slides a page opened over the tabs down as you swipe. Without this the
+ * library shrinks the page while you swipe, which looked like a glitchy zoom.
  */
 private fun AnimatedContentTransitionScope<NavBackStackEntry>.backEnter(): EnterTransition =
     if (initialState.destination.isOverlay()) EnterTransition.None else tabEnter()
@@ -194,7 +182,12 @@ fun BikeDashboardApp(
     val openSwitcher = { switching = true }
     val backStack by nav.currentBackStackEntryAsState()
     val destination = backStack?.destination
-    val showTabs = tabs.any { tab -> destination?.hasRoute(tab.route::class) == true }
+    val showTabs = destination?.hasRoute(TabsRoute::class) == true
+    // Hoisted so the bottom bar can follow the pager, and the dashboard keeps its period
+    // while another tab shows.
+    val tabPager = rememberPagerState { tabs.size }
+    val periodPager = rememberPagerState { Period.entries.size }
+    val scope = rememberCoroutineScope()
     LaunchedEffect(openServicingFor) {
         val id = openServicingFor ?: return@LaunchedEffect
         if (all.any { it.id == id }) {
@@ -222,14 +215,8 @@ fun BikeDashboardApp(
                     exit = slideOutVertically(tween(SLIDE_MS)) { it },
                 ) {
                     FloatingTabBar(
-                        selected = destination.tabIndex(),
-                        onSelect = { i ->
-                            nav.navigate(tabs[i].route) {
-                                popUpTo(nav.graph.findStartDestination().id) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
+                        selected = tabPager.currentPage,
+                        onSelect = { i -> scope.launch { tabPager.animateScrollToPage(i, animationSpec = tween(SLIDE_MS)) } },
                         onAdd = { nav.navigate(EditRoute()) },
                     )
                 }
@@ -238,7 +225,7 @@ fun BikeDashboardApp(
         ) { padding ->
             NavHost(
                 nav,
-                startDestination = DashboardRoute,
+                startDestination = TabsRoute,
                 modifier = Modifier.padding(padding),
                 enterTransition = { tabEnter() },
                 exitTransition = { tabExit() },
@@ -247,16 +234,6 @@ fun BikeDashboardApp(
                 predictivePopEnterTransition = { backEnter() },
                 predictivePopExitTransition = { backExit() },
             ) {
-                composable<DashboardRoute> {
-                    DashboardScreen(
-                        profile = profile,
-                        onProfileClick = openSwitcher,
-                        onAddFillUp = { nav.navigate(EditRoute()) },
-                        onImport = { nav.navigate(ImportRoute) },
-                        onOpenServicing = { nav.navigate(ServicingRoute) },
-                        onOpenMetric = { metric, period -> nav.navigate(MetricRoute(metric.name, period.ordinal)) },
-                    )
-                }
                 composable<MetricRoute>(
                     enterTransition = { slideIntoContainer(SlideDirection.Up, tween(SLIDE_MS)) },
                     popExitTransition = { slideOutOfContainer(SlideDirection.Down, tween(SLIDE_MS)) },
@@ -271,28 +248,45 @@ fun BikeDashboardApp(
                         )
                     }
                 }
-                composable<HistoryRoute> { entry ->
-                    val deletedId by entry.savedStateHandle.getStateFlow<Long?>(DELETED_FILL_UP_ID, null).collectAsState()
-                    HistoryScreen(
-                        profile = profile,
-                        onProfileClick = openSwitcher,
-                        onAddFillUp = { nav.navigate(EditRoute()) },
-                        onOpenFillUp = { id -> nav.navigate(EditRoute(id)) },
-                        deletingId = deletedId,
-                        onDeleteFinished = { entry.savedStateHandle[DELETED_FILL_UP_ID] = null },
-                    )
-                }
-                composable<SettingsRoute> {
-                    SettingsScreen(
-                        onImport = { nav.navigate(ImportRoute) },
-                        onProfileClick = openSwitcher,
-                        onEditProfile = { id -> nav.navigate(ProfileSetupRoute(id)) },
-                        onOpenIdeas = { nav.navigate(IdeasRoute) },
-                        onOpenPersonalisation = { nav.navigate(PersonalisationRoute) },
-                        onOpenDetails = { nav.navigate(BikeDetailsRoute) },
-                        onOpenServicing = { nav.navigate(ServicingRoute) },
-                        onOpenIntervals = { nav.navigate(IntervalsRoute) },
-                    )
+                composable<TabsRoute> { entry ->
+                    // Back on History or Settings goes to the dashboard first, as it used to.
+                    BackHandler(enabled = tabPager.currentPage != DASHBOARD_TAB) {
+                        scope.launch { tabPager.animateScrollToPage(DASHBOARD_TAB, animationSpec = tween(SLIDE_MS)) }
+                    }
+                    MainTabs(tabPager, periodPager) { page ->
+                        when (page) {
+                            DASHBOARD_TAB -> DashboardScreen(
+                                profile = profile,
+                                onProfileClick = openSwitcher,
+                                onAddFillUp = { nav.navigate(EditRoute()) },
+                                onImport = { nav.navigate(ImportRoute) },
+                                onOpenServicing = { nav.navigate(ServicingRoute) },
+                                onOpenMetric = { metric, period -> nav.navigate(MetricRoute(metric.name, period.ordinal)) },
+                                periodPager = periodPager,
+                            )
+                            HISTORY_TAB -> {
+                                val deletedId by entry.savedStateHandle.getStateFlow<Long?>(DELETED_FILL_UP_ID, null).collectAsState()
+                                HistoryScreen(
+                                    profile = profile,
+                                    onProfileClick = openSwitcher,
+                                    onAddFillUp = { nav.navigate(EditRoute()) },
+                                    onOpenFillUp = { id -> nav.navigate(EditRoute(id)) },
+                                    deletingId = deletedId,
+                                    onDeleteFinished = { entry.savedStateHandle[DELETED_FILL_UP_ID] = null },
+                                )
+                            }
+                            SETTINGS_TAB -> SettingsScreen(
+                                onImport = { nav.navigate(ImportRoute) },
+                                onProfileClick = openSwitcher,
+                                onEditProfile = { id -> nav.navigate(ProfileSetupRoute(id)) },
+                                onOpenIdeas = { nav.navigate(IdeasRoute) },
+                                onOpenPersonalisation = { nav.navigate(PersonalisationRoute) },
+                                onOpenDetails = { nav.navigate(BikeDetailsRoute) },
+                                onOpenServicing = { nav.navigate(ServicingRoute) },
+                                onOpenIntervals = { nav.navigate(IntervalsRoute) },
+                            )
+                        }
+                    }
                 }
                 composable<ProfileSetupRoute>(
                     enterTransition = { slideIntoContainer(SlideDirection.Up, tween(SLIDE_MS)) },
@@ -387,7 +381,8 @@ fun BikeDashboardApp(
                             id = entry.toRoute<FillSummaryRoute>().id,
                             onDone = {
                                 // Back to the dashboard, wherever the fill-up was added from.
-                                if (!nav.popBackStack(DashboardRoute, inclusive = false)) nav.popBackStack()
+                                if (!nav.popBackStack(TabsRoute, inclusive = false)) nav.popBackStack()
+                                scope.launch { tabPager.scrollToPage(DASHBOARD_TAB) }
                             },
                         )
                     }
