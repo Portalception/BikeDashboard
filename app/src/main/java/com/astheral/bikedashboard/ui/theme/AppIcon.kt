@@ -15,6 +15,8 @@ enum class AppIcon(val label: String, val alias: String, @DrawableRes val backgr
     FUEL_LIGHT("Fuel Light", "IconFuelLight", R.drawable.ic_launcher_bg_fuel_light, R.drawable.ic_launcher_fg_fuel_light),
     MODERN("Modern", "IconModern", R.drawable.ic_launcher_bg_modern, R.drawable.ic_launcher_fg_modern),
     MODERN_YELLOW("Modern Yellow", "IconModernYellow", R.drawable.ic_launcher_bg_modern_yellow, R.drawable.ic_launcher_fg_modern_yellow),
+    SPEEDO("Speedo", "IconSpeedo", R.drawable.ic_launcher_bg_speedo, R.drawable.ic_launcher_fg_speedo),
+    SPEEDO_YELLOW("Speedo Yellow", "IconSpeedoYellow", R.drawable.ic_launcher_bg_speedo_yellow, R.drawable.ic_launcher_fg_speedo_yellow),
     MINIMAL("Minimal", "IconMinimal", R.drawable.ic_launcher_bg_minimal, R.drawable.ic_launcher_fg_minimal),
     MINIMAL_YELLOW("Minimal Yellow", "IconMinimalYellow", R.drawable.ic_launcher_bg_minimal_yellow, R.drawable.ic_launcher_fg_minimal_yellow),
     ;
