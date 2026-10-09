@@ -15,7 +15,7 @@ private const val DAYS_PER_MONTH = 30.4375
 interface DisplayUnit {
     val label: String
 
-    /** From the app's base unit (km/L, S$/km, S$/day, S$/L) to this one. */
+    /** From the app's base unit (km/L, S$/km, S$/day, S$/L, km/day) to this one. */
     fun convert(base: Double): Double
     fun format(value: Double): String
 }
@@ -60,6 +60,23 @@ enum class TimeCostUnit(override val label: String) : DisplayUnit {
     }
 }
 
+/** How far the bike is ridden over time: km per day, week or month. */
+enum class DistanceTimeUnit(override val label: String) : DisplayUnit {
+    PER_DAY("km per Day"), PER_WEEK("km per Week"), PER_MONTH("km per Month");
+
+    override fun convert(base: Double) = when (this) {
+        PER_DAY -> base
+        PER_WEEK -> base * 7
+        PER_MONTH -> base * DAYS_PER_MONTH
+    }
+
+    override fun format(value: Double) = when (this) {
+        PER_DAY -> "${f(1, value)} km/day"
+        PER_WEEK -> "${f(0, value)} km/wk"
+        PER_MONTH -> "${f(0, value)} km/mo"
+    }
+}
+
 /**
  * Petrol price in SGD, or in ringgit at the last exchange rate you entered. Without a rate
  * (no Malaysian fill-ups yet) prices stay in SGD.
@@ -88,6 +105,7 @@ data class Units(
     val distanceCost: DistanceCostUnit = DistanceCostUnit.PER_KM,
     val timeCost: TimeCostUnit = TimeCostUnit.PER_DAY,
     val price: PriceUnit = PriceUnit.SGD_PER_L,
+    val distanceTime: DistanceTimeUnit = DistanceTimeUnit.PER_DAY,
 )
 
 /** The next unit in the list, wrapping round; [allowed] skips units that can't be shown right now. */

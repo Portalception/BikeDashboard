@@ -6,7 +6,7 @@ import java.time.LocalDate
  * Totals for a group of fill-ups. Rates are worked out from totals, not by averaging
  * each fill-up's own figure, so a short top-up doesn't count as much as a full tank.
  *
- * Km/L, cost/km and cost/day only use fill-ups that have a previous one to measure
+ * Km/L, cost/km, cost/day and km/day only use fill-ups that have a previous one to measure
  * from: the very first fill-up's fuel was used after it, so it has no distance yet.
  */
 data class PeriodSummary(
@@ -16,6 +16,8 @@ data class PeriodSummary(
     val kmPerLitre: Double?,
     val costPerKm: Double?,
     val costPerDay: Double?,
+    /** Kilometres ridden per day: total distance ÷ total days, over fill-ups with a previous one. */
+    val kmPerDay: Double?,
     val pricePerLitre: Double?,
     val savingsSgd: Double?,
 )
@@ -47,6 +49,7 @@ fun summarize(stats: List<FillUpStats>): PeriodSummary {
         kmPerLitre = if (distance > 0 && measuredLitres > 0) distance / measuredLitres else null,
         costPerKm = if (distance > 0) measuredCost / distance else null,
         costPerDay = if (days > 0) withDays.sumOf { it.fillUp.totalCostSgd } / days else null,
+        kmPerDay = if (days > 0) withDays.sumOf { it.distanceKm ?: 0 }.toDouble() / days else null,
         pricePerLitre = if (litres > 0) cost / litres else null,
         savingsSgd = if (savings.isEmpty()) null else savings.sum(),
     )

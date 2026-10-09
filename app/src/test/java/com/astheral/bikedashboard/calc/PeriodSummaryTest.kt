@@ -116,4 +116,22 @@ class PeriodSummaryTest {
         assertEquals(0, dash.lastFillUp.fillUpCount)
         assertNull(dash.lifetime.kmPerLitre)
     }
+
+    @Test
+    fun kmPerDayIsTotalDistanceOverTotalDays() {
+        assertEquals(measuredKm / 15.0, summarize(stats).kmPerDay!!, 1e-9) // 2 Mar → 17 Mar
+        // A long gap counts for its full length rather than as one of several averaged fill-ups.
+        val gap = computeStats(listOf(sg("2025-03-01", 1000, 12.0, 30.0), sg("2025-03-02", 1300, 12.0, 30.0), sg("2025-03-31", 1400, 12.0, 30.0)))
+        assertEquals(400 / 30.0, summarize(gap).kmPerDay!!, 1e-9)
+    }
+
+    @Test
+    fun kmPerDayNeedsDaysToPass() {
+        assertNull(summarize(computeStats(rows.take(1))).kmPerDay)
+        val sameDay = computeStats(listOf(sg("2025-03-01", 1000, 12.0, 30.0), sg("2025-03-01", 1100, 3.0, 8.0)))
+        assertNull(summarize(sameDay).kmPerDay)
+        // Only fill-ups with a previous one count: the window's first fill-up brings no distance or days.
+        val lastOnly = summarize(stats.takeLast(1))
+        assertEquals((131796 - 131572) / 6.0, lastOnly.kmPerDay!!, 1e-9)
+    }
 }

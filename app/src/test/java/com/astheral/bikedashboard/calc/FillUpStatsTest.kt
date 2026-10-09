@@ -158,4 +158,22 @@ class FillUpStatsTest {
     fun inputOrderDoesNotMatter() {
         assertEquals(computeStats(firstRows), computeStats(firstRows.reversed()))
     }
+
+    @Test
+    fun kmPerDayIsDistanceOverDaysSincePrevious() {
+        val stats = computeStats(firstRows)
+        assertNull(stats[0].kmPerDay)
+        assertEquals((131117 - 130883) / 3.0, stats[1].kmPerDay!!, 1e-9) // 5 Mar, 3 days after 2 Mar
+        assertEquals((131796 - 131572) / 6.0, stats[4].kmPerDay!!, 1e-9) // 17 Mar, 6 days after 11 Mar
+    }
+
+    @Test
+    fun kmPerDayIsNullForSameDayFillUps() {
+        val stats = computeStats(listOf(sg("2025-03-02", 1000, 12.0, 30.0), sg("2025-03-02", 1100, 3.0, 8.0)))
+        assertEquals(100, stats[1].distanceKm)
+        assertNull(stats[1].kmPerDay)
+        assertNull(kmPerDay(100, 0))
+        assertNull(kmPerDay(null, 3))
+        assertEquals(25.0, kmPerDay(100, 4)!!, 1e-9)
+    }
 }

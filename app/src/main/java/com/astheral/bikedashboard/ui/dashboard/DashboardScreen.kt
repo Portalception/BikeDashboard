@@ -72,7 +72,14 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import com.astheral.bikedashboard.ui.DisplayUnit
 import com.astheral.bikedashboard.ui.SgdUnit
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import com.astheral.bikedashboard.calc.CardLayout
+import com.astheral.bikedashboard.calc.DashCard
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.ui.draw.clip
@@ -112,6 +119,7 @@ data class TileSeries(
     val pricePerLitre: List<DatedValue>,
     val costPerKm: List<DatedValue>,
     val costPerDay: List<DatedValue>,
+    val kmPerDay: List<DatedValue>,
     val savings: List<DatedValue>,
 )
 
@@ -142,6 +150,13 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     val units: StateFlow<Units> = settings.units
 
     fun updateUnits(change: (Units) -> Units) = settings.updateUnits(change)
+
+    /** Which number cards show, and in what order. */
+    val cards: StateFlow<CardLayout> = settings.dashboardCards
+    val cardsTipSeen: StateFlow<Boolean> = settings.dashboardCardsTipSeen
+
+    fun setCards(layout: CardLayout) = settings.setDashboardCards(layout)
+    fun markCardsTipSeen() = settings.markDashboardCardsTipSeen()
 
     private val db = AppDatabase.get(application)
 
@@ -179,6 +194,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                     pricePerLitre = recent(stats) { it.pricePerLitre },
                     costPerKm = recent(stats) { it.costPerKm },
                     costPerDay = recent(stats) { it.costPerDay },
+                    kmPerDay = recent(stats) { it.kmPerDay },
                     savings = recent(stats) { it.savingsSgd },
                 ),
                 daysSinceLast = stats.lastOrNull()?.let { ChronoUnit.DAYS.between(it.fillUp.date, today) } ?: 0,
@@ -223,9 +239,19 @@ fun DashboardScreen(
 ) {
     val data by viewModel.data.collectAsState()
     val units by viewModel.units.collectAsState()
+    val cards by viewModel.cards.collectAsState()
+    val tipSeen by viewModel.cardsTipSeen.collectAsState()
+    var arranging by rememberSaveable { mutableStateOf(false) }
     val d = data ?: return
     val pager = periodPager
     val scope = rememberCoroutineScope()
+    if (arranging) {
+        ArrangeCardsSheet(cards, viewModel::setCards, onDismiss = { arranging = false })
+    }
+    val tiles = TileSettings(cards, units, showTip = !tipSeen, onUnits = viewModel::updateUnits, onArrange = {
+        arranging = true
+        viewModel.markCardsTipSeen()
+    })
     Column(
         Modifier
             .fillMaxSize()
@@ -263,17 +289,18 @@ fun DashboardScreen(
                 verticalAlignment = Alignment.Top,
                 contentPadding = PaddingValues(horizontal = 16.dp),
                 pageSpacing = 16.dp,
-            ) { page -> PeriodPage(Period.entries[page], d, units, viewModel::updateUnits) { metric -> onOpenMetric(metric, Period.entries[page]) } }
+            ) { page -> PeriodPage(Period.entries[page], d, tiles) { metric -> onOpenMetric(metric, Period.entries[page]) } }
         }
     }
 }
 
 /** Everything for one period: the tiles, then the charts. */
 @Composable
-private fun PeriodPage(period: Period, d: DashboardData, units: Units, onUnits: ((Units) -> Units) -> Unit, onOpen: (Metric) -> Unit) {
+private fun PeriodPage(period: Period, d: DashboardData, tiles: TileSettings, onOpen: (Metric) -> Unit) {
+    val units = tiles.units
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         GroupCard(contentPadding = 12.dp, edge = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.45f)) {
-            PeriodTiles(period, d.summary.of(period), d, units, onUnits, onOpen)
+            PeriodTiles(period, d.summary.of(period), d, tiles, onOpen)
         }
         val charts = d.charts.getValue(period)
         if (period.days != null && d.summary.of(period).fillUpCount == 0) {
@@ -341,13 +368,21 @@ private fun Empty(onAddFillUp: () -> Unit, onImport: () -> Unit) {
     }
 }
 
+/** What the tiles need besides the numbers: which to show, their units, and the arrange sheet. */
+private class TileSettings(
+    val cards: CardLayout,
+    val units: Units,
+    val showTip: Boolean,
+    val onUnits: ((Units) -> Units) -> Unit,
+    val onArrange: () -> Unit,
+)
+
 @Composable
 private fun PeriodTiles(
     period: Period,
     summary: PeriodSummary,
     d: DashboardData,
-    units: Units,
-    onUnits: ((Units) -> Units) -> Unit,
+    settings: TileSettings,
     onOpen: (Metric) -> Unit,
 ) {
     fun highlight(series: List<DatedValue>) = when (period) {
@@ -367,44 +402,74 @@ private fun PeriodTiles(
             return
         }
         val accent = MaterialTheme.colorScheme.tertiary
+        val error = MaterialTheme.colorScheme.error
+        val haptic = LocalHapticFeedback.current
+        val units = settings.units
+        val onUnits = settings.onUnits
         val t = d.tiles
         val price = units.price.at(d.rmPerSgd)
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            StatTile(
-                "Fuel Economy", summary.kmPerLitre, units.economy, t.kmPerLitre, highlight(t.kmPerLitre), accent, Modifier.weight(1f),
-                onClick = { onOpen(Metric.ECONOMY) },
-                onSwitchUnit = { onUnits { it.copy(economy = it.economy.next()) } },
-            )
-            StatTile(
-                "Petrol Price", summary.pricePerLitre, price, t.pricePerLitre, highlight(t.pricePerLitre), accent, Modifier.weight(1f),
-                onClick = { onOpen(Metric.PRICE) },
-                // Ringgit needs a rate, so without one there's nothing to switch to.
-                onSwitchUnit = if (d.rmPerSgd == null) null else ({ onUnits { it.copy(price = it.price.next()) } }),
+        val onLongClick = {
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            settings.onArrange()
+        }
+
+        @Composable
+        fun Tile(card: DashCard, modifier: Modifier) {
+            val label = card.title
+            val open = { onOpen(card.metric) }
+            when (card) {
+                DashCard.ECONOMY -> StatTile(
+                    label, summary.kmPerLitre, units.economy, t.kmPerLitre, highlight(t.kmPerLitre), accent, modifier, open,
+                    onSwitchUnit = { onUnits { it.copy(economy = it.economy.next()) } },
+                    onLongClick = onLongClick,
+                )
+                DashCard.KM_PER_DAY -> StatTile(
+                    label, summary.kmPerDay, units.distanceTime, t.kmPerDay, highlight(t.kmPerDay), accent, modifier, open,
+                    onSwitchUnit = { onUnits { it.copy(distanceTime = it.distanceTime.next()) } },
+                    onLongClick = onLongClick,
+                )
+                DashCard.COST_PER_DAY -> StatTile(
+                    label, summary.costPerDay, units.timeCost, t.costPerDay, highlight(t.costPerDay), accent, modifier, open,
+                    onSwitchUnit = { onUnits { it.copy(timeCost = it.timeCost.next()) } },
+                    onLongClick = onLongClick,
+                )
+                DashCard.COST_PER_KM -> StatTile(
+                    label, summary.costPerKm, units.distanceCost, t.costPerKm, highlight(t.costPerKm), accent, modifier, open,
+                    onSwitchUnit = { onUnits { it.copy(distanceCost = it.distanceCost.next()) } },
+                    onLongClick = onLongClick,
+                )
+                DashCard.PRICE -> StatTile(
+                    label, summary.pricePerLitre, price, t.pricePerLitre, highlight(t.pricePerLitre), accent, modifier, open,
+                    // Ringgit needs a rate, so without one there's nothing to switch to.
+                    onSwitchUnit = if (d.rmPerSgd == null) null else ({ onUnits { it.copy(price = it.price.next()) } }),
+                    onLongClick = onLongClick,
+                )
+                DashCard.SAVINGS -> {
+                    val saved = summary.savingsSgd
+                    StatTile(
+                        label, saved, SgdUnit, t.savings, highlight(t.savings),
+                        if (saved != null && saved < 0) error else CountryColors.my,
+                        modifier, open,
+                        onLongClick = onLongClick,
+                    )
+                }
+            }
+        }
+
+        // Two to a row, in the chosen order; an odd one out at the end takes the whole row.
+        settings.cards.visible.chunked(2).forEach { row ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                row.forEach { card -> key(card) { Tile(card, Modifier.weight(1f)) } }
+            }
+        }
+        if (settings.showTip) {
+            Text(
+                "Press and hold a card to arrange or hide cards.",
+                Modifier.padding(horizontal = 6.dp),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            StatTile(
-                "Cost per km", summary.costPerKm, units.distanceCost, t.costPerKm, highlight(t.costPerKm), accent, Modifier.weight(1f),
-                onClick = { onOpen(Metric.COST_PER_KM) },
-                onSwitchUnit = { onUnits { it.copy(distanceCost = it.distanceCost.next()) } },
-            )
-            StatTile(
-                "Cost per Day", summary.costPerDay, units.timeCost, t.costPerDay, highlight(t.costPerDay), accent, Modifier.weight(1f),
-                onClick = { onOpen(Metric.COST_PER_DAY) },
-                onSwitchUnit = { onUnits { it.copy(timeCost = it.timeCost.next()) } },
-            )
-        }
-        val saved = summary.savingsSgd
-        StatTile(
-            "Saved by Pumping in Malaysia",
-            saved,
-            SgdUnit,
-            t.savings,
-            highlight(t.savings),
-            if (saved != null && saved < 0) MaterialTheme.colorScheme.error else CountryColors.my,
-            Modifier.fillMaxWidth(),
-            onClick = { onOpen(Metric.SAVINGS) },
-        )
     }
 }
 
@@ -418,7 +483,7 @@ private fun caption(period: Period, s: PeriodSummary, last: FillUp): String = wh
  * A small outlined tile: label with a dot, the number in monospace (counting up when it
  * appears), and bars for recent fill-ups with the ones this number covers lit up. Tapping the tile
  * opens its detail page; tapping the number (marked with ⇄) switches to the next unit, e.g. km/L
- * to L/100 km.
+ * to L/100 km. Pressing and holding anywhere on it calls [onLongClick] (arranging the cards).
  */
 @Composable
 private fun StatTile(
@@ -431,6 +496,7 @@ private fun StatTile(
     modifier: Modifier,
     onClick: (() -> Unit)? = null,
     onSwitchUnit: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
 ) {
     val body: @Composable () -> Unit = {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -438,7 +504,7 @@ private fun StatTile(
             Row(
                 Modifier
                     .clip(RoundedCornerShape(8.dp))
-                    .then(if (onSwitchUnit != null && value != null) Modifier.clickable(onClick = onSwitchUnit) else Modifier),
+                    .then(if (onSwitchUnit != null && value != null) Modifier.combinedClickable(onLongClick = onLongClick, onClick = onSwitchUnit) else Modifier),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (value == null) {
@@ -460,9 +526,8 @@ private fun StatTile(
         }
     }
     val fill = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.55f)
-    if (onClick == null) {
-        Surface(modifier, shape = TileShape, color = fill, border = outline(), content = body)
-    } else {
-        Surface(onClick = onClick, modifier = modifier, shape = TileShape, color = fill, border = outline(), content = body)
+    val press = if (onClick == null && onLongClick == null) Modifier else {
+        Modifier.clip(TileShape).combinedClickable(onLongClick = onLongClick, onClick = onClick ?: {})
     }
+    Surface(modifier.then(press), shape = TileShape, color = fill, border = outline(), content = body)
 }

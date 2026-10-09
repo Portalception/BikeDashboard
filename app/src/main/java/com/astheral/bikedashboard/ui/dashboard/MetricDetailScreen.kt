@@ -44,6 +44,7 @@ import com.astheral.bikedashboard.data.Profile
 import com.astheral.bikedashboard.ui.count
 import com.astheral.bikedashboard.ui.DisplayUnit
 import com.astheral.bikedashboard.ui.DistanceCostUnit
+import com.astheral.bikedashboard.ui.DistanceTimeUnit
 import com.astheral.bikedashboard.ui.EconomyUnit
 import com.astheral.bikedashboard.ui.PriceUnit
 import com.astheral.bikedashboard.ui.SgdUnit
@@ -68,13 +69,17 @@ import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLa
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
 import kotlinx.coroutines.launch
 
-/** The numbers on the dashboard that open a detailed overview. */
-enum class Metric(val title: String, val higherIsBetter: Boolean) {
+/**
+ * The numbers on the dashboard that open a detailed overview. [higherIsBetter] is null for numbers
+ * that are neither good nor bad, like how far you ride.
+ */
+enum class Metric(val title: String, val higherIsBetter: Boolean?) {
     ECONOMY("Fuel Economy", true),
+    KM_PER_DAY("KM Daily", null),
     PRICE("Petrol Price", false),
     COST_PER_KM("Cost per km", false),
     COST_PER_DAY("Cost per Day", false),
-    SAVINGS("Saved by Pumping in Malaysia", true),
+    SAVINGS("Petrol Savings", true),
     SPEND("Spending", false),
     ;
 
@@ -84,6 +89,7 @@ enum class Metric(val title: String, val higherIsBetter: Boolean) {
         PRICE -> s.pricePerLitre
         COST_PER_KM -> s.costPerKm
         COST_PER_DAY -> s.costPerDay
+        KM_PER_DAY -> s.kmPerDay
         SAVINGS -> s.savingsSgd
         SPEND -> s.fillUp.totalCostSgd
     }
@@ -94,6 +100,7 @@ enum class Metric(val title: String, val higherIsBetter: Boolean) {
         PRICE -> p.pricePerLitre
         COST_PER_KM -> p.costPerKm
         COST_PER_DAY -> p.costPerDay
+        KM_PER_DAY -> p.kmPerDay
         SAVINGS -> p.savingsSgd
         SPEND -> p.costSgd.takeIf { p.fillUpCount > 0 }
     }
@@ -103,6 +110,7 @@ enum class Metric(val title: String, val higherIsBetter: Boolean) {
         PRICE -> units.price.at(rmPerSgd)
         COST_PER_KM -> units.distanceCost
         COST_PER_DAY -> units.timeCost
+        KM_PER_DAY -> units.distanceTime
         SAVINGS, SPEND -> SgdUnit
     }
 }
@@ -175,6 +183,7 @@ private fun UnitChips(metric: Metric, units: Units, rmPerSgd: Double?, modifier:
         Metric.PRICE -> if (rmPerSgd == null) emptyList() else PriceUnit.entries.map { u -> u.label to ((units.price == u) to { x: Units -> x.copy(price = u) }) }
         Metric.COST_PER_KM -> DistanceCostUnit.entries.map { u -> u.label to ((units.distanceCost == u) to { x: Units -> x.copy(distanceCost = u) }) }
         Metric.COST_PER_DAY -> TimeCostUnit.entries.map { u -> u.label to ((units.timeCost == u) to { x: Units -> x.copy(timeCost = u) }) }
+        Metric.KM_PER_DAY -> DistanceTimeUnit.entries.map { u -> u.label to ((units.distanceTime == u) to { x: Units -> x.copy(distanceTime = u) }) }
         Metric.SAVINGS, Metric.SPEND -> emptyList()
     }
     if (options.isEmpty()) return
@@ -277,8 +286,8 @@ private fun DetailPage(metric: Metric, period: Period, d: DashboardData, unit: D
 @Composable
 private fun StatsCard(metric: Metric, perFill: List<Pair<FillUpStats, Double>>, unit: DisplayUnit) {
     val sorted = perFill.sortedBy { it.second }
-    val best = if (metric.higherIsBetter) sorted.last() else sorted.first()
-    val worst = if (metric.higherIsBetter) sorted.first() else sorted.last()
+    val best = if (metric.higherIsBetter == true) sorted.last() else sorted.first()
+    val worst = if (metric.higherIsBetter == true) sorted.first() else sorted.last()
     val values = sorted.map { it.second }
     val median = if (values.size % 2 == 1) values[values.size / 2] else (values[values.size / 2 - 1] + values[values.size / 2]) / 2
     val rows = buildList {
@@ -286,6 +295,10 @@ private fun StatsCard(metric: Metric, perFill: List<Pair<FillUpStats, Double>>, 
             add(Triple("Biggest", sorted.last().second, sorted.last().first))
             add(Triple("Smallest", sorted.first().second, sorted.first().first))
             add(Triple("Total", values.sum(), null))
+        } else if (metric.higherIsBetter == null) {
+            // Neither good nor bad, so no "best" and "worst".
+            add(Triple("Most", sorted.last().second, sorted.last().first))
+            add(Triple("Least", sorted.first().second, sorted.first().first))
         } else {
             add(Triple("Best", best.second, best.first))
             add(Triple("Worst", worst.second, worst.first))
@@ -328,7 +341,7 @@ private fun MetricChart(metric: Metric, perFill: List<Pair<FillUpStats, Double>>
     val every = labelEvery(dated)
     val digits = when (metric) {
         Metric.COST_PER_KM -> if (unit == DistanceCostUnit.PER_KM) 3 else 1
-        Metric.ECONOMY -> 1
+        Metric.ECONOMY, Metric.KM_PER_DAY -> 1
         else -> 2
     }
     GroupCard(contentPadding = 20.dp) {

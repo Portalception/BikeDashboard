@@ -82,6 +82,7 @@ import com.astheral.bikedashboard.ui.DistanceCostUnit
 import com.astheral.bikedashboard.ui.EconomyUnit
 import com.astheral.bikedashboard.ui.PriceUnit
 import com.astheral.bikedashboard.ui.TimeCostUnit
+import com.astheral.bikedashboard.ui.DistanceTimeUnit
 import com.astheral.bikedashboard.ui.Units
 import com.astheral.bikedashboard.ui.components.ChoiceTile
 import com.astheral.bikedashboard.ui.components.GroupCard
@@ -252,6 +253,9 @@ fun PersonalisationScreen(onBack: () -> Unit, onOpenBackground: () -> Unit, view
             Spacer(Modifier.height(16.dp))
             Label("Cost over Time")
             UnitTiles(TimeCostUnit.entries, units.timeCost, { it.label }) { u -> viewModel.updateUnits { it.copy(timeCost = u) } }
+            Spacer(Modifier.height(16.dp))
+            Label("KM Daily")
+            UnitTiles(DistanceTimeUnit.entries, units.distanceTime, { it.label }) { u -> viewModel.updateUnits { it.copy(distanceTime = u) } }
             Spacer(Modifier.height(16.dp))
             Label("Petrol Price", "Ringgit uses the last exchange rate you entered")
             UnitTiles(PriceUnit.entries, units.price, { it.label }) { u -> viewModel.updateUnits { it.copy(price = u) } }

@@ -10,7 +10,9 @@ import com.astheral.bikedashboard.calc.MAX_EVERY_DAYS
 import com.astheral.bikedashboard.calc.ReminderSchedule
 import com.astheral.bikedashboard.calc.RepeatKind
 import com.astheral.bikedashboard.calc.migrateOldReminders
+import com.astheral.bikedashboard.calc.CardLayout
 import com.astheral.bikedashboard.ui.DistanceCostUnit
+import com.astheral.bikedashboard.ui.DistanceTimeUnit
 import com.astheral.bikedashboard.ui.EconomyUnit
 import com.astheral.bikedashboard.ui.PriceUnit
 import com.astheral.bikedashboard.ui.TimeCostUnit
@@ -114,6 +116,7 @@ class Settings private constructor(context: Context) {
             .putString(KEY_UNIT_DISTANCE_COST, u.distanceCost.name)
             .putString(KEY_UNIT_TIME_COST, u.timeCost.name)
             .putString(KEY_UNIT_PRICE, u.price.name)
+            .putString(KEY_UNIT_DISTANCE_TIME, u.distanceTime.name)
             .apply()
     }
 
@@ -122,7 +125,30 @@ class Settings private constructor(context: Context) {
         distanceCost = enumOr(KEY_UNIT_DISTANCE_COST, DistanceCostUnit.PER_KM),
         timeCost = enumOr(KEY_UNIT_TIME_COST, TimeCostUnit.PER_DAY),
         price = enumOr(KEY_UNIT_PRICE, PriceUnit.SGD_PER_L),
+        distanceTime = enumOr(KEY_UNIT_DISTANCE_TIME, DistanceTimeUnit.PER_DAY),
     )
+
+    private val _dashboardCards = MutableStateFlow(CardLayout.parse(prefs.getString(KEY_DASHBOARD_CARDS, null)))
+
+    /** Which number cards the dashboard shows, and in what order. The same for every bike. */
+    val dashboardCards: StateFlow<CardLayout> = _dashboardCards.asStateFlow()
+
+    fun setDashboardCards(layout: CardLayout) {
+        prefs.edit().putString(KEY_DASHBOARD_CARDS, layout.format()).putBoolean(KEY_DASHBOARD_CARDS_TIP_SEEN, true).apply()
+        _dashboardCards.value = layout
+        _dashboardCardsTipSeen.value = true
+    }
+
+    private val _dashboardCardsTipSeen = MutableStateFlow(prefs.getBoolean(KEY_DASHBOARD_CARDS_TIP_SEEN, false))
+
+    /** The "press and hold a card" tip goes away once the cards have been arranged once. */
+    val dashboardCardsTipSeen: StateFlow<Boolean> = _dashboardCardsTipSeen.asStateFlow()
+
+    fun markDashboardCardsTipSeen() {
+        if (_dashboardCardsTipSeen.value) return
+        prefs.edit().putBoolean(KEY_DASHBOARD_CARDS_TIP_SEEN, true).apply()
+        _dashboardCardsTipSeen.value = true
+    }
 
     private inline fun <reified E : Enum<E>> enumOr(key: String, default: E): E =
         enumValues<E>().firstOrNull { it.name == prefs.getString(key, null) } ?: default
@@ -334,6 +360,8 @@ class Settings private constructor(context: Context) {
         _legacyIconUnlocked.value = prefs.getBoolean(KEY_LEGACY_ICON_UNLOCKED, false)
         _greetings.value = prefs.getBoolean(KEY_GREETINGS, true)
         _units.value = loadUnits()
+        _dashboardCards.value = CardLayout.parse(prefs.getString(KEY_DASHBOARD_CARDS, null))
+        _dashboardCardsTipSeen.value = prefs.getBoolean(KEY_DASHBOARD_CARDS_TIP_SEEN, false)
         _appearances.value = loadAppearances()
         _reminderSchedule.value = loadReminderSchedule()
         _appIcon.value = appIconNamed(prefs.getString(KEY_APP_ICON, null))
@@ -375,6 +403,10 @@ class Settings private constructor(context: Context) {
         private const val KEY_UNIT_DISTANCE_COST = "unit_distance_cost"
         private const val KEY_UNIT_TIME_COST = "unit_time_cost"
         private const val KEY_UNIT_PRICE = "unit_price"
+        private const val KEY_UNIT_DISTANCE_TIME = "unit_distance_time"
+        /** The dashboard cards' order, hidden ones marked with "!" (see [CardLayout.format]). */
+        private const val KEY_DASHBOARD_CARDS = "dashboard_cards"
+        private const val KEY_DASHBOARD_CARDS_TIP_SEEN = "dashboard_cards_tip_seen"
         /** Replaced by [KEY_REMINDER_REPEAT] and friends; only read when upgrading. */
         private const val KEY_OLD_REMINDER_FREQUENCY = "reminder_frequency"
         private const val KEY_REMINDER_REPEAT = "reminder_repeat"

@@ -28,4 +28,12 @@ class UnitsTest {
         assertEquals(EconomyUnit.KM_PER_L, EconomyUnit.MPG.next())
         assertEquals(EconomyUnit.MPG, EconomyUnit.KM_PER_L.next { it != EconomyUnit.L_PER_100KM })
     }
+
+    @Test
+    fun distanceOverTime() {
+        assertEquals(70.0, DistanceTimeUnit.PER_WEEK.convert(10.0), 1e-9)
+        assertEquals(304.375, DistanceTimeUnit.PER_MONTH.convert(10.0), 1e-9)
+        assertEquals("25.3 km/day", DistanceTimeUnit.PER_DAY.format(25.26))
+        assertEquals("1,234 km/mo", DistanceTimeUnit.PER_MONTH.format(1234.4))
+    }
 }

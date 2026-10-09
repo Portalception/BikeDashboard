@@ -36,6 +36,8 @@ data class FillUpStats(
     val kmPerLitre: Double?,
     val costPerKm: Double?,
     val costPerDay: Double?,
+    /** Kilometres ridden per day since the previous fill-up. Null when they were on the same day. */
+    val kmPerDay: Double?,
     val pricePerLitre: Double?,
     /** Latest price per litre actually paid in Singapore, up to and including this fill-up. */
     val sgReferencePricePerLitre: Double?,
@@ -70,6 +72,7 @@ fun computeStats(fillUps: List<FillUp>, tripKm: Double = DEFAULT_TRIP_KM): List<
             kmPerLitre = distance?.takeIf { litres > 0 }?.let { it / litres },
             costPerKm = costPerKm,
             costPerDay = days?.takeIf { it > 0 }?.let { cost / it },
+            kmPerDay = kmPerDay(distance, days),
             pricePerLitre = if (litres > 0) cost / litres else null,
             sgReferencePricePerLitre = latestSgPrice,
             savingsSgd = fill.importedSavingsSgd
@@ -77,6 +80,10 @@ fun computeStats(fillUps: List<FillUp>, tripKm: Double = DEFAULT_TRIP_KM): List<
         )
     }
 }
+
+/** [distanceKm] spread over [days], or null when either is missing or no days passed. */
+fun kmPerDay(distanceKm: Int?, days: Long?): Double? =
+    if (distanceKm != null && days != null && days > 0) distanceKm.toDouble() / days else null
 
 private fun savings(fill: FillUp, sgPrice: Double?, costPerKm: Double?, tripKm: Double): Double? {
     val myLitres = fill.myLitres ?: return null
