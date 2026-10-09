@@ -76,6 +76,16 @@ class Settings private constructor(context: Context) {
         _ideasUnlocked.value = true
     }
 
+    private val _greetings = MutableStateFlow(prefs.getBoolean(KEY_GREETINGS, true))
+
+    /** A short hello at the top of the dashboard, for every bike. On unless switched off. */
+    val greetings: StateFlow<Boolean> = _greetings.asStateFlow()
+
+    fun setGreetings(on: Boolean) {
+        prefs.edit().putBoolean(KEY_GREETINGS, on).apply()
+        _greetings.value = on
+    }
+
     private val _units = MutableStateFlow(loadUnits())
 
     /** The unit picked for each number on the dashboard; tap a tile to change it. */
@@ -293,6 +303,7 @@ class Settings private constructor(context: Context) {
         edit.commit()
         _activeProfileId.value = prefs.getLong(KEY_ACTIVE_PROFILE, NO_PROFILE)
         _ideasUnlocked.value = prefs.getBoolean(KEY_IDEAS_UNLOCKED, false)
+        _greetings.value = prefs.getBoolean(KEY_GREETINGS, true)
         _units.value = loadUnits()
         _appearances.value = loadAppearances()
         _reminderSchedule.value = loadReminderSchedule()
@@ -310,6 +321,7 @@ class Settings private constructor(context: Context) {
         private const val KEY_SAVINGS_TRIP_KM = "savings_trip_km"
         private const val KEY_ACTIVE_PROFILE = "active_profile"
         private const val KEY_IDEAS_UNLOCKED = "ideas_unlocked"
+        private const val KEY_GREETINGS = "greetings"
         private const val KEY_THEME_MODE = "theme_mode"
         private const val KEY_PURE_BLACK = "pure_black"
         private const val KEY_WALLPAPER = "wallpaper_colors"

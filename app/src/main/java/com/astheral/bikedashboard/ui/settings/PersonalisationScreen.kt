@@ -39,6 +39,7 @@ import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material.icons.filled.Wallpaper
+import androidx.compose.material.icons.filled.WavingHand
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -110,6 +111,9 @@ class PersonalisationViewModel(application: Application) : AndroidViewModel(appl
         profiles.active.map { it?.name }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
     val units: StateFlow<Units> = settings.units
     val appIcon: StateFlow<AppIcon> = settings.appIcon
+    val greetings: StateFlow<Boolean> = settings.greetings
+
+    fun setGreetings(on: Boolean) = settings.setGreetings(on)
 
     /** Saved now; the launcher switches over once you leave the app (see MainActivity). */
     fun setAppIcon(icon: AppIcon) = settings.setAppIcon(icon)
@@ -127,6 +131,7 @@ fun PersonalisationScreen(onBack: () -> Unit, viewModel: PersonalisationViewMode
     val units by viewModel.units.collectAsState()
     val appIcon by viewModel.appIcon.collectAsState()
     val bikeName by viewModel.bikeName.collectAsState()
+    val greetings by viewModel.greetings.collectAsState()
     val update = viewModel::updateAppearance
 
     Column(
@@ -206,6 +211,18 @@ fun PersonalisationScreen(onBack: () -> Unit, viewModel: PersonalisationViewMode
                     Label("Accent Colour", "Highlights: chips, the selected tab, progress and the + button")
                     SwatchPicker(appearance.accent) { c -> update { it.copy(accent = c) } }
                 }
+            }
+        }
+
+        SectionHeader(Icons.Filled.WavingHand, "Dashboard")
+        GroupCard {
+            SettingRow(
+                Icons.Filled.WavingHand,
+                "Greeting Phrases",
+                "A short hello above the bike's name, for the time of day",
+                onClick = { viewModel.setGreetings(!greetings) },
+            ) {
+                Switch(checked = greetings, onCheckedChange = viewModel::setGreetings)
             }
         }
 
