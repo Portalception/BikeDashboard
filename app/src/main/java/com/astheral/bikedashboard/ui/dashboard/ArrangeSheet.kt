@@ -70,7 +70,7 @@ val DashChart.title: String get() = when (this) {
     DashChart.SPEND -> "Monthly Spend"
     DashChart.KM_PER_DAY -> "KM Daily"
     DashChart.COST_PER_DAY -> "Cost per Day"
-    DashChart.COST_PER_KM -> "Cost per km"
+    DashChart.COST_PER_KM -> "Cost per KM"
     DashChart.SAVINGS -> "Petrol Savings"
 }
 

@@ -212,7 +212,7 @@ private fun Tiles(s: FillSummary) {
     val tiles = listOfNotNull(
         Triple("Cost", s.totalCost, ::sgd),
         Triple("Price", s.pricePerLitre, ::sgdPerLitre),
-        Triple("Cost per km", s.costPerKm, ::sgdPerKm),
+        Triple("Cost per KM", s.costPerKm, ::sgdPerKm),
         Triple("Litres", s.litres, ::litres),
         Triple("Distance", s.distanceKm) { v: Double -> km(v.toInt()) },
         s.costPerDay.takeIf { it.current != null }?.let { Triple("Cost per Day", it, ::sgd) },

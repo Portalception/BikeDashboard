@@ -77,7 +77,7 @@ enum class Metric(val title: String, val higherIsBetter: Boolean?) {
     ECONOMY("Fuel Economy", true),
     KM_PER_DAY("KM Daily", null),
     PRICE("Petrol Price", false),
-    COST_PER_KM("Cost per km", false),
+    COST_PER_KM("Cost per KM", false),
     COST_PER_DAY("Cost per Day", false),
     SAVINGS("Petrol Savings", true),
     SPEND("Spending", false),

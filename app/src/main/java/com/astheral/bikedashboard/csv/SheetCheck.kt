@@ -19,7 +19,7 @@ fun checkAgainstSheet(rows: List<SheetRow>): List<SheetMismatch> {
             compare(row, "Distance (km)", sheet.distanceKm?.toDouble(), s.distanceKm?.toDouble(), 0.0),
             compare(row, "Days", sheet.days?.toDouble(), s.days?.toDouble(), 0.0),
             compare(row, "Km/L", sheet.kmPerLitre, s.kmPerLitre, 0.005),
-            compare(row, "Cost per km", sheet.costPerKm, s.costPerKm, 0.00005),
+            compare(row, "Cost per KM", sheet.costPerKm, s.costPerKm, 0.00005),
             compare(row, "Cost per Day", sheet.costPerDay, s.costPerDay, 0.0051),
             compare(row, "Price per Litre", sheet.pricePerLitre, s.pricePerLitre, 0.005),
         )
