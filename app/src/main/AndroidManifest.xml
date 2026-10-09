@@ -36,10 +36,10 @@
         <!-- One launcher entry per app icon (Settings > Personalisation > App icon); only the chosen one is on. -->
         <activity-alias
             android:name=".IconMonochrome"
-            android:enabled="true"
+            android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_monochrome"
-            android:roundIcon="@mipmap/ic_launcher_monochrome"
+            android:icon="@mipmap/ic_launcher_legacy"
+            android:roundIcon="@mipmap/ic_launcher_legacy"
             android:label="@string/app_name"
             android:targetActivity=".MainActivity">
             <intent-filter>
@@ -62,10 +62,10 @@
         </activity-alias>
         <activity-alias
             android:name=".IconModern"
-            android:enabled="false"
+            android:enabled="true"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_modern"
-            android:roundIcon="@mipmap/ic_launcher_modern"
+            android:icon="@mipmap/ic_launcher_classic"
+            android:roundIcon="@mipmap/ic_launcher_classic"
             android:label="@string/app_name"
             android:targetActivity=".MainActivity">
             <intent-filter>
@@ -77,8 +77,8 @@
             android:name=".IconModernYellow"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_modern_yellow"
-            android:roundIcon="@mipmap/ic_launcher_modern_yellow"
+            android:icon="@mipmap/ic_launcher_classic_yellow"
+            android:roundIcon="@mipmap/ic_launcher_classic_yellow"
             android:label="@string/app_name"
             android:targetActivity=".MainActivity">
             <intent-filter>
@@ -112,12 +112,14 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity-alias>
+        <!-- Retired icons (Minimal, then the brand colours). Kept, showing the Classic icon, so anyone
+             still on one has an icon until the app next switches them to Classic. -->
         <activity-alias
             android:name=".IconMinimal"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_minimal"
-            android:roundIcon="@mipmap/ic_launcher_minimal"
+            android:icon="@mipmap/ic_launcher_classic"
+            android:roundIcon="@mipmap/ic_launcher_classic"
             android:label="@string/app_name"
             android:targetActivity=".MainActivity">
             <intent-filter>
@@ -129,8 +131,8 @@
             android:name=".IconMinimalYellow"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_minimal_yellow"
-            android:roundIcon="@mipmap/ic_launcher_minimal_yellow"
+            android:icon="@mipmap/ic_launcher_classic"
+            android:roundIcon="@mipmap/ic_launcher_classic"
             android:label="@string/app_name"
             android:targetActivity=".MainActivity">
             <intent-filter>
@@ -138,14 +140,13 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity-alias>
-        <!-- Retired brand-colour icons. Kept (showing the Classic icon) so anyone still on one has
-             an icon until the app next switches them to Classic. -->
+        <!-- Brand colours. -->
         <activity-alias
             android:name=".IconYamaha"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_monochrome"
-            android:roundIcon="@mipmap/ic_launcher_monochrome"
+            android:icon="@mipmap/ic_launcher_classic"
+            android:roundIcon="@mipmap/ic_launcher_classic"
             android:label="@string/app_name"
             android:targetActivity=".MainActivity">
             <intent-filter>
@@ -157,8 +158,8 @@
             android:name=".IconHonda"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_monochrome"
-            android:roundIcon="@mipmap/ic_launcher_monochrome"
+            android:icon="@mipmap/ic_launcher_classic"
+            android:roundIcon="@mipmap/ic_launcher_classic"
             android:label="@string/app_name"
             android:targetActivity=".MainActivity">
             <intent-filter>
@@ -170,8 +171,8 @@
             android:name=".IconKawasaki"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_monochrome"
-            android:roundIcon="@mipmap/ic_launcher_monochrome"
+            android:icon="@mipmap/ic_launcher_classic"
+            android:roundIcon="@mipmap/ic_launcher_classic"
             android:label="@string/app_name"
             android:targetActivity=".MainActivity">
             <intent-filter>
@@ -183,8 +184,8 @@
             android:name=".IconSuzuki"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_monochrome"
-            android:roundIcon="@mipmap/ic_launcher_monochrome"
+            android:icon="@mipmap/ic_launcher_classic"
+            android:roundIcon="@mipmap/ic_launcher_classic"
             android:label="@string/app_name"
             android:targetActivity=".MainActivity">
             <intent-filter>
@@ -196,8 +197,8 @@
             android:name=".IconDucati"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_monochrome"
-            android:roundIcon="@mipmap/ic_launcher_monochrome"
+            android:icon="@mipmap/ic_launcher_classic"
+            android:roundIcon="@mipmap/ic_launcher_classic"
             android:label="@string/app_name"
             android:targetActivity=".MainActivity">
             <intent-filter>
@@ -209,8 +210,8 @@
             android:name=".IconBmw"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_monochrome"
-            android:roundIcon="@mipmap/ic_launcher_monochrome"
+            android:icon="@mipmap/ic_launcher_classic"
+            android:roundIcon="@mipmap/ic_launcher_classic"
             android:label="@string/app_name"
             android:targetActivity=".MainActivity">
             <intent-filter>
@@ -222,8 +223,8 @@
             android:name=".IconKtm"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_monochrome"
-            android:roundIcon="@mipmap/ic_launcher_monochrome"
+            android:icon="@mipmap/ic_launcher_classic"
+            android:roundIcon="@mipmap/ic_launcher_classic"
             android:label="@string/app_name"
             android:targetActivity=".MainActivity">
             <intent-filter>
@@ -235,8 +236,8 @@
             android:name=".IconAprilia"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_monochrome"
-            android:roundIcon="@mipmap/ic_launcher_monochrome"
+            android:icon="@mipmap/ic_launcher_classic"
+            android:roundIcon="@mipmap/ic_launcher_classic"
             android:label="@string/app_name"
             android:targetActivity=".MainActivity">
             <intent-filter>
@@ -248,8 +249,8 @@
             android:name=".IconMvAgusta"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_monochrome"
-            android:roundIcon="@mipmap/ic_launcher_monochrome"
+            android:icon="@mipmap/ic_launcher_classic"
+            android:roundIcon="@mipmap/ic_launcher_classic"
             android:label="@string/app_name"
             android:targetActivity=".MainActivity">
             <intent-filter>
@@ -261,8 +262,8 @@
             android:name=".IconTriumph"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_monochrome"
-            android:roundIcon="@mipmap/ic_launcher_monochrome"
+            android:icon="@mipmap/ic_launcher_classic"
+            android:roundIcon="@mipmap/ic_launcher_classic"
             android:label="@string/app_name"
             android:targetActivity=".MainActivity">
             <intent-filter>

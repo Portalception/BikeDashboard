@@ -76,12 +76,6 @@ enum class ColorPreset(val brand: String, val primary: Color, val accent: Color)
     YAMAHA("Yamaha", Color(0xFF1B3F9A), Color(0xFF00B0FF)),
     HONDA("Honda", Color(0xFFCC0000), Color(0xFF1E4DB7)),
     KAWASAKI("Kawasaki", Color(0xFF5FB52A), Color(0xFF3C3C3C)),
-    SUZUKI("Suzuki", Color(0xFF1C5AA8), Color(0xFFB0BEC5)),
-    DUCATI("Ducati", Color(0xFFC8102E), Color(0xFFE6E6E6)),
-    BMW("BMW", Color(0xFF1C69D4), Color(0xFFE2231A)),
-    KTM("KTM", Color(0xFFFF6600), Color(0xFF263238)),
-    APRILIA("Aprilia", Color(0xFFD7191C), Color(0xFF7B2D8E)),
-    MV_AGUSTA("MV Agusta", Color(0xFFB71C1C), Color(0xFFB0B0B0)),
     TRIUMPH("Triumph", Color(0xFF2B2B2B), Color(0xFFFFC72C)),
 }
 

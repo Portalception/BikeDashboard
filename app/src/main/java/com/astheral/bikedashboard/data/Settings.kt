@@ -21,6 +21,7 @@ import com.astheral.bikedashboard.ui.background.MAX_SPEED
 import com.astheral.bikedashboard.ui.background.MIN_MOVEMENT
 import com.astheral.bikedashboard.ui.background.MIN_SPEED
 import com.astheral.bikedashboard.ui.theme.AppIcon
+import com.astheral.bikedashboard.ui.theme.appIconNamed
 import com.astheral.bikedashboard.ui.theme.AppearanceSettings
 import com.astheral.bikedashboard.ui.theme.ColorPreset
 import com.astheral.bikedashboard.ui.theme.ProgressStyle
@@ -74,6 +75,16 @@ class Settings private constructor(context: Context) {
 
     /** The hidden ideas notebook shows in Settings once found. */
     val ideasUnlocked: StateFlow<Boolean> = _ideasUnlocked.asStateFlow()
+
+    private val _legacyIconUnlocked = MutableStateFlow(prefs.getBoolean(KEY_LEGACY_ICON_UNLOCKED, false))
+
+    /** The Legacy app icon is offered once found by tapping the About card even more times. */
+    val legacyIconUnlocked: StateFlow<Boolean> = _legacyIconUnlocked.asStateFlow()
+
+    fun unlockLegacyIcon() {
+        prefs.edit().putBoolean(KEY_LEGACY_ICON_UNLOCKED, true).apply()
+        _legacyIconUnlocked.value = true
+    }
 
     fun unlockIdeas() {
         prefs.edit().putBoolean(KEY_IDEAS_UNLOCKED, true).apply()
@@ -194,7 +205,7 @@ class Settings private constructor(context: Context) {
         _paperworkLeadDays.value = days
     }
 
-    private val _appIcon = MutableStateFlow(enumOr(KEY_APP_ICON, AppIcon.MONOCHROME))
+    private val _appIcon = MutableStateFlow(appIconNamed(prefs.getString(KEY_APP_ICON, null)))
 
     /** The launcher icon picked in Personalisation. */
     val appIcon: StateFlow<AppIcon> = _appIcon.asStateFlow()
@@ -263,7 +274,7 @@ class Settings private constructor(context: Context) {
         val default = when (old) {
             "YAMAHA_BLUE" -> ColorPreset.YAMAHA
             "RACING_RED" -> ColorPreset.HONDA
-            "MIDNIGHT" -> ColorPreset.SUZUKI
+            "MIDNIGHT" -> ColorPreset.YAMAHA
             "FOREST" -> ColorPreset.KAWASAKI
             else -> ColorPreset.MONOCHROME
         }
@@ -320,11 +331,12 @@ class Settings private constructor(context: Context) {
         edit.commit()
         _activeProfileId.value = prefs.getLong(KEY_ACTIVE_PROFILE, NO_PROFILE)
         _ideasUnlocked.value = prefs.getBoolean(KEY_IDEAS_UNLOCKED, false)
+        _legacyIconUnlocked.value = prefs.getBoolean(KEY_LEGACY_ICON_UNLOCKED, false)
         _greetings.value = prefs.getBoolean(KEY_GREETINGS, true)
         _units.value = loadUnits()
         _appearances.value = loadAppearances()
         _reminderSchedule.value = loadReminderSchedule()
-        _appIcon.value = enumOr(KEY_APP_ICON, AppIcon.MONOCHROME)
+        _appIcon.value = appIconNamed(prefs.getString(KEY_APP_ICON, null))
         _tripKm.value = loadTripKm()
         _paperworkReminders.value = loadPaperworkReminders()
         _paperworkLeadDays.value = prefs.getInt(KEY_PAPERWORK_LEAD_DAYS, DEFAULT_PAPERWORK_LEAD_DAYS)
@@ -338,6 +350,7 @@ class Settings private constructor(context: Context) {
         private const val KEY_SAVINGS_TRIP_KM = "savings_trip_km"
         private const val KEY_ACTIVE_PROFILE = "active_profile"
         private const val KEY_IDEAS_UNLOCKED = "ideas_unlocked"
+        private const val KEY_LEGACY_ICON_UNLOCKED = "legacy_icon_unlocked"
         private const val KEY_GREETINGS = "greetings"
         private const val KEY_THEME_MODE = "theme_mode"
         private const val KEY_PURE_BLACK = "pure_black"

@@ -113,6 +113,7 @@ class PersonalisationViewModel(application: Application) : AndroidViewModel(appl
         profiles.active.map { it?.name }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
     val units: StateFlow<Units> = settings.units
     val appIcon: StateFlow<AppIcon> = settings.appIcon
+    val legacyIconUnlocked: StateFlow<Boolean> = settings.legacyIconUnlocked
     val greetings: StateFlow<Boolean> = settings.greetings
 
     fun setGreetings(on: Boolean) = settings.setGreetings(on)
@@ -132,6 +133,7 @@ fun PersonalisationScreen(onBack: () -> Unit, onOpenBackground: () -> Unit, view
     val appearance by viewModel.appearance.collectAsState()
     val units by viewModel.units.collectAsState()
     val appIcon by viewModel.appIcon.collectAsState()
+    val legacyIconUnlocked by viewModel.legacyIconUnlocked.collectAsState()
     val bikeName by viewModel.bikeName.collectAsState()
     val greetings by viewModel.greetings.collectAsState()
     val update = viewModel::updateAppearance
@@ -237,7 +239,7 @@ fun PersonalisationScreen(onBack: () -> Unit, onOpenBackground: () -> Unit, view
         SectionHeader(Icons.Filled.Apps, "App Icon")
         GroupCard(contentPadding = 16.dp) {
             Label("Launcher Icon", "Your home screen shows the new one once you leave the app")
-            IconPicker(appIcon, viewModel::setAppIcon)
+            IconPicker(appIcon, showLegacy = legacyIconUnlocked || appIcon == AppIcon.LEGACY, onPick = viewModel::setAppIcon)
         }
 
         SectionHeader(Icons.Filled.Straighten, "Units")
@@ -267,9 +269,9 @@ fun PersonalisationScreen(onBack: () -> Unit, onOpenBackground: () -> Unit, view
 /** Each launcher icon as a small preview; the chosen one has a ring around it. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun IconPicker(selected: AppIcon, onPick: (AppIcon) -> Unit) {
+private fun IconPicker(selected: AppIcon, showLegacy: Boolean, onPick: (AppIcon) -> Unit) {
     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        AppIcon.entries.forEach { icon ->
+        AppIcon.entries.filter { showLegacy || it != AppIcon.LEGACY }.forEach { icon ->
             val isSelected = icon == selected
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,

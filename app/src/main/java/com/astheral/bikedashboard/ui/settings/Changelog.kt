@@ -7,6 +7,14 @@ data class Release(val version: String, val date: LocalDate, val changes: List<S
 /** Major changes in each version, newest first. Add an entry here with every version you share. */
 val CHANGELOG = listOf(
     Release(
+        version = "0.6.8",
+        date = LocalDate.of(2026, 10, 9),
+        changes = listOf(
+            "The shaded fuel pump is now the Classic app icon (and the default). The old flat one is called Legacy and is hidden: keep tapping Bike Dashboard in Settings to find it. Minimal is gone.",
+            "Fewer colour presets: Monochrome, Yamaha, Honda, Kawasaki and Triumph. Your current colours stay as they are.",
+        ),
+    ),
+    Release(
         version = "0.6.7",
         date = LocalDate.of(2026, 10, 9),
         changes = listOf(

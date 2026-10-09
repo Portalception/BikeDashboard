@@ -133,6 +133,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     val profile: StateFlow<Profile?> = profiles.active.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
     val ideasUnlocked: StateFlow<Boolean> = settings.ideasUnlocked
+    val legacyIconUnlocked: StateFlow<Boolean> = settings.legacyIconUnlocked
+    fun unlockLegacyIcon() = settings.unlockLegacyIcon()
 
     private val _exportMessage = MutableStateFlow<String?>(null)
     val exportMessage: StateFlow<String?> = _exportMessage.asStateFlow()
@@ -210,6 +212,7 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = viewModel(),
 ) {
     val ideasUnlocked by viewModel.ideasUnlocked.collectAsState()
+    val legacyIconUnlocked by viewModel.legacyIconUnlocked.collectAsState()
     val profile by viewModel.profile.collectAsState()
     val tripKm by viewModel.tripKm.collectAsState()
     val exportMessage by viewModel.exportMessage.collectAsState()
@@ -310,7 +313,7 @@ fun SettingsScreen(
         }
 
         SectionHeader(Icons.Filled.Info, "About")
-        GroupCard { AboutCard(ideasUnlocked, onFound = viewModel::unlockIdeas, onOpenIdeas = onOpenIdeas, onOpenLogs = onOpenLogs) }
+        GroupCard { AboutCard(ideasUnlocked, legacyIconUnlocked, onFound = viewModel::unlockIdeas, onFoundLegacyIcon = viewModel::unlockLegacyIcon, onOpenIdeas = onOpenIdeas, onOpenLogs = onOpenLogs) }
     }
 }
 
@@ -541,9 +544,17 @@ private fun TripKmField(saved: Double, onSave: (Double) -> Unit) {
 /**
  * About: the version, the changelog, a hidden ideas notebook and the diagnostic logs. Tap the
  * version seven times to find them (like Android's developer options); after that they stay in the list.
+ * Keep tapping, to fifteen, and the Legacy app icon appears under Personalisation > App Icon.
  */
 @Composable
-private fun AboutCard(ideasUnlocked: Boolean, onFound: () -> Unit, onOpenIdeas: () -> Unit, onOpenLogs: () -> Unit) {
+private fun AboutCard(
+    ideasUnlocked: Boolean,
+    legacyIconUnlocked: Boolean,
+    onFound: () -> Unit,
+    onFoundLegacyIcon: () -> Unit,
+    onOpenIdeas: () -> Unit,
+    onOpenLogs: () -> Unit,
+) {
     var open by remember { mutableStateOf(false) }
     var taps by remember { mutableIntStateOf(0) }
     val turn by animateFloatAsState(if (open) 180f else 0f, label = "chevron")
@@ -552,6 +563,8 @@ private fun AboutCard(ideasUnlocked: Boolean, onFound: () -> Unit, onOpenIdeas: 
         Icons.Filled.TwoWheeler,
         "Bike Dashboard",
         when {
+            legacyIconUnlocked && taps >= LEGACY_ICON_TAPS -> "Version ${appVersion()} · You found the Legacy app icon"
+            ideasUnlocked && !legacyIconUnlocked && taps >= LEGACY_ICON_TAPS - 5 -> "Version ${appVersion()} · ${LEGACY_ICON_TAPS - taps} more…"
             ideasUnlocked && taps >= SECRET_TAPS -> "Version ${appVersion()} · You found the ideas notebook"
             !ideasUnlocked && taps >= 3 -> "Version ${appVersion()} · $tapsLeft more…"
             else -> "Version ${appVersion()}"
@@ -559,6 +572,7 @@ private fun AboutCard(ideasUnlocked: Boolean, onFound: () -> Unit, onOpenIdeas: 
         onClick = {
             taps++
             if (taps == SECRET_TAPS && !ideasUnlocked) onFound()
+            if (taps == LEGACY_ICON_TAPS && !legacyIconUnlocked) onFoundLegacyIcon()
         },
     )
     if (ideasUnlocked) {
@@ -593,6 +607,7 @@ private fun AboutCard(ideasUnlocked: Boolean, onFound: () -> Unit, onOpenIdeas: 
 }
 
 private const val SECRET_TAPS = 7
+private const val LEGACY_ICON_TAPS = 15
 
 private fun trimKm(v: Double) = if (v == Math.rint(v)) v.toLong().toString() else v.toString()
 

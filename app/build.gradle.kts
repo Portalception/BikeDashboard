@@ -18,8 +18,8 @@ android {
         applicationId = "com.astheral.bikedashboard"
         minSdk = 26
         targetSdk = 37
-        versionCode = 46
-        versionName = "0.6.7"
+        versionCode = 47
+        versionName = "0.6.8"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
