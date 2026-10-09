@@ -31,7 +31,19 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.isSpecified
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,6 +55,8 @@ import androidx.lifecycle.viewModelScope
 import com.astheral.bikedashboard.data.Profile
 import com.astheral.bikedashboard.data.ProfileKind
 import com.astheral.bikedashboard.data.Profiles
+import com.astheral.bikedashboard.data.Settings
+import com.astheral.bikedashboard.data.Appearances
 import com.astheral.bikedashboard.ui.count
 import com.astheral.bikedashboard.ui.components.NumberFont
 import com.astheral.bikedashboard.ui.components.TileShape
@@ -66,6 +80,9 @@ class ProfilesViewModel(application: Application) : AndroidViewModel(application
     val state: StateFlow<ProfilesState> =
         combine(profiles.all, profiles.active, profiles.counts) { all, active, counts -> ProfilesState(all, active, counts) }
             .stateIn(viewModelScope, SharingStarted.Eagerly, ProfilesState())
+
+    /** Every bike's look, so the switch animation can show the new bike's colours. */
+    val appearances: StateFlow<Appearances> = Settings.get(application).appearances
 
     fun switchTo(id: Long) = profiles.switchTo(id)
 }
@@ -97,12 +114,15 @@ fun ProfileTitle(profile: Profile?, onClick: () -> Unit, modifier: Modifier = Mo
     }
 }
 
-/** A sheet listing every bike as a card: tap one to switch, the pencil to edit, or add a new one. */
+/**
+ * A sheet listing every bike as a card: tap one to switch, the pencil to edit, or add a new one.
+ * [onPick] also gets where the card was tapped, in window pixels, for the switch animation.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileSwitcherSheet(
     state: ProfilesState,
-    onPick: (Profile) -> Unit,
+    onPick: (Profile, Offset) -> Unit,
     onEdit: (Profile) -> Unit,
     onAdd: () -> Unit,
     onDismiss: () -> Unit,
@@ -124,12 +144,23 @@ fun ProfileSwitcherSheet(
             Text("Your bikes", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 4.dp, bottom = 4.dp))
             state.all.orEmpty().forEach { profile ->
                 val active = profile.id == state.active?.id
+                var card by remember { mutableStateOf<LayoutCoordinates?>(null) }
+                var touch by remember { mutableStateOf(Offset.Unspecified) }
                 Surface(
-                    onClick = { onPick(profile) },
+                    onClick = {
+                        val c = card?.takeIf { it.isAttached }
+                        val local = if (touch.isSpecified) touch else c?.size?.let { Offset(it.width / 2f, it.height / 2f) } ?: Offset.Zero
+                        onPick(profile, c?.localToWindow(local) ?: Offset.Unspecified)
+                    },
                     shape = TileShape,
                     color = if (active) MaterialTheme.colorScheme.tertiary.copy(alpha = 0.14f) else MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f),
                     border = outline(if (active) MaterialTheme.colorScheme.tertiary else null, if (active) 2.dp else 1.dp),
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onGloballyPositioned { card = it }
+                        .pointerInput(Unit) {
+                            awaitEachGesture { touch = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial).position }
+                        },
                 ) {
                     Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                         Box(

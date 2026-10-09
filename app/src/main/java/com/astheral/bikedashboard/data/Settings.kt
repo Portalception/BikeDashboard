@@ -189,24 +189,56 @@ class Settings private constructor(context: Context) {
         _appIcon.value = icon
     }
 
-    private val _appearance = MutableStateFlow(loadAppearance())
-    val appearance: StateFlow<AppearanceSettings> = _appearance.asStateFlow()
+    private val _appearances = MutableStateFlow(loadAppearances())
 
-    fun updateAppearance(change: (AppearanceSettings) -> AppearanceSettings) {
-        _appearance.update(change)
-        val a = _appearance.value
-        prefs.edit()
-            .putString(KEY_THEME_MODE, a.mode.name)
-            .putBoolean(KEY_PURE_BLACK, a.pureBlack)
-            .putBoolean(KEY_WALLPAPER, a.wallpaper)
-            .putInt(KEY_PRIMARY, a.primary.toArgb())
-            .putInt(KEY_ACCENT, a.accent.toArgb())
-            .putString(KEY_PROGRESS_STYLE, a.progressStyle.name)
-            .remove(KEY_OLD_COLOR_THEME)
-            .apply()
+    /**
+     * How the app looks, remembered per bike (see [Profiles.appearance] for the one showing).
+     * Each bike's settings are saved under the usual keys with "@<bike id>" on the end, so full
+     * backups include them. The plain keys hold the look from before it was per bike: bikes that
+     * haven't been changed since still show that, so nothing changed on updating.
+     */
+    val appearances: StateFlow<Appearances> = _appearances.asStateFlow()
+
+    /** Changes one bike's look. */
+    fun updateAppearance(profileId: Long, change: (AppearanceSettings) -> AppearanceSettings) {
+        setAppearance(profileId, change(_appearances.value.of(profileId)))
     }
 
-    private fun loadAppearance(): AppearanceSettings {
+    /** Gives a bike this look, e.g. a new bike starting from the one that was showing. */
+    fun setAppearance(profileId: Long, a: AppearanceSettings) {
+        fun k(base: String) = appearanceKey(base, profileId)
+        prefs.edit()
+            .putString(k(KEY_THEME_MODE), a.mode.name)
+            .putBoolean(k(KEY_PURE_BLACK), a.pureBlack)
+            .putBoolean(k(KEY_WALLPAPER), a.wallpaper)
+            .putInt(k(KEY_PRIMARY), a.primary.toArgb())
+            .putInt(k(KEY_ACCENT), a.accent.toArgb())
+            .putString(k(KEY_PROGRESS_STYLE), a.progressStyle.name)
+            .apply()
+        _appearances.update { it.copy(perBike = it.perBike + (profileId to a)) }
+    }
+
+    /** Forgets a deleted bike's look. */
+    fun forgetAppearance(profileId: Long) {
+        val suffix = "@$profileId"
+        val edit = prefs.edit()
+        prefs.all.keys.filter { it.endsWith(suffix) && it.removeSuffix(suffix) in APPEARANCE_KEYS }.forEach(edit::remove)
+        edit.apply()
+        _appearances.update { it.copy(perBike = it.perBike - profileId) }
+    }
+
+    private fun loadAppearances(): Appearances {
+        val ids = prefs.all.keys.mapNotNull { key ->
+            val (base, id) = key.split('@', limit = 2).takeIf { it.size == 2 } ?: return@mapNotNull null
+            if (base in APPEARANCE_KEYS) id.toLongOrNull() else null
+        }.toSet()
+        return Appearances(fallback = loadAppearance(null), perBike = ids.associateWith { loadAppearance(it) })
+    }
+
+    /** The bike's own look; any part it hasn't saved comes from the plain (pre per-bike) keys. */
+    private fun loadAppearance(profileId: Long?): AppearanceSettings {
+        fun k(base: String): String =
+            profileId?.let { appearanceKey(base, it) }?.takeIf(prefs::contains) ?: base
         // Version 0.1+ had one "colour theme" setting; carry it over to the matching colours.
         val old = prefs.getString(KEY_OLD_COLOR_THEME, null)
         val default = when (old) {
@@ -217,14 +249,16 @@ class Settings private constructor(context: Context) {
             else -> ColorPreset.MONOCHROME
         }
         return AppearanceSettings(
-            mode = ThemeMode.entries.firstOrNull { it.name == prefs.getString(KEY_THEME_MODE, null) } ?: ThemeMode.SYSTEM,
-            pureBlack = prefs.getBoolean(KEY_PURE_BLACK, false),
-            wallpaper = WallpaperSupported && prefs.getBoolean(KEY_WALLPAPER, old == "WALLPAPER"),
-            primary = Color(prefs.getInt(KEY_PRIMARY, default.primary.toArgb())),
-            accent = Color(prefs.getInt(KEY_ACCENT, default.accent.toArgb())),
-            progressStyle = ProgressStyle.fromName(prefs.getString(KEY_PROGRESS_STYLE, null)),
+            mode = ThemeMode.entries.firstOrNull { it.name == prefs.getString(k(KEY_THEME_MODE), null) } ?: ThemeMode.SYSTEM,
+            pureBlack = prefs.getBoolean(k(KEY_PURE_BLACK), false),
+            wallpaper = WallpaperSupported && prefs.getBoolean(k(KEY_WALLPAPER), old == "WALLPAPER"),
+            primary = Color(prefs.getInt(k(KEY_PRIMARY), default.primary.toArgb())),
+            accent = Color(prefs.getInt(k(KEY_ACCENT), default.accent.toArgb())),
+            progressStyle = ProgressStyle.fromName(prefs.getString(k(KEY_PROGRESS_STYLE), null)),
         )
     }
+
+    private fun appearanceKey(base: String, profileId: Long) = "$base@$profileId"
 
     /** Every saved setting, for a full backup. */
     fun backup(): SettingsBackup = SettingsBackup(
@@ -257,7 +291,7 @@ class Settings private constructor(context: Context) {
         _activeProfileId.value = prefs.getLong(KEY_ACTIVE_PROFILE, NO_PROFILE)
         _ideasUnlocked.value = prefs.getBoolean(KEY_IDEAS_UNLOCKED, false)
         _units.value = loadUnits()
-        _appearance.value = loadAppearance()
+        _appearances.value = loadAppearances()
         _reminderSchedule.value = loadReminderSchedule()
         _appIcon.value = enumOr(KEY_APP_ICON, AppIcon.MONOCHROME)
         _tripKm.value = loadTripKm()
@@ -280,6 +314,9 @@ class Settings private constructor(context: Context) {
         private const val KEY_ACCENT = "accent_color"
         private const val KEY_PROGRESS_STYLE = "progress_style"
         private const val KEY_OLD_COLOR_THEME = "color_theme"
+
+        /** The settings saved per bike, as "<key>@<bike id>". */
+        private val APPEARANCE_KEYS = setOf(KEY_THEME_MODE, KEY_PURE_BLACK, KEY_WALLPAPER, KEY_PRIMARY, KEY_ACCENT, KEY_PROGRESS_STYLE)
         private const val KEY_UNIT_ECONOMY = "unit_economy"
         private const val KEY_UNIT_DISTANCE_COST = "unit_distance_cost"
         private const val KEY_UNIT_TIME_COST = "unit_time_cost"
@@ -305,4 +342,12 @@ class Settings private constructor(context: Context) {
                 instance ?: Settings(context.applicationContext).also { instance = it }
             }
     }
+}
+
+/** Every bike's look: its own, or [fallback] (the look from before it was per bike) if it has none. */
+data class Appearances(
+    val fallback: AppearanceSettings = AppearanceSettings(),
+    val perBike: Map<Long, AppearanceSettings> = emptyMap(),
+) {
+    fun of(profileId: Long?): AppearanceSettings = profileId?.let(perBike::get) ?: fallback
 }

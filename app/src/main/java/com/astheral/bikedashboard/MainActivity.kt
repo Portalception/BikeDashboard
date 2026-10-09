@@ -8,6 +8,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import com.astheral.bikedashboard.data.Profiles
 import com.astheral.bikedashboard.data.Settings
 import com.astheral.bikedashboard.reminders.Reminders
 import com.astheral.bikedashboard.ui.BikeDashboardApp
@@ -25,11 +26,11 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        val settings = Settings.get(this)
+        val profiles = Profiles.get(this)
         Reminders.schedule(this)
         if (savedInstanceState == null) readIntent(intent)
         setContent {
-            val appearance by settings.appearance.collectAsState()
+            val appearance by profiles.appearance.collectAsState(initial = profiles.appearanceNow())
             val servicing by openServicing.collectAsState()
             val details by openDetails.collectAsState()
             BikeDashboardTheme(appearance) {

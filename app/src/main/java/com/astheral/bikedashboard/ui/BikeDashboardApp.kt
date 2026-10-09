@@ -49,6 +49,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.astheral.bikedashboard.ui.profile.BikeSwitch
+import com.astheral.bikedashboard.ui.profile.BikeSwitchOverlay
 import com.astheral.bikedashboard.ui.profile.ProfileSetupScreen
 import com.astheral.bikedashboard.ui.profile.ProfileSwitcherSheet
 import com.astheral.bikedashboard.ui.profile.ProfilesViewModel
@@ -186,6 +188,8 @@ fun BikeDashboardApp(
     }
     val nav = rememberNavController()
     var switching by remember { mutableStateOf(false) }
+    var bikeSwitch by remember { mutableStateOf<BikeSwitch?>(null) }
+    val appearances by profilesViewModel.appearances.collectAsState()
     val profile = profiles.active
     val openSwitcher = { switching = true }
     val backStack by nav.currentBackStackEntryAsState()
@@ -390,12 +394,23 @@ fun BikeDashboardApp(
                 }
             }
         }
+        bikeSwitch?.let { sw ->
+            BikeSwitchOverlay(
+                switch = sw,
+                onCovered = { profilesViewModel.switchTo(sw.profile.id) },
+                onFinished = { if (bikeSwitch == sw) bikeSwitch = null },
+            )
+        }
     }
 
     if (switching) {
         ProfileSwitcherSheet(
             state = profiles,
-            onPick = { profilesViewModel.switchTo(it.id); switching = false },
+            onPick = { picked, origin ->
+                switching = false
+                // The switch itself happens under the animation, once the screen is covered.
+                if (picked.id != profile?.id) bikeSwitch = BikeSwitch(picked, origin, appearances.of(picked.id))
+            },
             onEdit = { switching = false; nav.navigate(ProfileSetupRoute(it.id)) },
             onAdd = { switching = false; nav.navigate(ProfileSetupRoute()) },
             onDismiss = { switching = false },

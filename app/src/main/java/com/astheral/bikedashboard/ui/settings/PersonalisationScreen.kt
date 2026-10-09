@@ -69,7 +69,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.astheral.bikedashboard.data.Profiles
 import com.astheral.bikedashboard.data.Settings
 import com.astheral.bikedashboard.ui.DistanceCostUnit
 import com.astheral.bikedashboard.ui.EconomyUnit
@@ -89,18 +91,30 @@ import com.astheral.bikedashboard.ui.theme.ProgressStyle
 import com.astheral.bikedashboard.ui.theme.SwatchColors
 import com.astheral.bikedashboard.ui.theme.ThemeMode
 import com.astheral.bikedashboard.ui.theme.WallpaperSupported
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 class PersonalisationViewModel(application: Application) : AndroidViewModel(application) {
     private val settings = Settings.get(application)
-    val appearance: StateFlow<AppearanceSettings> = settings.appearance
+    private val profiles = Profiles.get(application)
+
+    /** The look of the bike being shown; each bike keeps its own. */
+    val appearance: StateFlow<AppearanceSettings> =
+        profiles.appearance.stateIn(viewModelScope, SharingStarted.Eagerly, profiles.appearanceNow())
+    val bikeName: StateFlow<String?> =
+        profiles.active.map { it?.name }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
     val units: StateFlow<Units> = settings.units
     val appIcon: StateFlow<AppIcon> = settings.appIcon
 
     /** Saved now; the launcher switches over once you leave the app (see MainActivity). */
     fun setAppIcon(icon: AppIcon) = settings.setAppIcon(icon)
 
-    fun updateAppearance(change: (AppearanceSettings) -> AppearanceSettings) = settings.updateAppearance(change)
+    fun updateAppearance(change: (AppearanceSettings) -> AppearanceSettings) {
+        viewModelScope.launch { profiles.updateAppearance(change) }
+    }
     fun updateUnits(change: (Units) -> Units) = settings.updateUnits(change)
 }
 
@@ -110,6 +124,7 @@ fun PersonalisationScreen(onBack: () -> Unit, viewModel: PersonalisationViewMode
     val appearance by viewModel.appearance.collectAsState()
     val units by viewModel.units.collectAsState()
     val appIcon by viewModel.appIcon.collectAsState()
+    val bikeName by viewModel.bikeName.collectAsState()
     val update = viewModel::updateAppearance
 
     Column(
@@ -127,6 +142,14 @@ fun PersonalisationScreen(onBack: () -> Unit, viewModel: PersonalisationViewMode
         }
 
         SectionHeader(Icons.Filled.Palette, "Theme")
+        bikeName?.let { name ->
+            Text(
+                "For $name. Each bike keeps its own look.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 8.dp, bottom = 10.dp),
+            )
+        }
         GroupCard(contentPadding = 16.dp) {
             Label("Theme mode")
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -269,7 +292,7 @@ private fun Label(text: String, hint: String? = null) {
             it,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(start = 4.dp, bottom = 10.dp),
+            modifier = Modifier.padding(start = 8.dp, bottom = 10.dp),
         )
     }
 }
