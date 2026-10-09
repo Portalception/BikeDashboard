@@ -11,15 +11,18 @@ import kotlin.math.abs
  * at full precision, so importing a backup gives back exactly what was exported.
  *
  * "bars_left" follows the spreadsheet's rule: a positive number is fuel-gauge bars,
- * a negative one is km ridden on the fuel light.
+ * a negative one is km ridden on the fuel light. "full_tank" is "N" for a partial fill; backups
+ * from before partial fills existed don't have the column, and their fill-ups are full tanks.
  */
-private val COLUMNS = listOf(
+private val REQUIRED_COLUMNS = listOf(
     "date", "country", "odometer_km",
     "sg_litres", "sg_cost_sgd",
     "my_litres", "my_cost_sgd", "rm_paid", "rm_per_sgd", "rm_charged",
     "unsplit_litres", "unsplit_cost_sgd",
     "bars_left", "no_special_trip", "estimated_max", "imported_savings_sgd",
 )
+private const val FULL_TANK = "full_tank"
+private val COLUMNS = REQUIRED_COLUMNS + FULL_TANK
 
 fun writeBackup(fillUps: List<FillUp>): String = buildString {
     appendLine(COLUMNS.joinToString(","))
@@ -32,6 +35,7 @@ fun writeBackup(fillUps: List<FillUp>): String = buildString {
                 num(f.myLitres), num(f.myCostSgd), num(f.rmPaid), num(f.rmPerSgd), num(f.rmCharged),
                 num(f.unsplitLitres), num(f.unsplitCostSgd),
                 barsOrReserve.orEmpty(), if (f.noSpecialTrip) "Y" else "", num(f.estimatedMax), num(f.importedSavingsSgd),
+                if (f.fullTank) "Y" else "N",
             ).joinToString(","),
         )
     }
@@ -45,7 +49,7 @@ private fun num(value: Double?): String = when {
 
 /** True if [text] is one of the app's own backups. */
 fun looksLikeBackup(text: String): Boolean =
-    parseCsv(text).firstOrNull()?.map { it.trim() }?.containsAll(COLUMNS) == true
+    parseCsv(text).firstOrNull()?.map { it.trim() }?.containsAll(REQUIRED_COLUMNS) == true
 
 data class BackupImport(val fillUps: List<FillUp>, val problems: List<SheetProblem>)
 
@@ -59,7 +63,7 @@ fun readBackup(text: String): BackupImport {
     lines.drop(1).forEachIndexed { index, fields ->
         if (fields.all { it.isBlank() }) return@forEachIndexed
         val line = index + 2 // as numbered in a spreadsheet, header is line 1
-        val cell = { name: String -> fields.getOrNull(column.getValue(name))?.trim().orEmpty() }
+        val cell = { name: String -> column[name]?.let { fields.getOrNull(it) }?.trim().orEmpty() }
         val decimal = { name: String ->
             cell(name).takeIf { it.isNotEmpty() }?.let {
                 it.toDoubleOrNull() ?: throw IllegalArgumentException("$name \"$it\" isn't a number.")
@@ -91,6 +95,7 @@ fun readBackup(text: String): BackupImport {
                 noSpecialTrip = cell("no_special_trip").equals("Y", ignoreCase = true),
                 estimatedMax = decimal("estimated_max"),
                 importedSavingsSgd = decimal("imported_savings_sgd"),
+                fullTank = !cell(FULL_TANK).equals("N", ignoreCase = true),
             )
         } catch (e: IllegalArgumentException) {
             problems += SheetProblem(line, e.message ?: "Couldn't read this line.")

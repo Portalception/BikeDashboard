@@ -21,6 +21,7 @@ class BackupCsvTest {
         FillUp(date = LocalDate.of(2025, 7, 23), country = Country.MY, odometerKm = 137500, myLitres = 1.09, myCostSgd = 1.06, barsLeft = 0, noSpecialTrip = true),
         FillUp(date = LocalDate.of(2026, 4, 2), country = Country.MIXED, odometerKm = 152451, unsplitLitres = 14.588, unsplitCostSgd = 25.78, rmPaid = 60.0),
         FillUp(date = LocalDate.of(2026, 10, 10), country = Country.MIXED, odometerKm = 164300, sgLitres = 4.0, sgCostSgd = 11.0, myLitres = 10.0, myCostSgd = 15.0),
+        FillUp(date = LocalDate.of(2026, 10, 12), country = Country.SG, odometerKm = 164400, sgLitres = 4.2, sgCostSgd = 11.5, fullTank = false),
     )
 
     private fun withoutIds(list: List<FillUp>) = list.map { it.copy(id = 0) }.sortedWith(compareBy({ it.date }, { it.odometerKm }))
@@ -41,6 +42,25 @@ class BackupCsvTest {
     }
 
     @Test
+    fun partialFillIsMarkedN() {
+        val lines = writeBackup(fillUps).lines()
+        assertTrue(lines[0].endsWith(",full_tank"))
+        assertTrue(lines.single { it.startsWith("2026-10-12") }.endsWith(",N"))
+        assertTrue(lines.single { it.startsWith("2026-10-03") }.endsWith(",Y"))
+    }
+
+    @Test
+    fun olderBackupWithoutFullTankColumnLoadsAsFullTanks() {
+        // Drop the last column, as backups from before partial fills were written.
+        val old = writeBackup(fillUps).lines().joinToString("\n") { it.substringBeforeLast(",") }
+        assertTrue(looksLikeBackup(old))
+        val back = readBackup(old)
+        assertTrue(back.problems.isEmpty())
+        assertEquals(fillUps.size, back.fillUps.size)
+        assertTrue(back.fillUps.all { it.fullTank })
+    }
+
+    @Test
     fun recognisesItsOwnFormat() {
         val text = writeBackup(fillUps)
         assertTrue(looksLikeBackup(text))
@@ -52,7 +72,7 @@ class BackupCsvTest {
     fun badLineIsReported() {
         val text = writeBackup(fillUps).replace("163903", "abc")
         val back = readBackup(text)
-        assertEquals(4, back.fillUps.size)
+        assertEquals(fillUps.size - 1, back.fillUps.size)
         assertEquals(1, back.problems.size)
     }
 

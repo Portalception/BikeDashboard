@@ -61,6 +61,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.astheral.bikedashboard.calc.FillUpStats
 import com.astheral.bikedashboard.calc.computeStats
+import com.astheral.bikedashboard.ui.components.AccentChip
 import com.astheral.bikedashboard.calc.totalCostSgd
 import com.astheral.bikedashboard.calc.totalLitres
 import com.astheral.bikedashboard.data.AppDatabase
@@ -263,14 +264,22 @@ private fun FillUpCard(stats: FillUpStats, countUp: Boolean, onClick: () -> Unit
             }
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(fill.date.long(), style = MaterialTheme.typography.titleSmall)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(fill.date.long(), style = MaterialTheme.typography.titleSmall)
+                    if (!fill.fullTank) {
+                        Spacer(Modifier.width(8.dp))
+                        AccentChip("Partial")
+                    }
+                }
                 Row {
                     CountUpText(fill.totalLitres, ::litres, style = MaterialTheme.typography.bodyMedium, animate = countUp)
                     Text(" · ", style = MaterialTheme.typography.bodyMedium, fontFamily = NumberFont)
                     CountUpText(fill.totalCostSgd, ::sgd, style = MaterialTheme.typography.bodyMedium, animate = countUp)
                 }
                 Text(
-                    km(fill.odometerKm) + (stats.distanceKm?.let { " · +${km(it)}" } ?: ""),
+                    km(fill.odometerKm) + (stats.distanceKm?.let { " · +${km(it)}" } ?: "") +
+                        // A full tank whose economy counts partial fills before it says so.
+                        (if (stats.partialCount > 0) " · incl. ${stats.partialCount} partial" else ""),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

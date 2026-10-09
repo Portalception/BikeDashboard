@@ -199,6 +199,7 @@ private fun StepCard(step: Step, state: EditState, vm: EditViewModel) {
             hint = litreHint(parseNumber(form.rmCharged), state.preview.myCostSgd, parseNumber(form.myLitres), "RM"),
             value = form.myLitres, suffix = "L", error = state.error,
             onChange = { v -> vm.edit { it.copy(myLitres = v) } }, onNext = vm::next,
+            extra = { FullTankToggle(step, state, vm) },
         )
         Step.LEGACY_MY_COST -> NumberCard(
             part = "Old Spreadsheet Fill-Up",
@@ -213,6 +214,7 @@ private fun StepCard(step: Step, state: EditState, vm: EditViewModel) {
             hint = "This mixed fill-up has one total for both countries.",
             value = form.unsplitLitres, suffix = "L", error = state.error,
             onChange = { v -> vm.edit { it.copy(unsplitLitres = v) } }, onNext = vm::next,
+            extra = { FullTankToggle(step, state, vm) },
         )
         Step.UNSPLIT_COST -> NumberCard(
             part = "Old Spreadsheet Fill-Up",
@@ -234,6 +236,7 @@ private fun StepCard(step: Step, state: EditState, vm: EditViewModel) {
             hint = litreHint(null, parseNumber(form.sgCost), parseNumber(form.sgLitres), null),
             value = form.sgLitres, suffix = "L", error = state.error,
             onChange = { v -> vm.edit { it.copy(sgLitres = v) } }, onNext = vm::next,
+            extra = { FullTankToggle(step, state, vm) },
         )
         Step.ODOMETER -> NumberCard(
             question = "What's the odometer reading?",
@@ -361,16 +364,19 @@ internal fun QuickChip(label: String, onClick: () -> Unit) {
     )
 }
 
-/** First card: big tiles for where you filled up; tapping one moves on. */
+/**
+ * Big tiles for where you filled up; tapping one moves on. A partial fill covers what "Both"
+ * used to, so only old fill-ups from both countries still show it, to keep their split.
+ */
 @Composable
 private fun WhereCard(state: EditState, vm: EditViewModel) {
     val form = state.form
     QuestionCard(null, "Where did you fill up?") {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            listOf(
+            listOfNotNull(
                 Triple(Country.SG, "Singapore", CountryColors.sg),
                 Triple(Country.MY, "Malaysia", CountryColors.my),
-                Triple(Country.MIXED, "Both", CountryColors.mixed),
+                if (state.allowBoth) Triple(Country.MIXED, "Both", CountryColors.mixed) else null,
             ).forEach { (country, name, tint) ->
                 ChoiceTile(
                     icon = Icons.Filled.LocalGasStation,
@@ -384,6 +390,37 @@ private fun WhereCard(state: EditState, vm: EditViewModel) {
                 )
             }
         }
+    }
+}
+
+/**
+ * "Full Tank?" under the litres answer, on the last card that asks for litres. Yes unless you
+ * only put some fuel in; a partial fill's economy is worked out at the next full tank.
+ */
+@Composable
+private fun FullTankToggle(step: Step, state: EditState, vm: EditViewModel) {
+    if (fullTankStep(state.form) != step) return
+    val full = state.form.fullTank
+    Spacer(Modifier.height(16.dp))
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f))
+            .border(outline(), RoundedCornerShape(18.dp))
+            .clickable { vm.edit { it.copy(fullTank = !full) } }
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f).padding(end = 12.dp)) {
+            Text("Full Tank?", style = MaterialTheme.typography.titleMedium)
+            Text(
+                if (full) "Filled right up." else "Partial fill. Economy is worked out at your next full tank.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Switch(checked = full, onCheckedChange = { on -> vm.edit { it.copy(fullTank = on) } })
     }
 }
 
@@ -452,6 +489,15 @@ private fun ReviewCard(state: EditState, vm: EditViewModel) {
             ResultTile("Price", p.pricePerLitre, ::sgdPerLitre, Modifier.weight(1f))
             ResultTile("Economy", p.kmPerLitre, ::kmPerLitre, Modifier.weight(1f))
         }
+        val economyNote = when {
+            !form.fullTank -> "Partial fill: fuel economy and cost per km will be worked out at your next full tank."
+            p.partialsIncluded == 1 -> "Economy includes 1 partial fill since your last full tank."
+            p.partialsIncluded > 1 -> "Economy includes ${p.partialsIncluded} partial fills since your last full tank."
+            else -> null
+        }
+        economyNote?.let {
+            Text(it, Modifier.padding(horizontal = 6.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
 
         if (state.warnings.isNotEmpty()) {
             GroupCard(
@@ -470,10 +516,11 @@ private fun ReviewCard(state: EditState, vm: EditViewModel) {
         }
 
         GroupCard {
+            val fullStep = fullTankStep(form)
             val rows = buildList {
-                add(Triple(Step.WHERE, "Where", form.country.label()))
                 state.steps.forEach { step ->
                     answer(step, form)?.let { add(Triple(step, label(step, form), it)) }
+                    if (step == fullStep) add(Triple(step, "Full Tank", if (form.fullTank) "Yes" else "No"))
                 }
             }
             rows.forEachIndexed { i, (step, label, value) ->
@@ -541,7 +588,8 @@ private fun label(step: Step, form: FillUpForm): String {
         Step.ODOMETER -> "Odometer"
         Step.FUEL_LEFT -> "Fuel Left"
         Step.DATE -> "Date"
-        Step.WHERE, Step.REVIEW -> ""
+        Step.WHERE -> "Where"
+        Step.REVIEW -> ""
     }
 }
 
@@ -564,7 +612,8 @@ private fun answer(step: Step, form: FillUpForm): String? {
             else -> "Not recorded"
         }
         Step.DATE -> form.date.long()
-        Step.WHERE, Step.REVIEW -> null
+        Step.WHERE -> form.country.label()
+        Step.REVIEW -> null
     }
 }
 

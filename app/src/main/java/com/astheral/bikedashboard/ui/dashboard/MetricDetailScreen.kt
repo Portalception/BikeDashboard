@@ -260,7 +260,12 @@ private fun DetailPage(metric: Metric, period: Period, d: DashboardData, unit: D
                         Column(Modifier.weight(1f)) {
                             Text(s.fillUp.date.short(), style = MaterialTheme.typography.titleSmall)
                             Text(
-                                listOfNotNull(s.fillUp.country.label(), s.distanceKm?.let { km(it) }).joinToString(" · "),
+                                listOfNotNull(
+                                    s.fillUp.country.label(),
+                                    s.distanceKm?.let { km(it) },
+                                    if (!s.fillUp.fullTank) "Partial" else null,
+                                    s.partialCount.takeIf { it > 0 }?.let { "incl. $it partial" },
+                                ).joinToString(" · "),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )

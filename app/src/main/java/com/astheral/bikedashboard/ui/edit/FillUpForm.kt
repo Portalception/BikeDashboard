@@ -35,6 +35,8 @@ data class FillUpForm(
     val rate: String = "",
     val rmCharged: String = "",
     val noSpecialTrip: Boolean = false,
+    /** Filled to full. A partial fill's economy is worked out at the next full tank. */
+    val fullTank: Boolean = true,
     val barsLeft: String = "",
     val reserveKm: String = "",
     /** Old MY fill-up with no RM amounts: its SGD cost is edited directly. */
@@ -67,6 +69,7 @@ data class FillUpForm(
                 rate = rateText(fill.rmPerSgd),
                 rmCharged = text(fill.rmCharged),
                 noSpecialTrip = fill.noSpecialTrip,
+                fullTank = fill.fullTank,
                 barsLeft = fill.barsLeft?.toString().orEmpty(),
                 reserveKm = text(fill.reserveKm),
                 legacyMy = legacyMy,
@@ -167,8 +170,25 @@ fun FillUpForm.toFillUp(base: FillUp?): FormResult {
         barsLeft = bars,
         reserveKm = reserve?.takeIf { it > 0 },
         noSpecialTrip = if (country == Country.SG) false else noSpecialTrip,
+        fullTank = fullTank,
     )
     return FormResult.Ok(fill)
+}
+
+/** The previous full tank before a fill-up, and the partial fills since it. */
+data class SegmentBefore(val previousFull: FillUp, val partials: List<FillUp>)
+
+/**
+ * The stretch [fill] closes as a full tank: the latest full tank among [others] before it (by
+ * date, then odometer, the order everything else uses), and the partial fills after that one.
+ * Null when there's no earlier full tank.
+ */
+fun segmentBefore(fill: FillUp, others: List<FillUp>): SegmentBefore? {
+    val earlier = others.sortedWith(compareBy({ it.date }, { it.odometerKm }))
+        .filter { it.date < fill.date || (it.date == fill.date && it.odometerKm < fill.odometerKm) }
+    val fullIndex = earlier.indexOfLast { it.fullTank }
+    if (fullIndex < 0) return null
+    return SegmentBefore(earlier[fullIndex], earlier.drop(fullIndex + 1))
 }
 
 /** Extra a full tank can take when you squeeze fuel in, on top of its stated size. */
@@ -190,16 +210,18 @@ fun warningsFor(fill: FillUp, others: List<FillUp>, today: LocalDate, tankLitres
         warnings += "There's already a fill-up on this date with the same odometer reading."
     }
 
-    if (previous != null) {
-        val distance = fill.odometerKm - previous.odometerKm
-        if (distance <= 0) {
-            warnings += "The odometer isn't higher than the previous fill-up (${previous.odometerKm} km on ${previous.date.format(DAY)})."
-        } else {
-            if (distance > 500) warnings += "That's $distance km since the last fill-up, more than a tank usually lasts."
-            val kmPerLitre = distance / fill.totalLitres
-            if (kmPerLitre < 15 || kmPerLitre > 35) {
-                warnings += "That works out to ${fmt(1, kmPerLitre)} km/L, which is unusual."
-            }
+    if (previous != null && fill.odometerKm <= previous.odometerKm) {
+        warnings += "The odometer isn't higher than the previous fill-up (${previous.odometerKm} km on ${previous.date.format(DAY)})."
+    }
+    // Distance and economy are only known for a full tank, measured from the previous full tank.
+    val segment = if (fill.fullTank) segmentBefore(fill, sorted) else null
+    if (segment != null && previous != null && fill.odometerKm > previous.odometerKm) {
+        val distance = fill.odometerKm - segment.previousFull.odometerKm
+        val since = if (segment.partials.isEmpty()) "the last fill-up" else "the last full tank"
+        if (distance > 500) warnings += "That's $distance km since $since, more than a tank usually lasts."
+        val kmPerLitre = distance / (segment.partials.sumOf { it.totalLitres } + fill.totalLitres)
+        if (kmPerLitre < 15 || kmPerLitre > 35) {
+            warnings += "That works out to ${fmt(1, kmPerLitre)} km/L, which is unusual."
         }
     }
     if (next != null && fill.odometerKm >= next.odometerKm) {

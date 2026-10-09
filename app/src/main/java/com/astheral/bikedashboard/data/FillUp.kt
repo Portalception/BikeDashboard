@@ -10,7 +10,8 @@ import java.time.LocalDate
 enum class Country { SG, MY, MIXED }
 
 /**
- * One trip to the pump. The tank is always filled to full.
+ * One trip to the pump. Usually the tank is filled to full ([fullTank]); a partial fill only
+ * records what was pumped and paid, and its fuel is counted at the next full tank.
  *
  * Money is stored in SGD. A fill-up is made of up to three parts:
  * - SG part: litres pumped and SGD paid in Singapore.
@@ -50,6 +51,12 @@ data class FillUp(
 
     /** True when there was no special trip into Malaysia, so no trip cost is subtracted from savings. */
     val noSpecialTrip: Boolean = false,
+
+    /**
+     * True when the tank was filled to full. Fuel economy and cost per km are measured from one
+     * full tank to the next, counting any partial fills in between.
+     */
+    @ColumnInfo(defaultValue = "1") val fullTank: Boolean = true,
 
     /** "Estimated Max" from the spreadsheet. Kept for export only, never shown. */
     val estimatedMax: Double? = null,

@@ -37,6 +37,21 @@ class FullBackupTest {
     }
 
     @Test
+    fun partialFillUpSurvivesRoundTrip() {
+        val partial = backup.copy(bikes = backup.bikes.map { b -> b.copy(fillUps = b.fillUps.map { it.copy(fullTank = false) }) })
+        val text = BackupJson.encodeToString(FullBackup.serializer(), partial)
+        assertFalse(readFullBackup(text).bikes.single().fillUps.single().fullTank)
+    }
+
+    @Test
+    fun olderBackupsWithoutFullTankLoadAsFullTanks() {
+        val text = BackupJson.encodeToString(FullBackup.serializer(), backup)
+        val old = text.lines().filterNot { it.contains("\"fullTank\"") }.joinToString("\n")
+        assertFalse(old.contains("fullTank"))
+        assertTrue(readFullBackup(old).bikes.single().fillUps.single().fullTank)
+    }
+
+    @Test
     fun csvIsNotAFullBackup() {
         assertFalse(looksLikeFullBackup("date,country,odometer_km\n2025-03-02,SG,1000"))
     }

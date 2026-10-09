@@ -13,7 +13,7 @@ class StepsTest {
     @Test
     fun malaysiaFollowsPumpOrder() {
         assertEquals(
-            listOf(Step.WHERE, Step.DATE, Step.RM_PAID, Step.RATE, Step.RM_CHARGED, Step.MY_LITRES, Step.ODOMETER, Step.FUEL_LEFT, Step.REVIEW),
+            listOf(Step.DATE, Step.WHERE, Step.RM_PAID, Step.RATE, Step.RM_CHARGED, Step.MY_LITRES, Step.ODOMETER, Step.FUEL_LEFT, Step.REVIEW),
             stepsFor(FillUpForm(date = today, country = Country.MY)),
         )
     }
@@ -21,7 +21,7 @@ class StepsTest {
     @Test
     fun singapore() {
         assertEquals(
-            listOf(Step.WHERE, Step.DATE, Step.SG_PAID, Step.SG_LITRES, Step.ODOMETER, Step.FUEL_LEFT, Step.REVIEW),
+            listOf(Step.DATE, Step.WHERE, Step.SG_PAID, Step.SG_LITRES, Step.ODOMETER, Step.FUEL_LEFT, Step.REVIEW),
             stepsFor(FillUpForm(date = today, country = Country.SG)),
         )
     }
@@ -30,7 +30,7 @@ class StepsTest {
     fun bothCountriesDoMalaysiaThenSingapore() {
         assertEquals(
             listOf(
-                Step.WHERE, Step.DATE, Step.RM_PAID, Step.RATE, Step.RM_CHARGED, Step.MY_LITRES,
+                Step.DATE, Step.WHERE, Step.RM_PAID, Step.RATE, Step.RM_CHARGED, Step.MY_LITRES,
                 Step.SG_PAID, Step.SG_LITRES, Step.ODOMETER, Step.FUEL_LEFT, Step.REVIEW,
             ),
             stepsFor(FillUpForm(date = today, country = Country.MIXED)),
@@ -40,9 +40,9 @@ class StepsTest {
     @Test
     fun oldSpreadsheetShapesGetTheirOwnCards() {
         val oldMy = FillUpForm(date = today, country = Country.MY, legacyMy = true)
-        assertEquals(listOf(Step.WHERE, Step.DATE, Step.MY_LITRES, Step.LEGACY_MY_COST, Step.ODOMETER, Step.FUEL_LEFT, Step.REVIEW), stepsFor(oldMy))
+        assertEquals(listOf(Step.DATE, Step.WHERE, Step.MY_LITRES, Step.LEGACY_MY_COST, Step.ODOMETER, Step.FUEL_LEFT, Step.REVIEW), stepsFor(oldMy))
         val oldMixed = FillUpForm(date = today, country = Country.MIXED, legacyMixed = true)
-        assertEquals(listOf(Step.WHERE, Step.DATE, Step.UNSPLIT_LITRES, Step.UNSPLIT_COST, Step.ODOMETER, Step.FUEL_LEFT, Step.REVIEW), stepsFor(oldMixed))
+        assertEquals(listOf(Step.DATE, Step.WHERE, Step.UNSPLIT_LITRES, Step.UNSPLIT_COST, Step.ODOMETER, Step.FUEL_LEFT, Step.REVIEW), stepsFor(oldMixed))
     }
 
     @Test

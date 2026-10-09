@@ -51,6 +51,7 @@ import com.astheral.bikedashboard.calc.FillUpStats
 import com.astheral.bikedashboard.calc.PeriodSummary
 import com.astheral.bikedashboard.calc.chartData
 import com.astheral.bikedashboard.calc.computeStats
+import com.astheral.bikedashboard.calc.partialsWaiting
 import com.astheral.bikedashboard.calc.hasOldMixed
 import com.astheral.bikedashboard.calc.inLastDays
 import com.astheral.bikedashboard.calc.summarizeDashboard
@@ -132,9 +133,13 @@ data class DashboardData(
     val charts: Map<Period, ChartData>,
     val hasOldMixed: Boolean,
     val tiles: TileSeries,
-    /** Days since the last fill-up, and the usual number of days between fill-ups. */
+    /** Days since the last fill-up, and the usual number of days between full tanks. */
     val daysSinceLast: Long,
     val usualDays: Long?,
+    /** Days since the last full tank, for the progress bar (same as [daysSinceLast] without partial fills). */
+    val daysSinceLastFull: Long = daysSinceLast,
+    /** Partial fills since the last full tank, waiting for the next one to be counted. */
+    val partialsWaiting: Int = 0,
     val today: LocalDate,
     /** The last exchange rate entered, for showing prices in ringgit. */
     val rmPerSgd: Double?,
@@ -198,7 +203,11 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                     savings = recent(stats) { it.savingsSgd },
                 ),
                 daysSinceLast = stats.lastOrNull()?.let { ChronoUnit.DAYS.between(it.fillUp.date, today) } ?: 0,
+                // Gaps are between full tanks (only they have days), so partial top-ups don't shorten them.
                 usualDays = gaps.getOrNull(gaps.size / 2), // median, so the odd long break doesn't skew it
+                daysSinceLastFull = (stats.lastOrNull { it.fillUp.fullTank } ?: stats.lastOrNull())
+                    ?.let { ChronoUnit.DAYS.between(it.fillUp.date, today) } ?: 0,
+                partialsWaiting = partialsWaiting(stats),
                 today = today,
                 rmPerSgd = stats.lastOrNull { it.fillUp.rmPerSgd != null }?.fillUp?.rmPerSgd,
                 due = due,
@@ -341,9 +350,17 @@ private fun Header(d: DashboardData?, units: Units, profile: Profile?, onProfile
             d.summary.lifetime.kmPerLitre?.let { AccentChip(units.economy.convert(it), units.economy::format) }
         }
         d.usualDays?.let { usual ->
-            ProgressLine(d.daysSinceLast.toFloat() / usual)
+            ProgressLine(d.daysSinceLastFull.toFloat() / usual)
             Text(
-                "Day ${d.daysSinceLast} of about $usual between fill-ups",
+                if (d.partialsWaiting > 0) "Day ${d.daysSinceLastFull} of about $usual between full tanks"
+                else "Day ${d.daysSinceLastFull} of about $usual between fill-ups",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (d.partialsWaiting > 0) {
+            Text(
+                if (d.partialsWaiting == 1) "1 partial fill-up waiting for a full tank" else "${d.partialsWaiting} partial fill-ups waiting for a full tank",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

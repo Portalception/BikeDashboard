@@ -47,6 +47,10 @@ data class MetricChange(val current: Double?, val previous: Double?, val better:
  * Everything shown on the page after saving a new fill-up: the fill-up's own figures, each
  * compared with the fill-up before it, recent km/L and price per litre for a small trend,
  * and what pumping in Malaysia saved.
+ *
+ * A full tank is compared with the previous full tank. A partial fill only knows its own
+ * litres, cost and price: its price is compared with the fill-up just before it, and the rest
+ * waits for the next full tank.
  */
 data class FillSummary(
     val stats: FillUpStats,
@@ -69,20 +73,28 @@ data class FillSummary(
     val savingsSgd: Double?,
     /** This fill-up had litres pumped in Malaysia, so savings apply to it. */
     val hasMalaysiaPart: Boolean,
+    /** The tank wasn't filled to full, so economy and cost per km wait for the next full tank. */
+    val isPartial: Boolean = false,
+    /** For a full tank: how many partial fills since the previous full tank its figures include. */
+    val partialsIncluded: Int = 0,
 )
 
 /**
  * The summary for fill-up [id] among [stats] (from [computeStats], oldest first), or null if it
- * isn't there. "Previous" is the fill-up just before it in the same order. [recent] is how many
- * fill-ups the trend bars cover, this one included.
+ * isn't there. "Previous" is the full tank before it for a full tank, or the fill-up just before
+ * it for a partial fill. [recent] is how many fill-ups the trend bars cover, this one included.
  */
 fun summarizeFill(stats: List<FillUpStats>, id: Long, recent: Int = 10): FillSummary? {
     val i = stats.indexOfFirst { it.fillUp.id == id }
     if (i < 0) return null
     val s = stats[i]
-    val prev = stats.getOrNull(i - 1)
+    val partial = !s.fillUp.fullTank
+    val prev = if (partial) stats.getOrNull(i - 1) else stats.subList(0, i).lastOrNull { it.fillUp.fullTank }
     val window = stats.subList((i + 1 - recent).coerceAtLeast(0), i + 1)
     fun change(better: Better, of: (FillUpStats) -> Double?) = MetricChange(of(s), prev?.let(of), better)
+    // A partial fill's cost and litres aren't comparable with a whole tank's, so only its price is compared.
+    fun own(better: Better, of: (FillUpStats) -> Double?) =
+        if (partial) MetricChange(of(s), null, better) else change(better, of)
     return FillSummary(
         stats = s,
         previous = prev,
@@ -90,8 +102,8 @@ fun summarizeFill(stats: List<FillUpStats>, id: Long, recent: Int = 10): FillSum
         pricePerLitre = change(Better.LOWER) { it.pricePerLitre },
         costPerKm = change(Better.LOWER) { it.costPerKm },
         costPerDay = change(Better.LOWER) { it.costPerDay },
-        totalCost = change(Better.LOWER) { it.fillUp.totalCostSgd },
-        litres = change(Better.NEITHER) { it.fillUp.totalLitres.takeIf { l -> l > 0 } },
+        totalCost = own(Better.LOWER) { it.fillUp.totalCostSgd },
+        litres = own(Better.NEITHER) { it.fillUp.totalLitres.takeIf { l -> l > 0 } },
         distanceKm = change(Better.NEITHER) { it.distanceKm?.toDouble() },
         recentKmPerLitre = window.mapNotNull { it.kmPerLitre },
         recentPricePerLitre = window.mapNotNull { it.pricePerLitre },
@@ -99,6 +111,8 @@ fun summarizeFill(stats: List<FillUpStats>, id: Long, recent: Int = 10): FillSum
         pricePerLitreIncludesThis = s.pricePerLitre != null,
         savingsSgd = s.savingsSgd,
         hasMalaysiaPart = s.fillUp.hasMalaysiaPart,
+        isPartial = partial,
+        partialsIncluded = s.partialCount,
     )
 }
 

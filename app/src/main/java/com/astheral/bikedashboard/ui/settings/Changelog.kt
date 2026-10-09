@@ -7,6 +7,15 @@ data class Release(val version: String, val date: LocalDate, val changes: List<S
 /** Major changes in each version, newest first. Add an entry here with every version you share. */
 val CHANGELOG = listOf(
     Release(
+        version = "0.6.13",
+        date = LocalDate.of(2026, 10, 10),
+        changes = listOf(
+            "Partial fill-ups: when you don't fill the tank right up, switch off Full Tank on the litres question. The app notes the litres, cost and price, and works out fuel economy and cost per km at your next full tank, counting everything you pumped in between.",
+            "Adding a fill-up now asks the date first, then where.",
+            "Where you filled up is now just Singapore or Malaysia. Use a partial fill for the first pump instead of Both. Old fill-ups from both countries stay as they are.",
+        ),
+    ),
+    Release(
         version = "0.6.12",
         date = LocalDate.of(2026, 10, 10),
         changes = listOf(

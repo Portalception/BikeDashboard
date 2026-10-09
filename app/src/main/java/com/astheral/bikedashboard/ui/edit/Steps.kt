@@ -5,8 +5,8 @@ import com.astheral.bikedashboard.data.FillUp
 
 /** One question card in the add/edit flow. [fields] are the form fields it fills in. */
 enum class Step(vararg val fields: Field) {
-    WHERE,
     DATE,
+    WHERE,
     RM_PAID(Field.RM_PAID),
     RATE(Field.RATE),
     RM_CHARGED(Field.RM_CHARGED),
@@ -22,13 +22,13 @@ enum class Step(vararg val fields: Field) {
 }
 
 /**
- * The cards to show for this form, in pump order: where and when, then for Malaysia what you paid,
+ * The cards to show for this form, in pump order: when and where, then for Malaysia what you paid,
  * the rate, what the pump charged and the litres, then Singapore's part, then the odometer,
- * fuel left and a final check.
+ * fuel left and a final check. (Only old fill-ups can have both countries.)
  */
 fun stepsFor(form: FillUpForm): List<Step> = buildList {
-    add(Step.WHERE)
     add(Step.DATE)
+    add(Step.WHERE)
     if (form.country == Country.MIXED && form.legacyMixed) {
         add(Step.UNSPLIT_LITRES)
         add(Step.UNSPLIT_COST)
@@ -47,6 +47,10 @@ fun stepsFor(form: FillUpForm): List<Step> = buildList {
     }
     addAll(listOf(Step.ODOMETER, Step.FUEL_LEFT, Step.REVIEW))
 }
+
+/** The card that asks "Full Tank?": the last one asking for litres. */
+fun fullTankStep(form: FillUpForm): Step? =
+    stepsFor(form).lastOrNull { it == Step.MY_LITRES || it == Step.SG_LITRES || it == Step.UNSPLIT_LITRES }
 
 /** What's wrong with this card's answer, if anything, so the flow can stop on it. */
 fun FillUpForm.errorFor(step: Step, base: FillUp?): String? {

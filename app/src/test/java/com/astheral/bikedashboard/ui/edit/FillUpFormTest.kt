@@ -205,6 +205,43 @@ class FillUpFormTest {
     }
 
     @Test
+    fun partialFillSkipsDistanceAndEconomyChecks() {
+        val partial = ok(myForm.copy(odometer = "164600", fullTank = false))
+        assertFalse(partial.fullTank)
+        val w = warnings(partial)
+        assertTrue(w.none { "tank usually lasts" in it || "km/L" in it })
+        // Too many litres for the tank is still worth a warning.
+        assertTrue(warnings(ok(myForm.copy(myLitres = "16", fullTank = false))).any { "tank holds" in it })
+    }
+
+    @Test
+    fun fullTankAfterPartialsChecksTheWholeSegment() {
+        // 163903 → 164600 is 697 km; on 12.5 L alone that's 55.8 km/L, but a 15 L partial in between makes it 25.3.
+        val partial = previous.copy(id = 5, date = LocalDate.of(2026, 10, 5), odometerKm = 164300, myLitres = 15.0, fullTank = false)
+        val w = warningsFor(ok(myForm.copy(odometer = "164600")), listOf(previous, partial), today)
+        assertTrue(w.none { "km/L" in it })
+        assertTrue(w.any { "697 km since the last full tank" in it })
+    }
+
+    @Test
+    fun segmentBeforeFindsPreviousFullTankAndPartialsSinceIt() {
+        val partial = previous.copy(id = 5, date = LocalDate.of(2026, 10, 5), odometerKm = 164100, fullTank = false)
+        val seg = segmentBefore(ok(myForm), listOf(partial, previous))!!
+        assertEquals(previous, seg.previousFull)
+        assertEquals(listOf(partial), seg.partials)
+        assertNull(segmentBefore(ok(myForm), listOf(partial)))
+    }
+
+    @Test
+    fun fullTankRoundTripsThroughTheForm() {
+        val partial = previous.copy(id = 7, fullTank = false)
+        val form = FillUpForm.from(partial)
+        assertFalse(form.fullTank)
+        assertFalse(ok(form, partial).fullTank)
+        assertTrue(FillUpForm(date = today, country = Country.SG).fullTank) // new fill-ups default to a full tank
+    }
+
+    @Test
     fun bothBarsAndReserve() {
         assertTrue(warnings(ok(myForm.copy(barsLeft = "1", reserveKm = "5"))).any { "Both" in it })
     }

@@ -6,8 +6,10 @@ import java.time.LocalDate
  * Totals for a group of fill-ups. Rates are worked out from totals, not by averaging
  * each fill-up's own figure, so a short top-up doesn't count as much as a full tank.
  *
- * Km/L, cost/km, cost/day and km/day only use fill-ups that have a previous one to measure
- * from: the very first fill-up's fuel was used after it, so it has no distance yet.
+ * Km/L, cost/km, cost/day and km/day come from the stretches between full tanks whose closing
+ * full tank falls in the group, using everything pumped over each stretch (partial fills
+ * included). The very first full tank has nothing to measure from, and partial fills wait for
+ * the next full tank. Spend, price per litre and the fill-up count include every fill-up.
  */
 data class PeriodSummary(
     val fillUpCount: Int,
@@ -16,7 +18,7 @@ data class PeriodSummary(
     val kmPerLitre: Double?,
     val costPerKm: Double?,
     val costPerDay: Double?,
-    /** Kilometres ridden per day: total distance ÷ total days, over fill-ups with a previous one. */
+    /** Kilometres ridden per day: total distance ÷ total days, over measured stretches. */
     val kmPerDay: Double?,
     val pricePerLitre: Double?,
     val savingsSgd: Double?,
@@ -32,8 +34,8 @@ data class DashboardSummary(
 fun summarize(stats: List<FillUpStats>): PeriodSummary {
     val measured = stats.filter { it.distanceKm != null }
     val distance = measured.sumOf { it.distanceKm!! }
-    val measuredLitres = measured.sumOf { it.fillUp.totalLitres }
-    val measuredCost = measured.sumOf { it.fillUp.totalCostSgd }
+    val measuredLitres = measured.sumOf { it.segmentLitres ?: it.fillUp.totalLitres }
+    val measuredCost = measured.sumOf { it.segmentCost }
 
     val withDays = stats.filter { it.days != null }
     val days = withDays.sumOf { it.days!! }
@@ -48,12 +50,15 @@ fun summarize(stats: List<FillUpStats>): PeriodSummary {
         costSgd = cost,
         kmPerLitre = if (distance > 0 && measuredLitres > 0) distance / measuredLitres else null,
         costPerKm = if (distance > 0) measuredCost / distance else null,
-        costPerDay = if (days > 0) withDays.sumOf { it.fillUp.totalCostSgd } / days else null,
+        costPerDay = if (days > 0) withDays.sumOf { it.segmentCost } / days else null,
         kmPerDay = if (days > 0) withDays.sumOf { it.distanceKm ?: 0 }.toDouble() / days else null,
         pricePerLitre = if (litres > 0) cost / litres else null,
         savingsSgd = if (savings.isEmpty()) null else savings.sum(),
     )
 }
+
+/** What the stretch measured by this fill-up cost: its segment if it closes one, otherwise just itself. */
+private val FillUpStats.segmentCost: Double get() = segmentCostSgd ?: fillUp.totalCostSgd
 
 /** Fill-ups in the last [days] days: from [days] − 1 days before [today] up to [today]. */
 fun inLastDays(stats: List<FillUpStats>, today: LocalDate, days: Long): List<FillUpStats> {

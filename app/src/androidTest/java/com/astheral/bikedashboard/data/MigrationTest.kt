@@ -100,6 +100,23 @@ class MigrationTest {
         }
     }
 
+    /** Version 10 adds partial fill-ups; every fill-up from before was a full tank. */
+    @Test
+    fun version9FillUpsAreFullTanks() {
+        helper.createDatabase(dbName, 9).apply {
+            execSQL("INSERT INTO fill_ups (id, profileId, date, country, odometerKm, sgLitres, sgCostSgd, noSpecialTrip) VALUES (1, 1, 20354, 'SG', 162999, 9.713, 26.44, 0)")
+            close()
+        }
+        helper.runMigrationsAndValidate(dbName, 10, true).apply {
+            query("SELECT odometerKm, fullTank FROM fill_ups").use {
+                it.moveToFirst()
+                assertEquals(162999, it.getInt(0))
+                assertEquals(1, it.getInt(1))
+            }
+            close()
+        }
+    }
+
     /** Version 8 adds the log card fields; existing details keep everything and start without them. */
     @Test
     fun version7DetailsKeepTheirValues() {

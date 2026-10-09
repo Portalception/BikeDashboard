@@ -26,6 +26,8 @@ data class FormPreview(
     val pricePerLitre: Double?,
     /** The Malaysian part's cost in SGD (pump charge ÷ rate). */
     val myCostSgd: Double?,
+    /** For a full tank: partial fills since the previous full tank that its economy includes. */
+    val partialsIncluded: Int = 0,
 )
 
 data class EditState(
@@ -34,7 +36,9 @@ data class EditState(
     /** The rate was filled in from the last fill-up that had one. */
     val rateFromLast: Boolean = false,
     val form: FillUpForm = FillUpForm(date = LocalDate.now(), country = Country.MY),
-    val step: Step = Step.WHERE,
+    val step: Step = Step.DATE,
+    /** Editing an old fill-up from both countries, so "Both" stays a choice on the where card. */
+    val allowBoth: Boolean = false,
     /** +1 when moving forward through the cards, -1 when going back; picks the slide direction. */
     val direction: Int = 1,
     /** Message for the current card's answer, shown after trying to go on. */
@@ -76,7 +80,7 @@ class EditViewModel(application: Application, private val fillUpId: Long) : Andr
                 // New fill-up: today, same country as last time, last exchange rate.
                 FillUpForm(
                     date = LocalDate.now(),
-                    country = all.lastOrNull()?.country ?: Country.MY,
+                    country = all.lastOrNull()?.country?.takeIf { it != Country.MIXED } ?: Country.MY,
                     rate = FillUpForm.rateText(dao.latestRmPerSgd()),
                 )
             }
@@ -87,7 +91,8 @@ class EditViewModel(application: Application, private val fillUpId: Long) : Andr
                     rateFromLast = existing == null && form.rate.isNotEmpty(),
                     form = form,
                     // Editing opens on the final check, where any answer can be tapped to change it.
-                    step = if (existing == null) Step.WHERE else Step.REVIEW,
+                    step = if (existing == null) Step.DATE else Step.REVIEW,
+                    allowBoth = existing?.country == Country.MIXED,
                     commonRmPaid = commonRmPaid(all),
                 ),
             )
@@ -96,7 +101,7 @@ class EditViewModel(application: Application, private val fillUpId: Long) : Andr
 
     fun edit(change: (FillUpForm) -> FillUpForm) = _state.update { refresh(it.copy(form = change(it.form), error = null)) }
 
-    /** Picks where you filled up and moves straight on, since that's all the first card asks. */
+    /** Picks where you filled up and moves straight on, since that's all the card asks. */
     fun chooseCountry(country: Country) {
         edit { it.withCountry(country) }
         next()
@@ -166,12 +171,19 @@ class EditViewModel(application: Application, private val fillUpId: Long) : Andr
         val odometer = form.odometer.trim().toIntOrNull()
         val previous = previousFor(form)
         val distance = if (odometer != null && previous != null) odometer - previous.odometerKm else null
+        // Economy needs a full tank, and counts everything pumped since the previous full tank.
+        val segment = fill?.takeIf { it.fullTank }?.let { segmentBefore(it, others) }
+        val segmentKm = if (fill != null && segment != null) fill.odometerKm - segment.previousFull.odometerKm else null
+        val segmentLitres = fill?.let { f -> segment?.let { it.partials.sumOf { p -> p.totalLitres } + f.totalLitres } }
         return FormPreview(
             distanceKm = distance,
-            kmPerLitre = if (fill != null && distance != null && distance > 0) distance / fill.totalLitres else null,
+            kmPerLitre = if (segmentKm != null && segmentKm > 0 && distance != null && distance > 0 && segmentLitres != null && segmentLitres > 0) {
+                segmentKm / segmentLitres
+            } else null,
             totalCostSgd = fill?.totalCostSgd,
             pricePerLitre = fill?.let { it.totalCostSgd / it.totalLitres },
             myCostSgd = myCost,
+            partialsIncluded = segment?.partials?.size ?: 0,
         )
     }
 }

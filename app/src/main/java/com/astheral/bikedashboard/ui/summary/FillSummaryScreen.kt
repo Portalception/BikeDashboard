@@ -164,14 +164,20 @@ private fun Hero(s: FillSummary) {
     val fill = s.stats.fillUp
     val tint = when (fill.country) { Country.SG -> CountryColors.sg; Country.MY -> CountryColors.my; Country.MIXED -> CountryColors.mixed }
     GroupCard(contentPadding = 22.dp, edge = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.5f)) {
-        DotLabel("${fill.country.label()} · ${litres(fill.totalLitres)} · ${km(fill.odometerKm)}", tint)
+        DotLabel(
+            listOfNotNull(fill.country.label(), litres(fill.totalLitres), km(fill.odometerKm), if (s.isPartial) "Partial" else null).joinToString(" · "),
+            tint,
+        )
         Spacer(Modifier.height(12.dp))
         Text("Fuel Economy", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         val economy = s.kmPerLitre.current
         if (economy == null) {
             Text("—", style = MaterialTheme.typography.displaySmall, fontFamily = NumberFont)
             Text(
-                "Your first fill-up on this bike. Economy shows from the next one.",
+                when {
+                    s.isPartial -> "Partial fill: fuel economy and cost per km will be worked out at your next full tank."
+                    else -> "Your first full tank on this bike. Economy shows from the next one."
+                },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -183,7 +189,19 @@ private fun Hero(s: FillSummary) {
         s.stats.distanceKm?.let { d ->
             Spacer(Modifier.height(10.dp))
             val days = s.stats.days?.let { if (it == 1L) " in 1 day" else " in $it days" }.orEmpty()
-            Text("${km(d)} since your last fill-up$days", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            val since = if (s.partialsIncluded > 0) "your last full tank" else "your last fill-up"
+            Text("${km(d)} since $since$days", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        if (s.partialsIncluded > 0) {
+            val segLitres = s.stats.segmentLitres
+            val segCost = s.stats.segmentCostSgd
+            val partials = if (s.partialsIncluded == 1) "1 partial fill" else "${s.partialsIncluded} partial fills"
+            val totals = if (segLitres != null && segCost != null) ": ${litres(segLitres)} for ${sgd(segCost)} in all" else ""
+            Text(
+                "Includes $partials since then$totals.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
@@ -202,7 +220,7 @@ private fun Tiles(s: FillSummary) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         tiles.chunked(2).forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                row.forEach { (label, change, format) -> Tile(label, change, format, Modifier.weight(1f)) }
+                row.forEach { (label, change, format) -> Tile(label, change, format, Modifier.weight(1f), s.isPartial) }
                 if (row.size == 1) Spacer(Modifier.weight(1f))
             }
         }
@@ -210,7 +228,7 @@ private fun Tiles(s: FillSummary) {
 }
 
 @Composable
-private fun Tile(label: String, change: MetricChange, format: (Double) -> String, modifier: Modifier) {
+private fun Tile(label: String, change: MetricChange, format: (Double) -> String, modifier: Modifier, partial: Boolean) {
     Column(
         modifier
             .clip(TileShape)
@@ -221,19 +239,19 @@ private fun Tile(label: String, change: MetricChange, format: (Double) -> String
         Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         CountUpText(change.current ?: 0.0, format, style = MaterialTheme.typography.titleLarge)
         Spacer(Modifier.height(4.dp))
-        ChangeLine(change, format, small = true)
+        ChangeLine(change, format, small = true, missing = if (partial) "Partial fill" else NOTHING_TO_COMPARE)
     }
 }
 
 /** An arrow (green when better, red when worse) with the difference and the previous value. */
 @Composable
-private fun ChangeLine(change: MetricChange, format: (Double) -> String, small: Boolean = false) {
+private fun ChangeLine(change: MetricChange, format: (Double) -> String, small: Boolean = false, missing: String = NOTHING_TO_COMPARE) {
     val style = if (small) MaterialTheme.typography.labelSmall else MaterialTheme.typography.bodyMedium
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     val direction = change.direction
     val delta = change.delta
     if (direction == null || delta == null) {
-        Text("Nothing to compare with yet", style = style, color = muted)
+        Text(missing, style = style, color = muted)
         return
     }
     val color = verdictColor(change.verdict)
@@ -252,6 +270,8 @@ private fun ChangeLine(change: MetricChange, format: (Double) -> String, small: 
         }
     }
 }
+
+private const val NOTHING_TO_COMPARE = "Nothing to compare with yet"
 
 private fun signed(delta: Double, format: (Double) -> String): String =
     if (delta >= 0) "+${format(delta)}" else "−${format(abs(delta))}"
@@ -283,7 +303,8 @@ private fun Savings(s: FillSummary, tripKm: Double) {
         Spacer(Modifier.height(8.dp))
         if (saved == null) {
             Text(
-                "Add a Singapore fill-up to compare prices with, and savings will show up here.",
+                if (s.stats.sgReferencePricePerLitre == null) "Add a Singapore fill-up to compare prices with, and savings will show up here."
+                else "Savings need a cost per km for the trip, which comes from your next full tank.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
