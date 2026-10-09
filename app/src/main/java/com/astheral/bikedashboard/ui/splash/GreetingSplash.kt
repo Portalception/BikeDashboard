@@ -86,7 +86,7 @@ fun GreetingSplash(bikeName: String?, ready: Boolean, onDone: () -> Unit) {
                 Text(
                     it,
                     style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary,
+                    color = MaterialTheme.colorScheme.tertiary,
                     textAlign = TextAlign.Center,
                 )
             }

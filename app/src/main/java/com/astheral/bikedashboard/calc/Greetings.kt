@@ -11,14 +11,14 @@ enum class DayPart {
             in 5..11 -> MORNING
             in 12..16 -> AFTERNOON
             in 17..21 -> EVENING
-            in 22..23 -> LATE_NIGHT
+            in 22..23, 0 -> LATE_NIGHT
             else -> SMALL_HOURS
         }
     }
 }
 
 /**
- * The short hello at the top of the dashboard. One is picked when the app starts (see [pick])
+ * The short hello on the splash screen when the app opens. One is picked when the app starts (see [pick])
  * and kept for the whole visit. "{bike}" stands for the bike's name.
  */
 object Greetings {
@@ -26,50 +26,50 @@ object Greetings {
 
     val byPart: Map<DayPart, List<String>> = mapOf(
         DayPart.MORNING to listOf(
-            "Rise and ride.",
-            "Morning! Coffee for you, petrol for $BIKE.",
-            "Fresh day, fresh tank?",
-            "The early bird gets the empty pump.",
-            "Good morning. The open road says hi.",
+            "Rise and ride. ☀️",
+            "Coffee for you, 95 for $BIKE. ☕",
+            "Morning! Your tank's emptier than your inbox.",
+            "The early bird gets the empty pump. 🐦",
+            "Up before the traffic? Legend. 🏍️",
         ),
         DayPart.AFTERNOON to listOf(
-            "Afternoon. Perfect weather for a detour.",
-            "Lunch break ride, anyone?",
-            "Half the day gone. How's the tank?",
-            "Sun's up, visor down.",
-            "Good afternoon. $BIKE is ready when you are.",
+            "Lunch break? More like lunch ride. 🍜",
+            "Perfect weather for a \"quick\" 200 km detour.",
+            "Sun's out, visor down. 😎",
+            "Half the day gone. Half the tank too?",
+            "$BIKE is bored. Just saying.",
         ),
         DayPart.EVENING to listOf(
-            "Evening ride or evening review?",
-            "Golden hour suits $BIKE.",
-            "Home safe? Let's look at the numbers.",
-            "Good evening. Got a fill-up to log?",
-            "Cool air, quiet roads, good evening.",
+            "Golden hour suits $BIKE. 🌅",
+            "Home in one piece? Let's see the damage. 💸",
+            "Sunset ride or spreadsheet night? Why not both.",
+            "Another day, another tank. ⛽",
+            "Cool air, empty roads, zero excuses.",
         ),
         DayPart.LATE_NIGHT to listOf(
-            "Night ride or night owl?",
-            "Late one tonight. Ride safe.",
-            "The roads are quiet at this hour.",
-            "Still up? $BIKE is having a rest.",
-            "One quick look before bed?",
+            "Night ride or bad decisions? 🌙",
+            "Petrol station hot dog time? 🌭",
+            "The roads are empty. Suspicious. 👀",
+            "Still up? $BIKE went to bed hours ago. 😴",
+            "Just checking fuel prices at this hour? Sure. 🦉",
         ),
         DayPart.SMALL_HOURS to listOf(
-            "Midnight petrol run?",
-            "Even the pumps are asleep.",
-            "Counting kilometres instead of sheep?",
-            "Kickstand down, time for some sleep.",
-            "Burning the midnight oil, not the petrol.",
+            "Even the pumps are asleep. 💤",
+            "Counting kilometres instead of sheep? 🐑",
+            "3am thoughts: is premium really worth it?",
+            "Nothing good happens after 2am. Except fuel stats.",
+            "Burning the midnight oil, not the petrol. 🕯️",
         ),
     )
 
     /** Good at any hour; mixed in with the ones for the time of day. */
     val anyTime: List<String> = listOf(
-        "Fuelled up and ready?",
-        "Keep the shiny side up.",
-        "Every kilometre counts.",
-        "Ride more, spend less.",
-        "Two wheels, one dashboard.",
-        "$BIKE says hello.",
+        "Keep the shiny side up. ✨",
+        "Ride more, spend less. 💰",
+        "Fuel prices are a crime. You're the witness. 🚨",
+        "Four wheels move the body. Two move the soul. 🏍️",
+        "$BIKE says hello. Probably wants petrol. ⛽",
+        "Malaysia's calling. So is the cheap petrol. 🇲🇾",
     )
 
     /** Everything that could be shown at [hour]. */

@@ -7,7 +7,8 @@ import org.junit.Test
 class GreetingsTest {
     @Test
     fun hoursFallInTheRightPartOfTheDay() {
-        assertEquals(DayPart.SMALL_HOURS, DayPart.of(0))
+        assertEquals(DayPart.LATE_NIGHT, DayPart.of(0))
+        assertEquals(DayPart.SMALL_HOURS, DayPart.of(1))
         assertEquals(DayPart.SMALL_HOURS, DayPart.of(4))
         assertEquals(DayPart.MORNING, DayPart.of(5))
         assertEquals(DayPart.MORNING, DayPart.of(11))
@@ -47,13 +48,11 @@ class GreetingsTest {
     }
 
     @Test
-    fun phrasesAreShortPlainText() {
+    fun phrasesAreShortAndUnique() {
         val all = Greetings.byPart.values.flatten() + Greetings.anyTime
         assertTrue(all.size in 20..35)
         assertEquals(all.size, all.toSet().size)
-        all.forEach { phrase ->
-            assertTrue(phrase, phrase.length <= 48)
-            assertTrue(phrase, phrase.all { it.code < 128 })
-        }
+        // Short enough for two lines on the splash screen (emoji count as one or two).
+        all.forEach { phrase -> assertTrue(phrase, phrase.codePointCount(0, phrase.length) <= 56) }
     }
 }
