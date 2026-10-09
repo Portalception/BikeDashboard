@@ -25,6 +25,13 @@ data class BikeDetails(
     /** No longer shown on the Bike details page; kept so older data and backups still load. */
     val iuNumber: String? = null,
     val registeredIu: String? = null,
+    /** When the bike was registered, from the log card. */
+    @Serializable(with = LocalDateSerializer::class) val registrationDate: LocalDate? = null,
+    val manufactureYear: Int? = null,
+    /** Engine capacity in cc. */
+    val engineCc: Int? = null,
+    /** The colour as on the log card, like "Blue / White" (primary / secondary). */
+    val colour: String? = null,
 
     // The money fields and start odometer are no longer shown on the Bike details page (the
     // "Value" section was removed); they're kept so older data and backups still load.

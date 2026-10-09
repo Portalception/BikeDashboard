@@ -61,6 +61,9 @@ data class LegalDue(val item: LegalItem, val expiry: LocalDate, val daysLeft: Lo
 fun expiryDue(expiry: LocalDate?, leadDays: Int, today: LocalDate): Boolean =
     expiry != null && ChronoUnit.DAYS.between(today, expiry) <= leadDays
 
+/** Whether [expiry] has already passed [today]. A date expiring today still counts as valid. */
+fun isExpired(expiry: LocalDate?, today: LocalDate): Boolean = expiry != null && expiry.isBefore(today)
+
 /** The items in [remind] whose expiry on [details] is within [leadDays] days or has passed. */
 fun legalDue(details: BikeDetails, remind: Set<LegalItem>, leadDays: Int, today: LocalDate): List<LegalDue> =
     LegalItem.entries.filter { it in remind }.mapNotNull { item ->

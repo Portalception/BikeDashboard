@@ -1,7 +1,26 @@
 package com.astheral.bikedashboard.ui.details
 
 import android.app.Application
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.height
+import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.UploadFile
+import androidx.compose.ui.graphics.Color
+import com.astheral.bikedashboard.calc.isExpired
+import com.astheral.bikedashboard.logcard.LogCard
+import com.astheral.bikedashboard.logcard.LogCardIssue
+import com.astheral.bikedashboard.logcard.LogCardParser
+import com.astheral.bikedashboard.logcard.LogCardPdf
+import com.astheral.bikedashboard.logcard.issues
+import com.astheral.bikedashboard.logcard.logCardTheme
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -91,6 +110,19 @@ import java.time.temporal.ChronoUnit
 /** Details shown for the bike, or null while loading. */
 data class DetailsState(val profile: Profile, val details: BikeDetails)
 
+private const val NOT_A_LOG_CARD =
+    "This doesn't look like an LTA Vehicle Log Card. Download the log card PDF from OneMotoring and try again " +
+        "(a photo or scan of the card can't be read)."
+
+/** Importing the LTA Vehicle Log Card PDF, step by step. */
+sealed interface CardImport {
+    data object Reading : CardImport
+    data class Failed(val message: String) : CardImport
+
+    /** Read: [pending] are the questions about odd dates still to answer before the preview. */
+    data class Review(val card: LogCard, val pending: List<LogCardIssue>, val useColours: Boolean = true) : CardImport
+}
+
 class BikeDetailsViewModel(application: Application) : AndroidViewModel(application) {
     private val dao = AppDatabase.get(application).bikeDetailsDao()
     private val settings = Settings.get(application)
@@ -125,6 +157,60 @@ class BikeDetailsViewModel(application: Application) : AndroidViewModel(applicat
         recheck()
     }
 
+    private val _cardImport = MutableStateFlow<CardImport?>(null)
+
+    /** Where an import of the LTA log card PDF is up to, or null when there isn't one. */
+    val cardImport: StateFlow<CardImport?> = _cardImport.asStateFlow()
+
+    /** Reads the picked PDF and, if it's a log card, shows what it'll fill in (asking about odd dates first). */
+    fun logCardChosen(uri: Uri) {
+        _cardImport.value = CardImport.Reading
+        viewModelScope.launch(Dispatchers.IO) {
+            _cardImport.value = try {
+                val card = LogCardParser.parse(LogCardPdf.text(getApplication(), uri))
+                if (card.isEmpty) CardImport.Failed(NOT_A_LOG_CARD)
+                else CardImport.Review(card, card.issues(LocalDate.now()))
+            } catch (e: Exception) {
+                CardImport.Failed("Couldn't read that PDF (${e.message ?: e.javaClass.simpleName}). Make sure it's the log card downloaded from OneMotoring.")
+            }
+        }
+    }
+
+    /** Answers the first open question about a date: [date] is the one typed in, or null to keep what the card says. */
+    fun resolveIssue(date: LocalDate?) {
+        val review = _cardImport.value as? CardImport.Review ?: return
+        val issue = review.pending.firstOrNull() ?: return
+        val card = when {
+            date != null -> review.card.withDate(issue.date, date)
+            // A date that couldn't be read is left out, so what's saved now stays.
+            issue.kind == LogCardIssue.Kind.UNREADABLE -> review.card.withDate(issue.date, null)
+            else -> review.card
+        }
+        _cardImport.value = review.copy(card = card, pending = review.pending.drop(1))
+    }
+
+    fun setUseCardColours(on: Boolean) {
+        val review = _cardImport.value as? CardImport.Review ?: return
+        _cardImport.value = review.copy(useColours = on)
+    }
+
+    fun applyCard() {
+        val review = _cardImport.value as? CardImport.Review ?: return
+        _cardImport.value = null
+        update { review.card.applyTo(it) }
+        if (review.useColours) {
+            val profileId = state.value?.profile?.id
+            logCardTheme(review.card.primaryColour, review.card.secondaryColour)?.let { (primary, accent) ->
+                // Only this bike's look changes; each bike keeps its own.
+                if (profileId != null) settings.updateAppearance(profileId) { it.copy(primary = Color(primary), accent = Color(accent), wallpaper = false) }
+            }
+        }
+    }
+
+    fun cancelCard() {
+        _cardImport.value = null
+    }
+
     /** Checks straight away, so an expiry that's already close shows up now rather than at the next check. */
     private fun recheck() {
         viewModelScope.launch(Dispatchers.IO) { Reminders.check(getApplication()) }
@@ -132,7 +218,7 @@ class BikeDetailsViewModel(application: Application) : AndroidViewModel(applicat
 }
 
 /** How a field is typed in. */
-private enum class Kind { TEXT, LONG_TEXT }
+private enum class Kind { TEXT, LONG_TEXT, NUMBER, DATE }
 
 private class DetailField(
     val label: String,
@@ -140,10 +226,21 @@ private class DetailField(
     val kind: Kind,
     val get: (BikeDetails) -> String?,
     val set: (BikeDetails, String?) -> BikeDetails,
+    val suffix: String? = null,
+    /** For [Kind.DATE] fields: the date itself and how to change it. */
+    val getDate: (BikeDetails) -> LocalDate? = { null },
+    val setDate: (BikeDetails, LocalDate?) -> BikeDetails = { d, _ -> d },
 )
 
 private fun text(label: String, icon: ImageVector, get: (BikeDetails) -> String?, set: BikeDetails.(String?) -> BikeDetails) =
-    DetailField(label, icon, Kind.TEXT, get) { d, v -> d.set(v) }
+    DetailField(label, icon, Kind.TEXT, get, set = { d, v -> d.set(v) })
+
+/** A whole number; [get] returns it without the suffix, the row shows it with. */
+private fun number(label: String, icon: ImageVector, suffix: String?, get: (BikeDetails) -> Int?, set: BikeDetails.(Int?) -> BikeDetails) =
+    DetailField(label, icon, Kind.NUMBER, { get(it)?.toString() }, { d, v -> d.set(v?.trim()?.toIntOrNull()) }, suffix = suffix)
+
+private fun date(label: String, icon: ImageVector, get: (BikeDetails) -> LocalDate?, set: BikeDetails.(LocalDate?) -> BikeDetails) =
+    DetailField(label, icon, Kind.DATE, { get(it)?.short() }, { d, _ -> d }, getDate = get, setDate = { d, v -> d.set(v) })
 
 /**
  * What the bike is, following the spreadsheet's dashboard. The current IU number and the
@@ -158,9 +255,13 @@ private val BIKE_FIELDS = listOf(
     text("Chassis number", Icons.Filled.Build, { it.chassisNumber }) { copy(chassisNumber = it?.uppercase()) },
     text("Engine number", Icons.Filled.Speed, { it.engineNumber }) { copy(engineNumber = it?.uppercase()) },
     text("Registered IU", Icons.Filled.Badge, { it.registeredIu }) { copy(registeredIu = it) },
+    date("Registration date", Icons.Filled.Event, { it.registrationDate }) { copy(registrationDate = it) },
+    number("Year of manufacture", Icons.Filled.History, null, { it.manufactureYear }) { copy(manufactureYear = it) },
+    number("Engine capacity", Icons.Filled.Bolt, "cc", { it.engineCc }) { copy(engineCc = it) },
+    text("Colour", Icons.Filled.Palette, { it.colour }) { copy(colour = it) },
 )
 
-private val NOTES = DetailField("Notes", Icons.AutoMirrored.Filled.Notes, Kind.LONG_TEXT, { it.notes }) { d, v -> d.copy(notes = v) }
+private val NOTES = DetailField("Notes", Icons.AutoMirrored.Filled.Notes, Kind.LONG_TEXT, { it.notes }, set = { d, v -> d.copy(notes = v) })
 
 private fun LegalItem.icon(): ImageVector = when (this) {
     LegalItem.COE -> Icons.Filled.Description
@@ -205,6 +306,12 @@ fun BikeDetailsScreen(onBack: () -> Unit, viewModel: BikeDetailsViewModel = view
     var editingLead by remember { mutableStateOf(false) }
     val remindOn = reminders[s.profile.id].orEmpty()
     val context = LocalContext.current
+    val cardImport by viewModel.cardImport.collectAsState()
+    val pickCard = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) viewModel.logCardChosen(uri)
+    }
+    val choosePdf = { pickCard.launch(arrayOf("application/pdf")) }
+    val today = LocalDate.now()
 
     Column(
         Modifier
@@ -224,11 +331,22 @@ fun BikeDetailsScreen(onBack: () -> Unit, viewModel: BikeDetailsViewModel = view
             s.details.plate?.let { AccentChip(it) }
         }
 
+        Spacer(Modifier.height(12.dp))
+        GroupCard(edge = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.5f)) {
+            SettingRow(
+                icon = Icons.Filled.UploadFile,
+                title = "Import log card",
+                subtitle = "Fill these in from your LTA Vehicle Log Card PDF",
+                onClick = choosePdf,
+                iconTint = MaterialTheme.colorScheme.tertiary,
+            )
+        }
+
         SectionHeader(Icons.Filled.TwoWheeler, "Bike")
         GroupCard {
             BIKE_FIELDS.forEachIndexed { i, field ->
                 if (i > 0) GroupDivider()
-                DetailRow(field, field.get(s.details)) { editing = field }
+                DetailRow(field, field.get(s.details)?.let { v -> field.suffix?.let { "$v $it" } ?: v }) { editing = field }
             }
         }
 
@@ -247,7 +365,11 @@ fun BikeDetailsScreen(onBack: () -> Unit, viewModel: BikeDetailsViewModel = view
                 SettingRow(
                     icon = item.icon(),
                     title = item.label,
-                    subtitle = if (expiry == null) "Add the expiry date above first" else "Expires ${expiry.short()}",
+                    subtitle = when {
+                        expiry == null -> "Add the expiry date above first"
+                        isExpired(expiry, today) -> "Expired ${expiry.short()}"
+                        else -> "Expires ${expiry.short()}"
+                    },
                     onClick = { viewModel.setReminder(item, item !in remindOn) },
                     iconTint = MaterialTheme.colorScheme.onSurfaceVariant,
                 ) {
@@ -279,13 +401,56 @@ fun BikeDetailsScreen(onBack: () -> Unit, viewModel: BikeDetailsViewModel = view
     }
 
     editing?.let { field ->
-        TextFieldDialog(
-            title = field.label,
-            initial = field.get(s.details) ?: "",
-            onDismiss = { editing = null },
-            onSave = { t -> viewModel.update { field.set(it, t.ifBlank { null }) }; editing = null },
-            singleLine = field.kind == Kind.TEXT,
+        if (field.kind == Kind.DATE) {
+            PickDateDialog(
+                field.getDate(s.details),
+                onDismiss = { editing = null },
+                onPick = { d -> viewModel.update { field.setDate(it, d) }; editing = null },
+            )
+        } else {
+            TextFieldDialog(
+                title = field.label,
+                initial = field.get(s.details) ?: "",
+                onDismiss = { editing = null },
+                onSave = { t -> viewModel.update { field.set(it, t.ifBlank { null }) }; editing = null },
+                number = field.kind == Kind.NUMBER,
+                suffix = field.suffix,
+                singleLine = field.kind != Kind.LONG_TEXT,
+                validate = { t -> if (field.kind == Kind.NUMBER && t.trim().toIntOrNull() == null) "Enter a whole number" else null },
+            )
+        }
+    }
+    when (val c = cardImport) {
+        null -> {}
+        CardImport.Reading -> ReadingDialog()
+        is CardImport.Failed -> AlertDialog(
+            onDismissRequest = viewModel::cancelCard,
+            title = { Text("Couldn't import") },
+            text = { Text(c.message) },
+            confirmButton = { TextButton(onClick = { viewModel.cancelCard(); choosePdf() }) { Text("Choose another") } },
+            dismissButton = { TextButton(onClick = viewModel::cancelCard) { Text("Close") } },
         )
+        is CardImport.Review -> {
+            val issue = c.pending.firstOrNull()
+            if (issue != null) {
+                CardIssueDialog(
+                    issue = issue,
+                    current = c.card.date(issue.date),
+                    onEnter = viewModel::resolveIssue,
+                    onUpload = choosePdf,
+                    onKeep = { viewModel.resolveIssue(null) },
+                    onCancel = viewModel::cancelCard,
+                )
+            } else {
+                CardPreviewDialog(
+                    review = c,
+                    current = s.details,
+                    onUseColours = viewModel::setUseCardColours,
+                    onApply = viewModel::applyCard,
+                    onCancel = viewModel::cancelCard,
+                )
+            }
+        }
     }
     editingLegal?.let { item ->
         LegalDialog(
@@ -327,15 +492,21 @@ private fun DetailRow(field: DetailField, value: String?, onClick: () -> Unit) {
 private fun LegalRow(item: LegalItem, details: BikeDetails, onClick: () -> Unit) {
     val expiry = item.expiry(details)
     val number = item.number(details)
-    val subtitle = listOfNotNull(number, expiry?.let { "Expires ${it.short()}" }).joinToString(" · ").ifEmpty { "Tap to add" }
+    val today = LocalDate.now()
+    val expired = isExpired(expiry, today)
+    val subtitle = listOfNotNull(number, expiry?.let { (if (expired) "Expired " else "Expires ") + it.short() })
+        .joinToString(" · ").ifEmpty { "Tap to add" }
     SettingRow(
         icon = item.icon(),
         title = item.label,
         subtitle = subtitle,
         onClick = onClick,
-        iconTint = MaterialTheme.colorScheme.onSurfaceVariant,
+        iconTint = if (expired) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
     ) {
-        if (expiry != null) {
+        if (expired) {
+            ExpiredChip()
+            Spacer(Modifier.width(10.dp))
+        } else if (expiry != null) {
             val soon = ChronoUnit.DAYS.between(LocalDate.now(), expiry) < SOON_DAYS
             Text(
                 dueIn(expiry),

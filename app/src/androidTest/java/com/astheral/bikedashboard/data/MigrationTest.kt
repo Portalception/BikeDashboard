@@ -6,6 +6,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -78,6 +79,23 @@ class MigrationTest {
         }
         helper.runMigrationsAndValidate(dbName, 7, true).apply {
             query("SELECT odometerEstimated FROM service_records").use { it.moveToFirst(); assertEquals(0, it.getInt(0)) }
+            close()
+        }
+    }
+
+    /** Version 8 adds the log card fields; existing details keep everything and start without them. */
+    @Test
+    fun version7DetailsKeepTheirValues() {
+        helper.createDatabase(dbName, 7).apply {
+            execSQL("INSERT INTO bike_details (profileId, plate) VALUES (1, 'FAB1234X')")
+            close()
+        }
+        helper.runMigrationsAndValidate(dbName, 8, true).apply {
+            query("SELECT plate, registrationDate, engineCc, colour FROM bike_details").use {
+                it.moveToFirst()
+                assertEquals("FAB1234X", it.getString(0))
+                assertTrue(it.isNull(1) && it.isNull(2) && it.isNull(3))
+            }
             close()
         }
     }

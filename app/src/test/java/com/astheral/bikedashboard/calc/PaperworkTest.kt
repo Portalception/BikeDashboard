@@ -54,4 +54,12 @@ class PaperworkTest {
         assertEquals(today.plusYears(1), r.roadTaxExpiry)
         assertEquals("POL-1", r.insurancePolicy)
     }
+
+    @Test
+    fun expiredOnlyOnceTheDayHasPassed() {
+        assertFalse(isExpired(null, today))
+        assertFalse(isExpired(today, today))
+        assertFalse(isExpired(today.plusDays(1), today))
+        assertTrue(isExpired(today.minusDays(1), today))
+    }
 }

@@ -71,17 +71,19 @@ private object SeedCallback : RoomDatabase.Callback() {
 /**
  * Version 3 adds each bike's paperwork (plate, chassis number, expiry dates …) in its own table,
  * version 4 its servicing records, version 5 its service intervals, version 6 the service
- * categories shared by all bikes and version 7 marks service odometer readings that were estimated.
+ * categories shared by all bikes, version 7 marks service odometer readings that were estimated
+ * and version 8 adds the registration date, year, engine size and colour from the log card.
  */
 @Database(
     entities = [FillUp::class, Profile::class, BikeDetails::class, ServiceRecord::class, ServiceInterval::class, ServiceCategory::class],
-    version = 7,
+    version = 8,
     autoMigrations = [
         AutoMigration(from = 2, to = 3),
         AutoMigration(from = 3, to = 4),
         AutoMigration(from = 4, to = 5),
         AutoMigration(from = 5, to = 6, spec = SeedServiceCategories::class),
         AutoMigration(from = 6, to = 7),
+        AutoMigration(from = 7, to = 8),
     ],
 )
 @TypeConverters(Converters::class)
