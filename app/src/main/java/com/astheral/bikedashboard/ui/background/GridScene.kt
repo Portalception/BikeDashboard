@@ -11,7 +11,9 @@ import kotlin.math.sqrt
  * edges, and every third one takes the accent colour.
  */
 internal class GridScene : BackgroundScene {
-    override fun DrawScope.paint(t: Float, ink: BackgroundInk) {
+    override fun DrawScope.paint(f: SceneTime, ink: BackgroundInk) {
+        val t = f.t
+        val m = f.motion
         val spacing = size.minDimension / 9f
         val cols = ceil(size.width / spacing).toInt() + 1
         val rows = ceil(size.height / spacing).toInt() + 1
@@ -30,7 +32,7 @@ internal class GridScene : BackgroundScene {
                 val dx = x - cx
                 val dy = y - cy
                 val dist = sqrt(dx * dx + dy * dy)
-                val s = kotlin.math.sin(clock - dist / spacing * 0.6f)
+                val s = kotlin.math.sin(clock - dist / spacing * 0.6f) * m.coerceAtMost(1.6f)
                 val fade = 1f - 0.45f * (dist / reach)
                 val colour = if ((row + col) % 3 == 0) ink.accent else ink.primary
                 drawCircle(

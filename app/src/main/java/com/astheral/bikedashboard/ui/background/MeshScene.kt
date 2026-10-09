@@ -36,11 +36,13 @@ internal class MeshScene : BackgroundScene {
         }
     }
 
-    override fun DrawScope.paint(t: Float, ink: BackgroundInk) {
+    override fun DrawScope.paint(f: SceneTime, ink: BackgroundInk) {
+        val t = f.t
+        val m = f.motion
         val w = size.width
         val h = size.height
         val camera = max(w, h) * 1.8f
-        val hill = size.minDimension * 0.16f
+        val hill = size.minDimension * 0.16f * m
         val tilt = 0.4f
         val cosTilt = cos(tilt)
         val sinTilt = sin(tilt)
@@ -49,8 +51,8 @@ internal class MeshScene : BackgroundScene {
             for (col in 0 until cols) {
                 val i = row * cols + col
                 // Spread a little past the edges so the sheet always fills the screen.
-                val u = -0.15f + 1.3f * col / (cols - 1) + wanderX[i] * wave(t, 15, phase[i])
-                val v = -0.2f + 1.4f * row / (rows - 1) + wanderY[i] * wave(t, 12, phase[i] * 1.3f)
+                val u = -0.15f + 1.3f * col / (cols - 1) + wanderX[i] * m * wave(t, 15, phase[i])
+                val v = -0.2f + 1.4f * row / (rows - 1) + wanderY[i] * m * wave(t, 12, phase[i] * 1.3f)
                 val x = (u - 0.5f) * w
                 val y = (v - 0.5f) * h
                 val z = hill * lift[i] * sin(roll + u * 4.2f + v * 2.6f + phase[i] * 0.35f)

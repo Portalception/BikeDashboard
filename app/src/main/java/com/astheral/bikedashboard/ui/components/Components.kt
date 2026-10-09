@@ -62,7 +62,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.astheral.bikedashboard.ui.background.AnimatedBackground
-import com.astheral.bikedashboard.ui.theme.LocalBackgroundStyle
+import com.astheral.bikedashboard.ui.theme.LocalBackgroundLook
 import com.astheral.bikedashboard.ui.theme.LocalProgressStyle
 import com.astheral.bikedashboard.ui.theme.ProgressStyle
 import kotlin.math.max
@@ -90,7 +90,7 @@ fun AppBackground(modifier: Modifier = Modifier, content: @Composable BoxScope.(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
     ) {
-        AnimatedBackground(LocalBackgroundStyle.current)
+        AnimatedBackground(LocalBackgroundLook.current)
         // Text and icons drawn straight on the backdrop take the theme's text colour.
         CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
             content()

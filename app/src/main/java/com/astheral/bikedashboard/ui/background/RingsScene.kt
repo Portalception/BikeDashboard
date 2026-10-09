@@ -31,7 +31,11 @@ internal class RingsScene : BackgroundScene {
     private val ringAlpha = floatArrayOf(0.16f, 0.11f, 0.075f, 0.05f)
     private var stroke = Stroke(1f)
 
-    override fun DrawScope.paint(t: Float, ink: BackgroundInk) {
+    override val layered: Boolean get() = true
+
+    override fun DrawScope.paint(f: SceneTime, ink: BackgroundInk) {
+        val t = f.t
+        val m = f.motion
         val unit = size.minDimension
         val width = (unit * 0.006f).coerceAtLeast(1f)
         if (stroke.width != width) stroke = Stroke(width)
@@ -41,13 +45,15 @@ internal class RingsScene : BackgroundScene {
                 1 -> ink.accent
                 else -> ink.blend
             }
+            // Smaller groups sit nearer and move more with the tilt.
+            val depth = (0.18f / g.r).coerceAtMost(1f) * 0.8f
             val center = Offset(
-                (g.x + g.driftX * wave(t, g.timesX, g.phase)) * size.width,
-                (g.y + g.driftY * wave(t, g.timesY, g.phase * 1.3f)) * size.height,
+                (g.x + g.driftX * m * wave(t, g.timesX, g.phase)) * size.width + f.shiftX * depth,
+                (g.y + g.driftY * m * wave(t, g.timesY, g.phase * 1.3f)) * size.height + f.shiftY * depth,
             )
             val base = g.r * unit
             for (i in 0 until g.rings) {
-                val r = base * (1f + i * 0.34f) + unit * 0.012f * wave(t, 24, g.phase + i * 0.9f)
+                val r = base * (1f + i * 0.34f) + unit * 0.012f * m * wave(t, 24, g.phase + i * 0.9f)
                 drawCircle(colour, r, center, alpha = ink.a(ringAlpha[i]), style = stroke)
             }
             // A ripple leaving the group every 30 seconds, groups taking turns.

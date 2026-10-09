@@ -20,7 +20,10 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+import com.astheral.bikedashboard.data.Settings
+import com.astheral.bikedashboard.ui.background.BackgroundLook
 import com.astheral.bikedashboard.ui.background.BackgroundStyle
+import com.astheral.bikedashboard.ui.background.RandomBackground
 import com.materialkolor.contrast.Contrast
 import com.materialkolor.hct.Hct
 import com.materialkolor.palettes.TonalPalette
@@ -39,8 +42,14 @@ data class AppearanceSettings(
     val accent: Color = ColorPreset.MONOCHROME.accent,
     /** Shape of the progress line on the dashboard and while adding a fill-up. */
     val progressStyle: ProgressStyle = ProgressStyle.STANDARD,
-    /** The moving picture behind every screen. */
+    /** The moving picture behind every screen, or Random for a different one each launch. */
     val backgroundStyle: BackgroundStyle = BackgroundStyle.CIRCLES,
+    /** The background shifts a little as the phone tilts. */
+    val backgroundParallax: Boolean = true,
+    /** How far the background moves, 0 to 2 (normal is 1). */
+    val backgroundMovement: Float = 1f,
+    /** How fast the background runs, 0.25 to 3 (normal is 1). */
+    val backgroundSpeed: Float = 1f,
 )
 
 enum class ProgressStyle(val label: String) {
@@ -55,8 +64,8 @@ enum class ProgressStyle(val label: String) {
 /** The progress line shape picked in Settings. */
 val LocalProgressStyle = staticCompositionLocalOf { ProgressStyle.STANDARD }
 
-/** The background picked in Settings, drawn by AppBackground. */
-val LocalBackgroundStyle = staticCompositionLocalOf { BackgroundStyle.CIRCLES }
+/** The background picked in Settings (with Random already resolved), drawn by AppBackground. */
+val LocalBackgroundLook = staticCompositionLocalOf { BackgroundLook() }
 
 /**
  * Ready-made primary + accent pairs. Apart from Monochrome, each uses a motorcycle maker's
@@ -98,7 +107,12 @@ object CountryColors {
 }
 
 @Composable
-fun BikeDashboardTheme(appearance: AppearanceSettings = AppearanceSettings(), content: @Composable () -> Unit) {
+fun BikeDashboardTheme(
+    appearance: AppearanceSettings = AppearanceSettings(),
+    /** The bike being shown, so Random keeps one pick per bike for the session. */
+    bikeId: Long? = null,
+    content: @Composable () -> Unit,
+) {
     val dark = when (appearance.mode) {
         ThemeMode.SYSTEM -> isSystemInDarkTheme()
         ThemeMode.LIGHT -> false
@@ -127,9 +141,26 @@ fun BikeDashboardTheme(appearance: AppearanceSettings = AppearanceSettings(), co
     CompositionLocalProvider(
         LocalDarkTheme provides dark,
         LocalProgressStyle provides appearance.progressStyle,
-        LocalBackgroundStyle provides appearance.backgroundStyle,
+        LocalBackgroundLook provides rememberBackgroundLook(appearance, bikeId),
     ) {
         MaterialTheme(colorScheme = colorScheme, typography = Typography, content = content)
+    }
+}
+
+/** The background settings in [appearance], with Random turned into this session's pick for [bikeId]. */
+@Composable
+private fun rememberBackgroundLook(appearance: AppearanceSettings, bikeId: Long?): BackgroundLook {
+    val context = LocalContext.current
+    val style = remember(appearance.backgroundStyle, bikeId) {
+        if (appearance.backgroundStyle != BackgroundStyle.RANDOM) appearance.backgroundStyle
+        else {
+            val settings = Settings.get(context)
+            // Before the bikes have loaded, go by the last bike picked, so the pick doesn't change a moment later.
+            RandomBackground.resolve(bikeId ?: settings.activeProfileId.value, settings::lastRandomBackground, settings::setLastRandomBackground)
+        }
+    }
+    return remember(style, appearance.backgroundParallax, appearance.backgroundMovement, appearance.backgroundSpeed) {
+        BackgroundLook(style, appearance.backgroundParallax, appearance.backgroundMovement, appearance.backgroundSpeed)
     }
 }
 

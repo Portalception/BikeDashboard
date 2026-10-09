@@ -45,14 +45,19 @@ internal class SnowScene : BackgroundScene {
         }
     }
 
-    override fun DrawScope.paint(t: Float, ink: BackgroundInk) {
+    override val layered: Boolean get() = true
+
+    override fun DrawScope.paint(f: SceneTime, ink: BackgroundInk) {
+        val t = f.t
+        val m = f.motion
         val unit = size.minDimension
         val stroke = (unit * 0.003f).coerceAtLeast(1f)
         val margin = 0.05f
         for (i in 0 until count) {
-            val fall = cycle(t, falls[i], startY[i])
-            val y = (fall * (1f + 2 * margin) - margin) * size.height
-            val x = frac(startX[i] + sway[i] * wave(t, swayTimes[i], phase[i])) * size.width
+            val fall = cycle(f.travel, falls[i], startY[i])
+            val depth = 0.3f + 0.35f * layer[i]
+            val y = (fall * (1f + 2 * margin) - margin) * size.height + f.shiftY * depth
+            val x = frac(startX[i] + sway[i] * m * wave(t, swayTimes[i], phase[i])) * size.width + f.shiftX * depth
             val center = Offset(x, y)
             when (layer[i]) {
                 0 -> drawCircle(ink.bright, unit * 0.0045f, center, alpha = ink.a(0.28f))
@@ -60,7 +65,7 @@ internal class SnowScene : BackgroundScene {
                     val near = layer[i] == 2
                     val arm = unit * (if (near) 0.022f else 0.012f)
                     val alpha = ink.a(if (near) 0.42f else 0.34f)
-                    val turn = TAU * cycle(t, spin[i], phase[i])
+                    val turn = TAU * cycle(f.travel, spin[i], phase[i])
                     flake(center, arm, turn, stroke, alpha, near, ink)
                 }
             }

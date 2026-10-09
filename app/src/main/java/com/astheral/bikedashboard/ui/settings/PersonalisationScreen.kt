@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.LocalGasStation
@@ -79,8 +80,6 @@ import com.astheral.bikedashboard.ui.EconomyUnit
 import com.astheral.bikedashboard.ui.PriceUnit
 import com.astheral.bikedashboard.ui.TimeCostUnit
 import com.astheral.bikedashboard.ui.Units
-import com.astheral.bikedashboard.ui.background.AnimatedBackground
-import com.astheral.bikedashboard.ui.background.BackgroundStyle
 import com.astheral.bikedashboard.ui.components.ChoiceTile
 import com.astheral.bikedashboard.ui.components.GroupCard
 import com.astheral.bikedashboard.ui.components.NumberFont
@@ -126,7 +125,7 @@ class PersonalisationViewModel(application: Application) : AndroidViewModel(appl
 
 /** Settings > Personalisation: how the app looks, and the units the dashboard uses. */
 @Composable
-fun PersonalisationScreen(onBack: () -> Unit, viewModel: PersonalisationViewModel = viewModel()) {
+fun PersonalisationScreen(onBack: () -> Unit, onOpenBackground: () -> Unit, viewModel: PersonalisationViewModel = viewModel()) {
     val appearance by viewModel.appearance.collectAsState()
     val units by viewModel.units.collectAsState()
     val appIcon by viewModel.appIcon.collectAsState()
@@ -193,9 +192,15 @@ fun PersonalisationScreen(onBack: () -> Unit, viewModel: PersonalisationViewMode
         }
 
         Spacer(Modifier.height(12.dp))
-        GroupCard(contentPadding = 16.dp) {
-            Label("Background", "Moves gently behind every screen, in your colours")
-            BackgroundPicker(appearance.backgroundStyle) { style -> update { it.copy(backgroundStyle = style) } }
+        GroupCard {
+            SettingRow(
+                Icons.Filled.Wallpaper,
+                "Background",
+                backgroundSummary(appearance.backgroundStyle),
+                onClick = onOpenBackground,
+            ) {
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
 
         AnimatedVisibility(!appearance.wallpaper) {
@@ -355,58 +360,6 @@ private fun ProgressStylePicker(selected: ProgressStyle, onPick: (ProgressStyle)
                         )
                     }
                 }
-            }
-        }
-    }
-}
-
-/**
- * Each background as a small preview; the chosen one is outlined in the accent colour and moves,
- * the others show a still frame.
- */
-@Composable
-private fun BackgroundPicker(selected: BackgroundStyle, onPick: (BackgroundStyle) -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        BackgroundStyle.entries.chunked(2).forEach { row ->
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                row.forEach { style ->
-                    val isSelected = style == selected
-                    Column(
-                        Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(18.dp))
-                            .background(
-                                if (isSelected) MaterialTheme.colorScheme.tertiary.copy(alpha = 0.14f)
-                                else MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f),
-                            )
-                            .border(
-                                if (isSelected) 2.dp else 1.dp,
-                                if (isSelected) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
-                                RoundedCornerShape(18.dp),
-                            )
-                            .clickable(role = Role.RadioButton) { onPick(style) }
-                            .padding(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Box(
-                            Modifier
-                                .fillMaxWidth()
-                                .height(84.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(MaterialTheme.colorScheme.background),
-                        ) {
-                            AnimatedBackground(style, animate = isSelected)
-                        }
-                        Text(
-                            style.label,
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                            modifier = Modifier.padding(start = 6.dp, bottom = 4.dp),
-                        )
-                    }
-                }
-                // Keep a lone last tile at half width.
-                if (row.size == 1) Spacer(Modifier.weight(1f))
             }
         }
     }

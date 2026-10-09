@@ -68,6 +68,7 @@ import com.astheral.bikedashboard.ui.service.ServicingScreen
 import com.astheral.bikedashboard.ui.settings.DiagnosticLogsScreen
 import com.astheral.bikedashboard.ui.settings.IdeasScreen
 import com.astheral.bikedashboard.ui.settings.PersonalisationScreen
+import com.astheral.bikedashboard.ui.settings.BackgroundScreen
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.NavBackStackEntry
@@ -104,6 +105,7 @@ import kotlinx.serialization.Serializable
 @Serializable object IdeasRoute
 @Serializable object DiagnosticLogsRoute
 @Serializable object PersonalisationRoute
+@Serializable object BackgroundRoute
 @Serializable object BikeDetailsRoute
 @Serializable object ServicingRoute
 @Serializable object IntervalsRoute
@@ -323,7 +325,15 @@ fun BikeDashboardApp(
                     enterTransition = { slideIntoContainer(SlideDirection.Up, tween(SLIDE_MS)) },
                     popExitTransition = { slideOutOfContainer(SlideDirection.Down, tween(SLIDE_MS)) },
                 ) {
-                    AppBackground { PersonalisationScreen(onBack = { nav.popBackStack() }) }
+                    AppBackground {
+                        PersonalisationScreen(onBack = { nav.popBackStack() }, onOpenBackground = { nav.navigate(BackgroundRoute) })
+                    }
+                }
+                composable<BackgroundRoute>(
+                    enterTransition = { slideIntoContainer(SlideDirection.Up, tween(SLIDE_MS)) },
+                    popExitTransition = { slideOutOfContainer(SlideDirection.Down, tween(SLIDE_MS)) },
+                ) {
+                    AppBackground { BackgroundScreen(onBack = { nav.popBackStack() }) }
                 }
                 composable<BikeDetailsRoute>(
                     enterTransition = { slideIntoContainer(SlideDirection.Up, tween(SLIDE_MS)) },

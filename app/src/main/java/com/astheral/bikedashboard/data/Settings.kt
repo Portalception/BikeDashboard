@@ -16,6 +16,10 @@ import com.astheral.bikedashboard.ui.PriceUnit
 import com.astheral.bikedashboard.ui.TimeCostUnit
 import com.astheral.bikedashboard.ui.Units
 import com.astheral.bikedashboard.ui.background.BackgroundStyle
+import com.astheral.bikedashboard.ui.background.MAX_MOVEMENT
+import com.astheral.bikedashboard.ui.background.MAX_SPEED
+import com.astheral.bikedashboard.ui.background.MIN_MOVEMENT
+import com.astheral.bikedashboard.ui.background.MIN_SPEED
 import com.astheral.bikedashboard.ui.theme.AppIcon
 import com.astheral.bikedashboard.ui.theme.AppearanceSettings
 import com.astheral.bikedashboard.ui.theme.ColorPreset
@@ -226,6 +230,9 @@ class Settings private constructor(context: Context) {
             .putInt(k(KEY_ACCENT), a.accent.toArgb())
             .putString(k(KEY_PROGRESS_STYLE), a.progressStyle.name)
             .putString(k(KEY_BACKGROUND_STYLE), a.backgroundStyle.name)
+            .putBoolean(k(KEY_BACKGROUND_PARALLAX), a.backgroundParallax)
+            .putFloat(k(KEY_BACKGROUND_MOVEMENT), a.backgroundMovement)
+            .putFloat(k(KEY_BACKGROUND_SPEED), a.backgroundSpeed)
             .apply()
         _appearances.update { it.copy(perBike = it.perBike + (profileId to a)) }
     }
@@ -268,7 +275,17 @@ class Settings private constructor(context: Context) {
             accent = Color(prefs.getInt(k(KEY_ACCENT), default.accent.toArgb())),
             progressStyle = ProgressStyle.fromName(prefs.getString(k(KEY_PROGRESS_STYLE), null)),
             backgroundStyle = BackgroundStyle.fromName(prefs.getString(k(KEY_BACKGROUND_STYLE), null)),
+            backgroundParallax = prefs.getBoolean(k(KEY_BACKGROUND_PARALLAX), true),
+            backgroundMovement = prefs.getFloat(k(KEY_BACKGROUND_MOVEMENT), 1f).coerceIn(MIN_MOVEMENT, MAX_MOVEMENT),
+            backgroundSpeed = prefs.getFloat(k(KEY_BACKGROUND_SPEED), 1f).coerceIn(MIN_SPEED, MAX_SPEED),
         )
+    }
+
+    /** The style Random picked on the last launch, if any. */
+    fun lastRandomBackground(): String? = prefs.getString(KEY_RANDOM_BACKGROUND_LAST, null)
+
+    fun setLastRandomBackground(name: String) {
+        prefs.edit().putString(KEY_RANDOM_BACKGROUND_LAST, name).apply()
     }
 
     private fun appearanceKey(base: String, profileId: Long) = "$base@$profileId"
@@ -329,10 +346,18 @@ class Settings private constructor(context: Context) {
         private const val KEY_ACCENT = "accent_color"
         private const val KEY_PROGRESS_STYLE = "progress_style"
         private const val KEY_BACKGROUND_STYLE = "background_style"
+        private const val KEY_BACKGROUND_PARALLAX = "background_parallax"
+        private const val KEY_BACKGROUND_MOVEMENT = "background_movement"
+        private const val KEY_BACKGROUND_SPEED = "background_speed"
+        /** Random's pick on the last launch, so the next one picks something else. */
+        private const val KEY_RANDOM_BACKGROUND_LAST = "random_background_last"
         private const val KEY_OLD_COLOR_THEME = "color_theme"
 
         /** The settings saved per bike, as "<key>@<bike id>". */
-        private val APPEARANCE_KEYS = setOf(KEY_THEME_MODE, KEY_PURE_BLACK, KEY_WALLPAPER, KEY_PRIMARY, KEY_ACCENT, KEY_PROGRESS_STYLE, KEY_BACKGROUND_STYLE)
+        private val APPEARANCE_KEYS = setOf(
+            KEY_THEME_MODE, KEY_PURE_BLACK, KEY_WALLPAPER, KEY_PRIMARY, KEY_ACCENT, KEY_PROGRESS_STYLE, KEY_BACKGROUND_STYLE,
+            KEY_BACKGROUND_PARALLAX, KEY_BACKGROUND_MOVEMENT, KEY_BACKGROUND_SPEED,
+        )
         private const val KEY_UNIT_ECONOMY = "unit_economy"
         private const val KEY_UNIT_DISTANCE_COST = "unit_distance_cost"
         private const val KEY_UNIT_TIME_COST = "unit_time_cost"

@@ -27,7 +27,8 @@ internal class MatrixScene : BackgroundScene {
     private var primaryRgb = 0
     private var accentRgb = 0
 
-    override fun DrawScope.paint(t: Float, ink: BackgroundInk) {
+    override fun DrawScope.paint(f: SceneTime, ink: BackgroundInk) {
+        val t = f.t
         if (ink !== inkSeen) {
             inkSeen = ink
             primaryRgb = ink.primary.toArgb() and 0xFFFFFF
@@ -48,7 +49,7 @@ internal class MatrixScene : BackgroundScene {
                     // Each run falls the full height every 10 to 24 seconds.
                     val falls = 50 + (noise(seed) * 70).toInt()
                     val length = 7 + (noise(seed + 1) * 11).toInt()
-                    val head = floor(cycle(t, falls, noise(seed + 2)) * (rows + length)).toInt()
+                    val head = floor(cycle(f.travel, falls, noise(seed + 2)) * (rows + length)).toInt()
                     for (k in 0 until length) {
                         val row = head - k
                         if (row < 0 || row >= rows) continue

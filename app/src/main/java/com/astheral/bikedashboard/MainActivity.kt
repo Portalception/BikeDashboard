@@ -43,7 +43,7 @@ class MainActivity : ComponentActivity() {
             val appearance by profiles.appearance.collectAsState(initial = profiles.appearanceNow())
             val servicing by openServicing.collectAsState()
             val details by openDetails.collectAsState()
-            BikeDashboardTheme(appearance) {
+            BikeDashboardTheme(appearance, bikeId = profile?.id) {
                 Box {
                     BikeDashboardApp(
                         openServicingFor = servicing,

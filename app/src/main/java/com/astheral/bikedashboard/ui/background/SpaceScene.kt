@@ -35,7 +35,10 @@ internal class SpaceScene : BackgroundScene {
         }
     }
 
-    override fun DrawScope.paint(t: Float, ink: BackgroundInk) {
+    override val layered: Boolean get() = true
+
+    override fun DrawScope.paint(f: SceneTime, ink: BackgroundInk) {
+        val t = f.travel
         val w = size.width
         val h = size.height
         val cx = w / 2f
@@ -47,17 +50,20 @@ internal class SpaceScene : BackgroundScene {
             val z = 1f - cycle(t, trips[i], startZ[i])
             val depth = 0.06f + 0.94f * z
             val r = spread[i] * reach / depth
-            val x = cx + dirX[i] * r
-            val y = cy + dirY[i] * r
-            if (x < -20f || x > w + 20f || y < -20f || y > h + 20f) continue
             val close = 1f - z
+            // Near stars move more with the tilt than far ones.
+            val px = f.shiftX * (0.2f + 0.8f * close)
+            val py = f.shiftY * (0.2f + 0.8f * close)
+            val x = cx + px + dirX[i] * r
+            val y = cy + py + dirY[i] * r
+            if (x < -20f || x > w + 20f || y < -20f || y > h + 20f) continue
             val alpha = ink.a(0.08f + 0.5f * close * close)
             val dot = (unit * 0.0022f / depth).coerceAtMost(unit * 0.01f)
             val colour = if (i % 5 == 0) ink.accent else ink.bright
             if (depth < 0.35f) {
                 // A trail back to where it was a moment ago.
                 val back = spread[i] * reach / (depth + 0.06f)
-                drawLine(colour, Offset(cx + dirX[i] * back, cy + dirY[i] * back), Offset(x, y), dot, alpha = alpha * 0.6f)
+                drawLine(colour, Offset(cx + px + dirX[i] * back, cy + py + dirY[i] * back), Offset(x, y), dot, alpha = alpha * 0.6f)
             }
             drawCircle(colour, dot, Offset(x, y), alpha = alpha)
         }

@@ -85,21 +85,26 @@ internal class ShapesScene : BackgroundScene {
     private val ry = FloatArray(12)
     private val rz = FloatArray(12)
 
-    override fun DrawScope.paint(t: Float, ink: BackgroundInk) {
+    override val layered: Boolean get() = true
+
+    override fun DrawScope.paint(f: SceneTime, ink: BackgroundInk) {
+        val t = f.t
+        val m = f.motion
         val unit = size.minDimension
         val stroke = (unit * 0.0045f).coerceAtLeast(1f)
-        for (f in floaters) {
-            val cx = (f.x + f.driftX * wave(t, f.timesX, f.phase)) * size.width
-            val cy = (f.y + f.driftY * wave(t, f.timesY, f.phase * 1.4f)) * size.height
-            val r = f.scale * unit
-            val ax = TAU * cycle(t, f.spinX, f.phase)
-            val ay = TAU * cycle(t, f.spinY, f.phase * 0.5f)
-            val az = TAU * cycle(t, f.spinZ, f.phase * 0.3f)
+        for (fl in floaters) {
+            val depth = fl.scale / 0.11f
+            val cx = (fl.x + fl.driftX * m * wave(t, fl.timesX, fl.phase)) * size.width + f.shiftX * depth
+            val cy = (fl.y + fl.driftY * m * wave(t, fl.timesY, fl.phase * 1.4f)) * size.height + f.shiftY * depth
+            val r = fl.scale * unit
+            val ax = TAU * cycle(f.travel, fl.spinX, fl.phase)
+            val ay = TAU * cycle(f.travel, fl.spinY, fl.phase * 0.5f)
+            val az = TAU * cycle(f.travel, fl.spinZ, fl.phase * 0.3f)
             val cosX = cos(ax); val sinX = sin(ax)
             val cosY = cos(ay); val sinY = sin(ay)
             val cosZ = cos(az); val sinZ = sin(az)
-            val points = f.solid.points
-            for (i in 0 until f.solid.size) {
+            val points = fl.solid.points
+            for (i in 0 until fl.solid.size) {
                 val x0 = points[i * 3]
                 val y0 = points[i * 3 + 1]
                 val z0 = points[i * 3 + 2]
@@ -115,8 +120,8 @@ internal class ShapesScene : BackgroundScene {
                 ry[i] = cy + y3 * near * r
                 rz[i] = z2
             }
-            val colour = if (f.accent) ink.accent else ink.primary
-            val edges = f.solid.edges
+            val colour = if (fl.accent) ink.accent else ink.primary
+            val edges = fl.solid.edges
             var e = 0
             while (e < edges.size) {
                 val a = edges[e]

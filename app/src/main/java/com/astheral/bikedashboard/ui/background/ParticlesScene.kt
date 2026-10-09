@@ -41,17 +41,23 @@ internal class ParticlesScene : BackgroundScene {
         }
     }
 
-    override fun DrawScope.paint(t: Float, ink: BackgroundInk) {
+    override val layered: Boolean get() = true
+
+    override fun DrawScope.paint(f: SceneTime, ink: BackgroundInk) {
+        val t = f.t
+        val m = f.motion
         val w = size.width
         val h = size.height
         val unit = size.minDimension
         val margin = unit * 0.03f
         for (i in 0 until count) {
             // Each trip there and back is 2 on the bounce scale, so the loop lines up.
-            val bx = bounce(startX[i] + 2f * tripsX[i] * t / LOOP_SECONDS) + 0.012f * wave(t, 40, wobble[i])
-            val by = bounce(startY[i] + 2f * tripsY[i] * t / LOOP_SECONDS) + 0.012f * wave(t, 30, wobble[i] * 1.7f)
-            px[i] = margin + bx * (w - 2 * margin)
-            py[i] = margin + by * (h - 2 * margin)
+            val bx = bounce(startX[i] + 2f * tripsX[i] * f.travel / LOOP_SECONDS) + 0.012f * m * wave(t, 40, wobble[i])
+            val by = bounce(startY[i] + 2f * tripsY[i] * f.travel / LOOP_SECONDS) + 0.012f * m * wave(t, 30, wobble[i] * 1.7f)
+            // Bigger specks are nearer, so they move more with the tilt.
+            val depth = 0.3f + radius[i] / 0.016f * 0.7f
+            px[i] = margin + bx * (w - 2 * margin) + f.shiftX * depth
+            py[i] = margin + by * (h - 2 * margin) + f.shiftY * depth
         }
         val reach = unit * 0.26f
         val stroke = (unit * 0.0028f).coerceAtLeast(1f)

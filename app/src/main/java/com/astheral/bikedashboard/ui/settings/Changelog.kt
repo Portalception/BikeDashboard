@@ -7,6 +7,16 @@ data class Release(val version: String, val date: LocalDate, val changes: List<S
 /** Major changes in each version, newest first. Add an entry here with every version you share. */
 val CHANGELOG = listOf(
     Release(
+        version = "0.6.4",
+        date = LocalDate.of(2026, 10, 9),
+        changes = listOf(
+            "Backgrounds have their own page (Personalisation > Background), with the chosen one running live behind see-through cards.",
+            "New Random background: a different one each time the app starts. The page shows which one you got today.",
+            "Parallax Effect: the background shifts gently as you tilt the phone. On by default.",
+            "Movement and Speed sliders to make the background calmer or livelier. All of these are saved per bike.",
+        ),
+    ),
+    Release(
         version = "0.6.3",
         date = LocalDate.of(2026, 10, 9),
         changes = listOf(
