@@ -15,6 +15,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -39,6 +40,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.astheral.bikedashboard.data.ideasFile
 import com.astheral.bikedashboard.ui.components.AccentChip
+import com.astheral.bikedashboard.ui.components.ConfirmDialog
 import com.astheral.bikedashboard.ui.components.NumberFont
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -72,6 +74,13 @@ class IdeasViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /** Empties the notebook and saves straight away. */
+    fun eraseAll() {
+        pendingSave?.cancel()
+        _text.value = ""
+        viewModelScope.launch { save("") }
+    }
+
     private suspend fun save(text: String) = withContext(Dispatchers.IO) { file.writeText(text) }
 
     override fun onCleared() {
@@ -86,6 +95,7 @@ fun IdeasScreen(onBack: () -> Unit, viewModel: IdeasViewModel = viewModel()) {
     val text by viewModel.text.collectAsState()
     val clipboard = LocalClipboardManager.current
     var copied by remember { mutableStateOf(false) }
+    var confirmErase by remember { mutableStateOf(false) }
     val current = text ?: return
 
     Column(
@@ -102,6 +112,9 @@ fun IdeasScreen(onBack: () -> Unit, viewModel: IdeasViewModel = viewModel()) {
             Text("Ideas", Modifier.weight(1f), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
             IconButton(onClick = { clipboard.setText(AnnotatedString(current)); copied = true }) {
                 Icon(Icons.Filled.ContentCopy, contentDescription = "Copy all")
+            }
+            IconButton(onClick = { confirmErase = true }, enabled = current.isNotEmpty()) {
+                Icon(Icons.Filled.DeleteSweep, contentDescription = "Erase all")
             }
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -123,6 +136,16 @@ fun IdeasScreen(onBack: () -> Unit, viewModel: IdeasViewModel = viewModel()) {
             shape = RoundedCornerShape(20.dp),
             colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = MaterialTheme.colorScheme.tertiary),
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+        )
+    }
+
+    if (confirmErase) {
+        ConfirmDialog(
+            title = "Erase all ideas?",
+            message = "This clears the whole notebook. Copy it first if you might want it. This can't be undone.",
+            confirm = "Erase all",
+            onDismiss = { confirmErase = false },
+            onConfirm = { confirmErase = false; copied = false; viewModel.eraseAll() },
         )
     }
 }
