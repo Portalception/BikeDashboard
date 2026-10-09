@@ -80,6 +80,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import com.astheral.bikedashboard.calc.CardLayout
+import com.astheral.bikedashboard.calc.ChartLayout
+import com.astheral.bikedashboard.calc.DashChart
+import com.astheral.bikedashboard.calc.MetricChange
+import com.astheral.bikedashboard.calc.compareLastFill
+import com.astheral.bikedashboard.calc.comparePreviousDays
+import com.astheral.bikedashboard.ui.components.CompactChange
 import com.astheral.bikedashboard.calc.DashCard
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.SwapHoriz
@@ -145,6 +151,8 @@ data class DashboardData(
     val rmPerSgd: Double?,
     /** Service intervals that are due soon or overdue, most urgent first. */
     val due: List<IntervalStatus> = emptyList(),
+    /** Each card's number next to the period before (none for Lifetime). */
+    val comparisons: Map<Period, Map<DashCard, MetricChange>> = emptyMap(),
 )
 
 private fun recent(stats: List<FillUpStats>, value: (FillUpStats) -> Double?) =
@@ -162,6 +170,16 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun setCards(layout: CardLayout) = settings.setDashboardCards(layout)
     fun markCardsTipSeen() = settings.markDashboardCardsTipSeen()
+
+    /** Which charts show, and in what order. */
+    val charts: StateFlow<ChartLayout> = settings.dashboardCharts
+    val chartsTipSeen: StateFlow<Boolean> = settings.dashboardChartsTipSeen
+
+    fun setCharts(layout: ChartLayout) = settings.setDashboardCharts(layout)
+    fun markChartsTipSeen() = settings.markDashboardChartsTipSeen()
+
+    /** Whether the cards show arrows comparing with the period before. */
+    val comparisons: StateFlow<Boolean> = settings.periodComparisons
 
     private val db = AppDatabase.get(application)
 
@@ -211,6 +229,11 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                 today = today,
                 rmPerSgd = stats.lastOrNull { it.fillUp.rmPerSgd != null }?.fillUp?.rmPerSgd,
                 due = due,
+                comparisons = mapOf(
+                    Period.LAST to compareLastFill(stats),
+                    Period.WEEK to comparePreviousDays(stats, today, 7),
+                    Period.MONTH to comparePreviousDays(stats, today, 30),
+                ),
             )
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
@@ -250,17 +273,28 @@ fun DashboardScreen(
     val units by viewModel.units.collectAsState()
     val cards by viewModel.cards.collectAsState()
     val tipSeen by viewModel.cardsTipSeen.collectAsState()
-    var arranging by rememberSaveable { mutableStateOf(false) }
+    val charts by viewModel.charts.collectAsState()
+    val chartsTipSeen by viewModel.chartsTipSeen.collectAsState()
+    val comparisons by viewModel.comparisons.collectAsState()
+    // The tab the arrange sheet opens on, or null while it's closed.
+    var arranging by rememberSaveable { mutableStateOf<ArrangeTab?>(null) }
     val d = data ?: return
     val pager = periodPager
     val scope = rememberCoroutineScope()
-    if (arranging) {
-        ArrangeCardsSheet(cards, viewModel::setCards, onDismiss = { arranging = false })
+    arranging?.let { tab ->
+        ArrangeSheet(cards, viewModel::setCards, charts, viewModel::setCharts, tab, onDismiss = { arranging = null })
     }
-    val tiles = TileSettings(cards, units, showTip = !tipSeen, onUnits = viewModel::updateUnits, onArrange = {
-        arranging = true
-        viewModel.markCardsTipSeen()
-    })
+    val tiles = TileSettings(
+        cards, charts, units,
+        showTip = !tipSeen,
+        showChartsTip = !chartsTipSeen,
+        comparisons = comparisons,
+        onUnits = viewModel::updateUnits,
+        onArrange = { tab ->
+            arranging = tab
+            if (tab == ArrangeTab.CARDS) viewModel.markCardsTipSeen() else viewModel.markChartsTipSeen()
+        },
+    )
     Column(
         Modifier
             .fillMaxSize()
@@ -311,13 +345,40 @@ private fun PeriodPage(period: Period, d: DashboardData, tiles: TileSettings, on
         GroupCard(contentPadding = 12.dp, edge = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.45f)) {
             PeriodTiles(period, d.summary.of(period), d, tiles, onOpen)
         }
+        val visible = tiles.charts.visible
+        if (visible.isEmpty()) return@Column
         val charts = d.charts.getValue(period)
         if (period.days != null && d.summary.of(period).fillUpCount == 0) {
             Text("No fill-ups in the last ${period.days} days, so there's nothing to chart.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         } else {
-            PriceChart(charts, d.hasOldMixed, period.chartLabel) { onOpen(Metric.PRICE) }
-            EconomyChart(charts, period.chartLabel, units.economy) { onOpen(Metric.ECONOMY) }
-            SpendChart(charts, period.chartLabel, byMonth = period == Period.LIFETIME) { onOpen(Metric.SPEND) }
+            val haptic = LocalHapticFeedback.current
+            val arrange = {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                tiles.onArrange(ArrangeTab.CHARTS)
+            }
+            val label = period.chartLabel
+            visible.forEach { chart ->
+                key(chart) {
+                    val open = { onOpen(chart.metric) }
+                    when (chart) {
+                        DashChart.ECONOMY -> EconomyChart(charts, label, units.economy, open, arrange)
+                        DashChart.PRICE -> PriceChart(charts, d.hasOldMixed, label, open, arrange)
+                        DashChart.SPEND -> SpendChart(charts, label, byMonth = period == Period.LIFETIME, open, arrange)
+                        DashChart.KM_PER_DAY -> TrendChart(chart.title, charts.kmPerDay, units.distanceTime, label, onClick = open, onLongClick = arrange)
+                        DashChart.COST_PER_DAY -> TrendChart(chart.title, charts.costPerDay, units.timeCost, label, onClick = open, onLongClick = arrange)
+                        DashChart.COST_PER_KM -> TrendChart(chart.title, charts.costPerKm, units.distanceCost, label, onClick = open, onLongClick = arrange)
+                        DashChart.SAVINGS -> SavingsChart(charts, label, byMonth = period == Period.LIFETIME, open, arrange)
+                    }
+                }
+            }
+        }
+        if (tiles.showChartsTip) {
+            Text(
+                "Press and hold a chart to arrange charts or show more.",
+                Modifier.padding(horizontal = 6.dp),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
@@ -385,13 +446,17 @@ private fun Empty(onAddFillUp: () -> Unit, onImport: () -> Unit) {
     }
 }
 
-/** What the tiles need besides the numbers: which to show, their units, and the arrange sheet. */
+/** What the tiles and charts need besides the numbers: which to show, their units, and the arrange sheet. */
 private class TileSettings(
     val cards: CardLayout,
+    val charts: ChartLayout,
     val units: Units,
     val showTip: Boolean,
+    val showChartsTip: Boolean,
+    /** Period comparisons switched on in Settings. */
+    val comparisons: Boolean,
     val onUnits: ((Units) -> Units) -> Unit,
-    val onArrange: () -> Unit,
+    val onArrange: (ArrangeTab) -> Unit,
 )
 
 @Composable
@@ -427,7 +492,13 @@ private fun PeriodTiles(
         val price = units.price.at(d.rmPerSgd)
         val onLongClick = {
             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-            settings.onArrange()
+            settings.onArrange(ArrangeTab.CARDS)
+        }
+        val changes = if (settings.comparisons) d.comparisons[period] else null
+        val missing = when (period) {
+            Period.LAST -> "No earlier fill"
+            Period.WEEK -> "No previous week"
+            else -> "No previous 30 days"
         }
 
         @Composable
@@ -436,27 +507,27 @@ private fun PeriodTiles(
             val open = { onOpen(card.metric) }
             when (card) {
                 DashCard.ECONOMY -> StatTile(
-                    label, summary.kmPerLitre, units.economy, t.kmPerLitre, highlight(t.kmPerLitre), accent, modifier, open,
+                    changes?.get(card), missing, label, summary.kmPerLitre, units.economy, t.kmPerLitre, highlight(t.kmPerLitre), accent, modifier, open,
                     onSwitchUnit = { onUnits { it.copy(economy = it.economy.next()) } },
                     onLongClick = onLongClick,
                 )
                 DashCard.KM_PER_DAY -> StatTile(
-                    label, summary.kmPerDay, units.distanceTime, t.kmPerDay, highlight(t.kmPerDay), accent, modifier, open,
+                    changes?.get(card), missing, label, summary.kmPerDay, units.distanceTime, t.kmPerDay, highlight(t.kmPerDay), accent, modifier, open,
                     onSwitchUnit = { onUnits { it.copy(distanceTime = it.distanceTime.next()) } },
                     onLongClick = onLongClick,
                 )
                 DashCard.COST_PER_DAY -> StatTile(
-                    label, summary.costPerDay, units.timeCost, t.costPerDay, highlight(t.costPerDay), accent, modifier, open,
+                    changes?.get(card), missing, label, summary.costPerDay, units.timeCost, t.costPerDay, highlight(t.costPerDay), accent, modifier, open,
                     onSwitchUnit = { onUnits { it.copy(timeCost = it.timeCost.next()) } },
                     onLongClick = onLongClick,
                 )
                 DashCard.COST_PER_KM -> StatTile(
-                    label, summary.costPerKm, units.distanceCost, t.costPerKm, highlight(t.costPerKm), accent, modifier, open,
+                    changes?.get(card), missing, label, summary.costPerKm, units.distanceCost, t.costPerKm, highlight(t.costPerKm), accent, modifier, open,
                     onSwitchUnit = { onUnits { it.copy(distanceCost = it.distanceCost.next()) } },
                     onLongClick = onLongClick,
                 )
                 DashCard.PRICE -> StatTile(
-                    label, summary.pricePerLitre, price, t.pricePerLitre, highlight(t.pricePerLitre), accent, modifier, open,
+                    changes?.get(card), missing, label, summary.pricePerLitre, price, t.pricePerLitre, highlight(t.pricePerLitre), accent, modifier, open,
                     // Ringgit needs a rate, so without one there's nothing to switch to.
                     onSwitchUnit = if (d.rmPerSgd == null) null else ({ onUnits { it.copy(price = it.price.next()) } }),
                     onLongClick = onLongClick,
@@ -464,7 +535,7 @@ private fun PeriodTiles(
                 DashCard.SAVINGS -> {
                     val saved = summary.savingsSgd
                     StatTile(
-                        label, saved, SgdUnit, t.savings, highlight(t.savings),
+                        changes?.get(card), missing, label, saved, SgdUnit, t.savings, highlight(t.savings),
                         if (saved != null && saved < 0) error else CountryColors.my,
                         modifier, open,
                         onLongClick = onLongClick,
@@ -478,6 +549,18 @@ private fun PeriodTiles(
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 row.forEach { card -> key(card) { Tile(card, Modifier.weight(1f)) } }
             }
+        }
+        if (changes != null) {
+            Text(
+                when (period) {
+                    Period.LAST -> "Arrows compare with your previous fill-up."
+                    Period.WEEK -> "Arrows compare with the 7 days before."
+                    else -> "Arrows compare with the 30 days before."
+                },
+                Modifier.padding(horizontal = 6.dp),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
         if (settings.showTip) {
             Text(
@@ -504,6 +587,10 @@ private fun caption(period: Period, s: PeriodSummary, last: FillUp): String = wh
  */
 @Composable
 private fun StatTile(
+    /** This number next to the period before, or null to show no comparison line. */
+    change: MetricChange?,
+    /** What the comparison line says when there's nothing to compare with. */
+    missing: String,
     label: String,
     value: Double?,
     unit: DisplayUnit,
@@ -538,6 +625,11 @@ private fun StatTile(
                         )
                     }
                 }
+            }
+            change?.let {
+                // Without a number there's nothing to compare, but the line keeps tiles in a row level.
+                if (value == null) Text(" ", style = MaterialTheme.typography.labelSmall)
+                else CompactChange(it, unit, missing)
             }
             Box(Modifier.padding(top = 2.dp)) { MiniBars(series.map { unit.convert(it.value) }, highlight, color) }
         }

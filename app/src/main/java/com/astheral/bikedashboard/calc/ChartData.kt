@@ -34,6 +34,14 @@ data class ChartData(
     val fillSpend: List<DatedValue> = emptyList(),
     /** [fillSpend] split by country, in the same order. */
     val fillSplit: List<SpendSplit> = emptyList(),
+    /** Km ridden per day, cost per day and cost per km: one point per full tank that closes a measured stretch. */
+    val kmPerDay: List<DatedValue> = emptyList(),
+    val costPerDay: List<DatedValue> = emptyList(),
+    val costPerKm: List<DatedValue> = emptyList(),
+    /** What each fill-up with a Malaysian part saved (negative when it cost more). */
+    val savings: List<DatedValue> = emptyList(),
+    /** [savings] added up per calendar month, every month from the first fill-up to the last. */
+    val monthlySavings: List<Pair<YearMonth, Double>> = emptyList(),
 )
 
 fun chartData(stats: List<FillUpStats>): ChartData {
@@ -49,6 +57,9 @@ fun chartData(stats: List<FillUpStats>): ChartData {
             .map { month -> spend[month].let { MonthlySpend(month, it?.total ?: 0.0, it ?: SpendSplit()) } }
             .toList()
     }
+    val savingsByMonth = stats.mapNotNull { s -> s.savingsSgd?.let { YearMonth.from(s.fillUp.date) to it } }
+        .groupBy({ it.first }, { it.second }).mapValues { it.value.sum() }
+    fun series(value: (FillUpStats) -> Double?) = stats.mapNotNull { s -> value(s)?.let { DatedValue(s.fillUp.date, it) } }
     return ChartData(
         sgPrice = stats.mapNotNull { s -> s.fillUp.sgPricePerLitre?.let { DatedValue(s.fillUp.date, it) } },
         myPrice = stats.mapNotNull { s -> s.fillUp.myPricePerLitre?.let { DatedValue(s.fillUp.date, it) } },
@@ -56,6 +67,11 @@ fun chartData(stats: List<FillUpStats>): ChartData {
         monthlySpend = months,
         fillSpend = stats.map { DatedValue(it.fillUp.date, it.fillUp.totalCostSgd) },
         fillSplit = stats.map { it.fillUp.spendSplit },
+        kmPerDay = series { it.kmPerDay },
+        costPerDay = series { it.costPerDay },
+        costPerKm = series { it.costPerKm },
+        savings = series { it.savingsSgd },
+        monthlySavings = if (savingsByMonth.isEmpty()) emptyList() else months.map { it.month to (savingsByMonth[it.month] ?: 0.0) },
     )
 }
 

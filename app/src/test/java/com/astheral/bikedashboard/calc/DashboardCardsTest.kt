@@ -67,4 +67,33 @@ class DashboardCardsTest {
         assertTrue(l.canHide(PRICE))
         assertEquals(listOf(ECONOMY, PRICE), l.setShown(PRICE, true).visible)
     }
+
+    @Test
+    fun chartsDefaultToTheOldThreeShownAndNewOnesHidden() {
+        val d = ChartLayout()
+        assertEquals(listOf(DashChart.ECONOMY, DashChart.PRICE, DashChart.SPEND), d.visible)
+        assertEquals(DashChart.entries.toList(), d.order)
+        assertEquals(d, ChartLayout.parse(null))
+        assertEquals(d, ChartLayout.parse(d.format()))
+    }
+
+    @Test
+    fun everyChartCanBeHidden() {
+        var l = ChartLayout()
+        DashChart.entries.forEach { l = l.setShown(it, false) }
+        assertTrue(l.visible.isEmpty())
+        assertEquals(l, ChartLayout.parse(l.format()))
+    }
+
+    @Test
+    fun chartParseSkipsUnknownAndAppendsMissingInDefaultState() {
+        val l = ChartLayout.parse("SPEND,!ECONOMY,NOPE,SPEND,KM_PER_DAY")
+        assertEquals(
+            listOf(DashChart.SPEND, DashChart.ECONOMY, DashChart.KM_PER_DAY, DashChart.PRICE, DashChart.COST_PER_DAY, DashChart.COST_PER_KM, DashChart.SAVINGS),
+            l.order,
+        )
+        // KM Daily was saved as shown; the ones not mentioned keep their default.
+        assertEquals(setOf(DashChart.ECONOMY, DashChart.COST_PER_DAY, DashChart.COST_PER_KM, DashChart.SAVINGS), l.hidden)
+        assertEquals(listOf(DashChart.SPEND, DashChart.ECONOMY, DashChart.PRICE), ChartLayout().move(DashChart.SPEND, 0).visible)
+    }
 }

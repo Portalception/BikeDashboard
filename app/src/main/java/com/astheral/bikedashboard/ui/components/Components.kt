@@ -10,6 +10,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -119,10 +120,19 @@ fun GroupCard(
     color: Color = MaterialTheme.colorScheme.surfaceContainerLow,
     contentPadding: Dp = 0.dp,
     onClick: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val body: @Composable () -> Unit = { Column(Modifier.padding(contentPadding), content = content) }
-    if (onClick == null) {
+    if (onLongClick != null) {
+        Surface(
+            modifier.fillMaxWidth().clip(CardShape).combinedClickable(onLongClick = onLongClick, onClick = onClick ?: {}),
+            shape = CardShape,
+            color = color,
+            border = outline(edge),
+            content = body,
+        )
+    } else if (onClick == null) {
         Surface(modifier.fillMaxWidth(), shape = CardShape, color = color, border = outline(edge), content = body)
     } else {
         Surface(onClick = onClick, modifier = modifier.fillMaxWidth(), shape = CardShape, color = color, border = outline(edge), content = body)

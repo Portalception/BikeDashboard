@@ -24,7 +24,9 @@ import androidx.compose.ui.unit.sp
 import com.astheral.bikedashboard.calc.ChartData
 import com.astheral.bikedashboard.calc.DatedValue
 import com.astheral.bikedashboard.calc.SpendSplit
+import com.astheral.bikedashboard.ui.DisplayUnit
 import com.astheral.bikedashboard.ui.EconomyUnit
+import com.astheral.bikedashboard.ui.sgd
 import com.astheral.bikedashboard.ui.components.AccentChip
 import com.astheral.bikedashboard.ui.components.GroupCard
 import com.astheral.bikedashboard.ui.theme.CountryColors
@@ -86,9 +88,10 @@ private fun ChartCard(
     legend: List<Pair<String, Color>> = emptyList(),
     note: String? = null,
     onClick: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
     chart: @Composable () -> Unit,
 ) {
-    GroupCard(contentPadding = 20.dp, onClick = onClick) {
+    GroupCard(contentPadding = 20.dp, onClick = onClick, onLongClick = onLongClick) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(title, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
@@ -188,7 +191,7 @@ internal fun fittedRange(values: List<Double>): CartesianLayerRangeProvider = re
 }
 
 @Composable
-fun PriceChart(data: ChartData, hasOldMixed: Boolean, period: String, onClick: (() -> Unit)? = null) {
+fun PriceChart(data: ChartData, hasOldMixed: Boolean, period: String, onClick: (() -> Unit)? = null, onLongClick: (() -> Unit)? = null) {
     if (data.sgPrice.isEmpty() && data.myPrice.isEmpty()) return
     val producer = remember { CartesianChartModelProducer() }
     // Each country only gets a line if it has points; Vico needs every series to be non-empty.
@@ -214,6 +217,7 @@ fun PriceChart(data: ChartData, hasOldMixed: Boolean, period: String, onClick: (
         },
         note = if (hasOldMixed) "In SGD. Old mixed fill-ups aren't shown, because their price is a blend of both countries." else "In SGD.",
         onClick = onClick,
+        onLongClick = onLongClick,
     ) {
         FittedChart(
             rememberCartesianChart(
@@ -231,7 +235,7 @@ fun PriceChart(data: ChartData, hasOldMixed: Boolean, period: String, onClick: (
 
 /** Fuel economy in the unit picked on the dashboard tile. */
 @Composable
-fun EconomyChart(data: ChartData, period: String, unit: EconomyUnit = EconomyUnit.KM_PER_L, onClick: (() -> Unit)? = null) {
+fun EconomyChart(data: ChartData, period: String, unit: EconomyUnit = EconomyUnit.KM_PER_L, onClick: (() -> Unit)? = null, onLongClick: (() -> Unit)? = null) {
     if (data.kmPerLitre.isEmpty()) return
     val producer = remember { CartesianChartModelProducer() }
     val every = labelEvery(data.kmPerLitre)
@@ -240,7 +244,7 @@ fun EconomyChart(data: ChartData, period: String, unit: EconomyUnit = EconomyUni
             lineSeries { series(data.kmPerLitre.map { it.date.toEpochDay() }, data.kmPerLitre.map { unit.convert(it.value) }) }
         }
     }
-    ChartCard("Fuel Economy (${unit.label})", period, onClick = onClick) {
+    ChartCard("Fuel Economy (${unit.label})", period, onClick = onClick, onLongClick = onLongClick) {
         FittedChart(
             rememberCartesianChart(
                 rememberLineCartesianLayer(
@@ -261,7 +265,7 @@ fun EconomyChart(data: ChartData, period: String, unit: EconomyUnit = EconomyUni
  * the petrol was pumped, stacked when a fill-up or month has both.
  */
 @Composable
-fun SpendChart(data: ChartData, period: String, byMonth: Boolean, onClick: (() -> Unit)? = null) {
+fun SpendChart(data: ChartData, period: String, byMonth: Boolean, onClick: (() -> Unit)? = null, onLongClick: (() -> Unit)? = null) {
     val labels: List<String>
     val splits: List<SpendSplit>
     if (byMonth) {
@@ -294,6 +298,7 @@ fun SpendChart(data: ChartData, period: String, byMonth: Boolean, onClick: (() -
         period,
         legend = parts.map { (name, color, _) -> name to color },
         onClick = onClick,
+        onLongClick = onLongClick,
     ) {
         FittedChart(
             rememberCartesianChart(
@@ -303,6 +308,119 @@ fun SpendChart(data: ChartData, period: String, byMonth: Boolean, onClick: (() -
                 ),
                 startAxis = startAxis(yFormatter(0, "S$")),
                 bottomAxis = bottomAxis(axis, if (splits.size > 12) 3 else 2),
+            ),
+            producer,
+        )
+    }
+}
+
+/** Decimal places for y axis labels, so values a few apart get none and tiny ones get enough. */
+internal fun axisDigits(values: List<Double>): Int {
+    if (values.isEmpty()) return 1
+    val size = maxOf(values.max() - values.min(), values.maxOf { kotlin.math.abs(it) } * 0.1)
+    return when {
+        size >= 20 -> 0
+        size >= 2 -> 1
+        size >= 0.2 -> 2
+        else -> 3
+    }
+}
+
+/**
+ * One number over time as a line, one point per fill-up that has it, shown in [unit]. Two
+ * fill-ups on the same day keep the later one, so the line doesn't double back.
+ */
+@Composable
+fun TrendChart(
+    title: String,
+    points: List<DatedValue>,
+    unit: DisplayUnit,
+    period: String,
+    color: Color = EconomyColor,
+    note: String? = "In ${unit.label}.",
+    onClick: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
+) {
+    if (points.isEmpty()) return
+    val byDay = remember(points, unit) {
+        points.associate { it.date.toEpochDay() to unit.convert(it.value) }.toList()
+    }
+    val producer = remember { CartesianChartModelProducer() }
+    val every = labelEvery(points)
+    LaunchedEffect(byDay) {
+        producer.runTransaction { lineSeries { series(byDay.map { it.first }, byDay.map { it.second }) } }
+    }
+    ChartCard(title, period, note = note, onClick = onClick, onLongClick = onLongClick) {
+        FittedChart(
+            rememberCartesianChart(
+                rememberLineCartesianLayer(
+                    LineCartesianLayer.LineProvider.series(line(color, byDay.size)),
+                    rangeProvider = fittedRange(byDay.map { it.second }),
+                ),
+                startAxis = startAxis(yFormatter(axisDigits(byDay.map { it.second }))),
+                bottomAxis = bottomAxis(dateAxis(every < 45), every),
+            ),
+            producer,
+        )
+    }
+}
+
+/**
+ * What pumping in Malaysia saved, as bars: one per Malaysian fill-up over a short period, or one
+ * per month over a lifetime ([byMonth]). Savings are green; a fill-up or month where Malaysia
+ * cost more than Singapore would have goes below the line in red.
+ */
+@Composable
+fun SavingsChart(data: ChartData, period: String, byMonth: Boolean, onClick: (() -> Unit)? = null, onLongClick: (() -> Unit)? = null) {
+    val labels: List<String>
+    val values: List<Double>
+    if (byMonth) {
+        labels = data.monthlySavings.map { it.first.format(MONTH_YEAR) }
+        values = data.monthlySavings.map { it.second }
+    } else {
+        labels = data.savings.map { it.date.format(DAY_MONTH) }
+        values = data.savings.map { it.value }
+    }
+    if (values.isEmpty()) return
+    val saved = CountryColors.my
+    val lost = MaterialTheme.colorScheme.error
+    // Gains and losses are two series so each gets its colour; at each bar one of them is zero.
+    val parts = listOf<Triple<String, Color, (Double) -> Double>>(
+        Triple("Saved", saved, { maxOf(it, 0.0) }),
+        Triple("Cost More", lost, { minOf(it, 0.0) }),
+    ).filter { (_, _, part) -> values.any { part(it) != 0.0 } }
+    val producer = remember { CartesianChartModelProducer() }
+    LaunchedEffect(labels, values) {
+        producer.runTransaction {
+            if (parts.isEmpty()) {
+                columnSeries { series(values.indices.toList(), values) }
+            } else {
+                columnSeries { parts.forEach { (_, _, part) -> series(values.indices.toList(), values.map(part)) } }
+            }
+        }
+    }
+    val axis = remember(labels) { CartesianValueFormatter { _, x, _ -> labels[x.toInt().coerceIn(0, labels.lastIndex)] } }
+    val thickness = if (values.size > 12) 8.dp else 14.dp
+    val total = values.sum()
+    ChartCard(
+        if (byMonth) "Monthly Petrol Savings (SGD)" else "Petrol Savings per Fill-Up (SGD)",
+        period,
+        legend = if (parts.size > 1) parts.map { (name, color, _) -> name to color } else emptyList(),
+        note = (if (total >= 0) "${sgd(total)} saved here in all" else "${sgd(-total)} more than Singapore here in all") +
+            (if (byMonth) ", by month." else ", from fill-ups with Malaysian petrol."),
+        onClick = onClick,
+        onLongClick = onLongClick,
+    ) {
+        FittedChart(
+            rememberCartesianChart(
+                rememberColumnCartesianLayer(
+                    ColumnCartesianLayer.ColumnProvider.series(
+                        (if (parts.isEmpty()) listOf(saved) else parts.map { it.second }).map { rememberLineComponent(fill = Fill(it), thickness = thickness) },
+                    ),
+                    mergeMode = { ColumnCartesianLayer.MergeMode.Stacked },
+                ),
+                startAxis = startAxis(yFormatter(0, "S$")),
+                bottomAxis = bottomAxis(axis, if (values.size > 12) 3 else 2),
             ),
             producer,
         )

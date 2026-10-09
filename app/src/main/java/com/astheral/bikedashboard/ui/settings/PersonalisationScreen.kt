@@ -29,6 +29,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.CompareArrows
+import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
@@ -119,6 +121,10 @@ class PersonalisationViewModel(application: Application) : AndroidViewModel(appl
 
     fun setGreetings(on: Boolean) = settings.setGreetings(on)
 
+    val periodComparisons: StateFlow<Boolean> = settings.periodComparisons
+
+    fun setPeriodComparisons(on: Boolean) = settings.setPeriodComparisons(on)
+
     /** Saved now; the launcher switches over once you leave the app (see MainActivity). */
     fun setAppIcon(icon: AppIcon) = settings.setAppIcon(icon)
 
@@ -137,6 +143,7 @@ fun PersonalisationScreen(onBack: () -> Unit, onOpenBackground: () -> Unit, view
     val legacyIconUnlocked by viewModel.legacyIconUnlocked.collectAsState()
     val bikeName by viewModel.bikeName.collectAsState()
     val greetings by viewModel.greetings.collectAsState()
+    val comparisons by viewModel.periodComparisons.collectAsState()
     val update = viewModel::updateAppearance
 
     Column(
@@ -234,6 +241,18 @@ fun PersonalisationScreen(onBack: () -> Unit, onOpenBackground: () -> Unit, view
                 onClick = { viewModel.setGreetings(!greetings) },
             ) {
                 Switch(checked = greetings, onCheckedChange = viewModel::setGreetings)
+            }
+        }
+
+        SectionHeader(Icons.Filled.Dashboard, "Dashboard")
+        GroupCard {
+            SettingRow(
+                Icons.AutoMirrored.Filled.CompareArrows,
+                "Period Comparisons",
+                "Green and red arrows on the cards, compared with the period before",
+                onClick = { viewModel.setPeriodComparisons(!comparisons) },
+            ) {
+                Switch(checked = comparisons, onCheckedChange = viewModel::setPeriodComparisons)
             }
         }
 

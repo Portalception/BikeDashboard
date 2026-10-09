@@ -20,13 +20,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.LocalGasStation
 import androidx.compose.material.icons.filled.Navigation
-import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -60,6 +57,10 @@ import com.astheral.bikedashboard.data.Country
 import com.astheral.bikedashboard.data.Profiles
 import com.astheral.bikedashboard.ui.components.AccentChip
 import com.astheral.bikedashboard.ui.components.CountUpText
+import com.astheral.bikedashboard.ui.components.directionIcon
+import com.astheral.bikedashboard.ui.components.signed
+import com.astheral.bikedashboard.ui.components.verdictColor
+import com.astheral.bikedashboard.ui.components.verdictDescription
 import com.astheral.bikedashboard.ui.components.DotLabel
 import com.astheral.bikedashboard.ui.components.GroupCard
 import com.astheral.bikedashboard.ui.components.MiniBars
@@ -77,7 +78,6 @@ import com.astheral.bikedashboard.ui.sgd
 import com.astheral.bikedashboard.ui.sgdPerKm
 import com.astheral.bikedashboard.ui.sgdPerLitre
 import com.astheral.bikedashboard.ui.theme.CountryColors
-import com.astheral.bikedashboard.ui.theme.LocalDarkTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -257,8 +257,8 @@ private fun ChangeLine(change: MetricChange, format: (Double) -> String, small: 
     val color = verdictColor(change.verdict)
     Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(
-            when (direction) { Direction.UP -> Icons.Filled.ArrowUpward; Direction.DOWN -> Icons.Filled.ArrowDownward; Direction.SAME -> Icons.Filled.Remove },
-            contentDescription = when (change.verdict) { Verdict.GOOD -> "Better"; Verdict.BAD -> "Worse"; Verdict.NEUTRAL -> null },
+            directionIcon(direction),
+            contentDescription = verdictDescription(change.verdict),
             tint = color,
             modifier = Modifier.size(if (small) 14.dp else 18.dp),
         )
@@ -272,19 +272,6 @@ private fun ChangeLine(change: MetricChange, format: (Double) -> String, small: 
 }
 
 private const val NOTHING_TO_COMPARE = "Nothing to compare with yet"
-
-private fun signed(delta: Double, format: (Double) -> String): String =
-    if (delta >= 0) "+${format(delta)}" else "−${format(abs(delta))}"
-
-@Composable
-private fun verdictColor(v: Verdict): Color {
-    val dark = LocalDarkTheme.current
-    return when (v) {
-        Verdict.GOOD -> if (dark) Color(0xFF81C784) else Color(0xFF2E7D32)
-        Verdict.BAD -> if (dark) Color(0xFFFF8A80) else Color(0xFFC62828)
-        Verdict.NEUTRAL -> MaterialTheme.colorScheme.onSurfaceVariant
-    }
-}
 
 /** What pumping in Malaysia saved, worked out the same way as everywhere else in the app. */
 @Composable

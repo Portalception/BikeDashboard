@@ -11,6 +11,7 @@ import com.astheral.bikedashboard.calc.ReminderSchedule
 import com.astheral.bikedashboard.calc.RepeatKind
 import com.astheral.bikedashboard.calc.migrateOldReminders
 import com.astheral.bikedashboard.calc.CardLayout
+import com.astheral.bikedashboard.calc.ChartLayout
 import com.astheral.bikedashboard.ui.DistanceCostUnit
 import com.astheral.bikedashboard.ui.DistanceTimeUnit
 import com.astheral.bikedashboard.ui.EconomyUnit
@@ -148,6 +149,38 @@ class Settings private constructor(context: Context) {
         if (_dashboardCardsTipSeen.value) return
         prefs.edit().putBoolean(KEY_DASHBOARD_CARDS_TIP_SEEN, true).apply()
         _dashboardCardsTipSeen.value = true
+    }
+
+    private val _dashboardCharts = MutableStateFlow(ChartLayout.parse(prefs.getString(KEY_DASHBOARD_CHARTS, null)))
+
+    /** Which charts the dashboard shows, and in what order. The same for every bike. */
+    val dashboardCharts: StateFlow<ChartLayout> = _dashboardCharts.asStateFlow()
+
+    fun setDashboardCharts(layout: ChartLayout) {
+        prefs.edit().putString(KEY_DASHBOARD_CHARTS, layout.format()).putBoolean(KEY_DASHBOARD_CHARTS_TIP_SEEN, true).apply()
+        _dashboardCharts.value = layout
+        _dashboardChartsTipSeen.value = true
+    }
+
+    private val _dashboardChartsTipSeen = MutableStateFlow(prefs.getBoolean(KEY_DASHBOARD_CHARTS_TIP_SEEN, false))
+
+    /** The "press and hold a chart" tip goes away once the charts have been arranged once. */
+    val dashboardChartsTipSeen: StateFlow<Boolean> = _dashboardChartsTipSeen.asStateFlow()
+
+    fun markDashboardChartsTipSeen() {
+        if (_dashboardChartsTipSeen.value) return
+        prefs.edit().putBoolean(KEY_DASHBOARD_CHARTS_TIP_SEEN, true).apply()
+        _dashboardChartsTipSeen.value = true
+    }
+
+    private val _periodComparisons = MutableStateFlow(prefs.getBoolean(KEY_PERIOD_COMPARISONS, true))
+
+    /** Arrows on the dashboard cards comparing each number with the period before. On unless switched off. */
+    val periodComparisons: StateFlow<Boolean> = _periodComparisons.asStateFlow()
+
+    fun setPeriodComparisons(on: Boolean) {
+        prefs.edit().putBoolean(KEY_PERIOD_COMPARISONS, on).apply()
+        _periodComparisons.value = on
     }
 
     private inline fun <reified E : Enum<E>> enumOr(key: String, default: E): E =
@@ -362,6 +395,9 @@ class Settings private constructor(context: Context) {
         _units.value = loadUnits()
         _dashboardCards.value = CardLayout.parse(prefs.getString(KEY_DASHBOARD_CARDS, null))
         _dashboardCardsTipSeen.value = prefs.getBoolean(KEY_DASHBOARD_CARDS_TIP_SEEN, false)
+        _dashboardCharts.value = ChartLayout.parse(prefs.getString(KEY_DASHBOARD_CHARTS, null))
+        _dashboardChartsTipSeen.value = prefs.getBoolean(KEY_DASHBOARD_CHARTS_TIP_SEEN, false)
+        _periodComparisons.value = prefs.getBoolean(KEY_PERIOD_COMPARISONS, true)
         _appearances.value = loadAppearances()
         _reminderSchedule.value = loadReminderSchedule()
         _appIcon.value = appIconNamed(prefs.getString(KEY_APP_ICON, null))
@@ -407,6 +443,10 @@ class Settings private constructor(context: Context) {
         /** The dashboard cards' order, hidden ones marked with "!" (see [CardLayout.format]). */
         private const val KEY_DASHBOARD_CARDS = "dashboard_cards"
         private const val KEY_DASHBOARD_CARDS_TIP_SEEN = "dashboard_cards_tip_seen"
+        /** The dashboard charts' order, in the same form as the cards' (see [ChartLayout.format]). */
+        private const val KEY_DASHBOARD_CHARTS = "dashboard_charts"
+        private const val KEY_DASHBOARD_CHARTS_TIP_SEEN = "dashboard_charts_tip_seen"
+        private const val KEY_PERIOD_COMPARISONS = "period_comparisons"
         /** Replaced by [KEY_REMINDER_REPEAT] and friends; only read when upgrading. */
         private const val KEY_OLD_REMINDER_FREQUENCY = "reminder_frequency"
         private const val KEY_REMINDER_REPEAT = "reminder_repeat"
