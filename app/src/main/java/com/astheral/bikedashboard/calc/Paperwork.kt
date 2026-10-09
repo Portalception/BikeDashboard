@@ -12,9 +12,9 @@ const val DEFAULT_PAPERWORK_LEAD_DAYS = 30
  * a number that goes with it. [numberLabel] is null when there's no number to keep.
  */
 enum class LegalItem(val label: String, val numberLabel: String?) {
-    COE("COE", "COE / registration ID"),
-    INSURANCE("Insurance", "Policy number"),
-    ROAD_TAX("Road tax", null),
+    COE("COE", "COE / Registration ID"),
+    INSURANCE("Insurance", "Policy Number"),
+    ROAD_TAX("Road Tax", null),
     INSPECTION("Inspection", null),
     ;
 

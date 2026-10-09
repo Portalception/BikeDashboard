@@ -146,7 +146,7 @@ fun CategoriesScreen(onBack: () -> Unit, viewModel: CategoriesViewModel = viewMo
             }
         }
         GroupCard {
-            SettingRow(Icons.Filled.Add, "Add a category", subtitle = "Like tyres, chain or accessories", onClick = { adding = true })
+            SettingRow(Icons.Filled.Add, "Add a Category", subtitle = "Like tyres, chain or accessories", onClick = { adding = true })
         }
     }
 
@@ -162,7 +162,7 @@ fun CategoriesScreen(onBack: () -> Unit, viewModel: CategoriesViewModel = viewMo
     }
     if (adding) {
         CategoryNameDialog(
-            title = "Add a category",
+            title = "Add a Category",
             initial = "",
             taken = names,
             onDismiss = { adding = false },
@@ -187,7 +187,7 @@ fun CategoriesScreen(onBack: () -> Unit, viewModel: CategoriesViewModel = viewMo
             },
             confirmButton = {
                 TextButton(onClick = { viewModel.delete(row.category); removing = null }) {
-                    Text(if (row.records == 0) "Remove" else "Move and remove", color = MaterialTheme.colorScheme.error)
+                    Text(if (row.records == 0) "Remove" else "Move and Remove", color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = { TextButton(onClick = { removing = null }) { Text("Cancel") } },

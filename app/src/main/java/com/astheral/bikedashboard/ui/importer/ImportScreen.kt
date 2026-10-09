@@ -63,7 +63,7 @@ fun ImportScreen(onBack: () -> Unit, viewModel: ImportViewModel = viewModel()) {
         topBar = {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
-                title = { Text("Import or restore", fontWeight = FontWeight.SemiBold) },
+                title = { Text("Import or Restore", fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
                 },
@@ -84,7 +84,7 @@ fun ImportScreen(onBack: () -> Unit, viewModel: ImportViewModel = viewModel()) {
                         "Choose a full Bike Dashboard backup (.json), a fill-up CSV, or the CSV exported from your fuel " +
                             "spreadsheet. You'll see a preview before anything is saved.",
                     )
-                    Button(onClick = { pickFile.launch(CSV_TYPES) }) { Text("Choose file") }
+                    Button(onClick = { pickFile.launch(CSV_TYPES) }) { Text("Choose File") }
                 }
                 ImportState.Reading, ImportState.Saving -> CircularProgressIndicator()
                 is ImportState.Preview -> Preview(
@@ -104,7 +104,7 @@ fun ImportScreen(onBack: () -> Unit, viewModel: ImportViewModel = viewModel()) {
                 is ImportState.Failed -> {
                     Text(s.message, color = MaterialTheme.colorScheme.error)
                     if (s.problems.isNotEmpty()) ProblemList(s.problems)
-                    Button(onClick = { pickFile.launch(CSV_TYPES) }) { Text("Choose another file") }
+                    Button(onClick = { pickFile.launch(CSV_TYPES) }) { Text("Choose Another File") }
                 }
             }
         }
@@ -146,7 +146,7 @@ private fun FullPreview(s: ImportState.FullPreview, onConfirm: () -> Unit, onCan
     )
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedButton(onClick = onCancel) { Text("Cancel") }
-        Button(onClick = onConfirm) { Text("Restore everything") }
+        Button(onClick = onConfirm) { Text("Restore Everything") }
     }
 }
 
@@ -185,7 +185,7 @@ private fun Preview(s: ImportState.Preview, onConfirm: () -> Unit, onCancel: () 
     }
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedButton(onClick = onCancel) { Text("Cancel") }
-        Button(onClick = onConfirm) { Text("Import ${count(s.fillUps.size, "fill-up")}") }
+        Button(onClick = onConfirm) { Text("Import ${count(s.fillUps.size, "Fill-Up")}") }
     }
 }
 
@@ -201,7 +201,7 @@ private fun CheckReport(mismatches: List<SheetMismatch>) {
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             if (ok) {
-                Text("Check passed", style = MaterialTheme.typography.titleSmall, color = okText)
+                Text("Check Passed", style = MaterialTheme.typography.titleSmall, color = okText)
                 Text(
                     "The app recalculated distance, days, km/L, cost per km, cost per day and price per litre " +
                         "for every row, and they all match your spreadsheet.",

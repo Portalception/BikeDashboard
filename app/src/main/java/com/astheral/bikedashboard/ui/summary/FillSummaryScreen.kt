@@ -129,7 +129,7 @@ fun FillSummaryScreen(id: Long, onDone: () -> Unit) {
     ) {
         Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onDone) { Icon(Icons.Filled.Close, contentDescription = "Close") }
-            Text("Fill-up saved", Modifier.weight(1f), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+            Text("Fill-Up Saved", Modifier.weight(1f), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
             s?.let { AccentChip(it.stats.fillUp.date.long()) }
         }
 
@@ -166,7 +166,7 @@ private fun Hero(s: FillSummary) {
     GroupCard(contentPadding = 22.dp, edge = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.5f)) {
         DotLabel("${fill.country.label()} · ${litres(fill.totalLitres)} · ${km(fill.odometerKm)}", tint)
         Spacer(Modifier.height(12.dp))
-        Text("Fuel economy", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("Fuel Economy", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         val economy = s.kmPerLitre.current
         if (economy == null) {
             Text("—", style = MaterialTheme.typography.displaySmall, fontFamily = NumberFont)
@@ -197,7 +197,7 @@ private fun Tiles(s: FillSummary) {
         Triple("Cost per km", s.costPerKm, ::sgdPerKm),
         Triple("Litres", s.litres, ::litres),
         Triple("Distance", s.distanceKm) { v: Double -> km(v.toInt()) },
-        s.costPerDay.takeIf { it.current != null }?.let { Triple("Cost per day", it, ::sgd) },
+        s.costPerDay.takeIf { it.current != null }?.let { Triple("Cost per Day", it, ::sgd) },
     ).filter { it.second.current != null }
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         tiles.chunked(2).forEach { row ->
@@ -275,7 +275,7 @@ private fun Savings(s: FillSummary, tripKm: Double) {
             Icon(Icons.Filled.Savings, contentDescription = null, tint = CountryColors.my)
             Spacer(Modifier.width(12.dp))
             Text(
-                if (saved == null || saved >= 0) "Saved by pumping in Malaysia" else "Malaysia cost more this time",
+                if (saved == null || saved >= 0) "Saved by Pumping in Malaysia" else "Malaysia Cost More This Time",
                 style = MaterialTheme.typography.titleSmall,
                 modifier = Modifier.weight(1f),
             )
@@ -306,14 +306,14 @@ private fun Savings(s: FillSummary, tripKm: Double) {
 @Composable
 private fun Trend(s: FillSummary) {
     if (s.recentKmPerLitre.size < 2 && s.recentPricePerLitre.size < 2) return
-    SectionHeader(Icons.AutoMirrored.Filled.TrendingUp, "Recent fill-ups", Modifier.padding(top = 0.dp))
+    SectionHeader(Icons.AutoMirrored.Filled.TrendingUp, "Recent Fill-Ups", Modifier.padding(top = 0.dp))
     GroupCard(contentPadding = 18.dp) {
         if (s.recentKmPerLitre.size >= 2) {
-            TrendRow("Fuel economy", s.recentKmPerLitre, if (s.kmPerLitreIncludesThis) 1 else 0, MaterialTheme.colorScheme.tertiary)
+            TrendRow("Fuel Economy", s.recentKmPerLitre, if (s.kmPerLitreIncludesThis) 1 else 0, MaterialTheme.colorScheme.tertiary)
         }
         if (s.recentKmPerLitre.size >= 2 && s.recentPricePerLitre.size >= 2) Spacer(Modifier.height(16.dp))
         if (s.recentPricePerLitre.size >= 2) {
-            TrendRow("Price per litre", s.recentPricePerLitre, if (s.pricePerLitreIncludesThis) 1 else 0, MaterialTheme.colorScheme.primary)
+            TrendRow("Price per Litre", s.recentPricePerLitre, if (s.pricePerLitreIncludesThis) 1 else 0, MaterialTheme.colorScheme.primary)
         }
     }
 }
@@ -325,7 +325,7 @@ private fun TrendRow(label: String, values: List<Double>, highlight: Int, color:
         Spacer(Modifier.width(8.dp))
         Text(label, style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
         Text(
-            "last ${values.size}",
+            "Last ${values.size}",
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontFamily = NumberFont,

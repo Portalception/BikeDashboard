@@ -153,14 +153,14 @@ object Reminders {
     private fun key(profile: Profile, l: LegalDue) = "paperwork:${profile.id}:${l.item.name}"
 
     private fun createChannel(context: Context) {
-        val channel = NotificationChannel(CHANNEL, "Service reminders", NotificationManager.IMPORTANCE_DEFAULT).apply {
+        val channel = NotificationChannel(CHANNEL, "Service Reminders", NotificationManager.IMPORTANCE_DEFAULT).apply {
             description = "When an oil change or service is coming up"
         }
         context.getSystemService(NotificationManager::class.java)?.createNotificationChannel(channel)
     }
 
     private fun createPaperworkChannel(context: Context) {
-        val channel = NotificationChannel(PAPERWORK_CHANNEL, "Paperwork reminders", NotificationManager.IMPORTANCE_DEFAULT).apply {
+        val channel = NotificationChannel(PAPERWORK_CHANNEL, "Paperwork Reminders", NotificationManager.IMPORTANCE_DEFAULT).apply {
             description = "When the COE, insurance, road tax or inspection is about to run out"
         }
         context.getSystemService(NotificationManager::class.java)?.createNotificationChannel(channel)
@@ -200,7 +200,7 @@ object Reminders {
         val (profile, _) = due.first()
         val notification = NotificationCompat.Builder(context, PAPERWORK_CHANNEL)
             .setSmallIcon(R.drawable.ic_stat_fuel)
-            .setContentTitle("Paperwork reminders")
+            .setContentTitle("Paperwork Reminders")
             .setContentText("${due.size} expiry dates need attention")
             .setGroup(PAPERWORK_GROUP)
             .setGroupSummary(true)
@@ -228,7 +228,7 @@ object Reminders {
         val text = "${due.size} services need attention"
         val notification = NotificationCompat.Builder(context, CHANNEL)
             .setSmallIcon(R.drawable.ic_stat_fuel)
-            .setContentTitle("Service reminders")
+            .setContentTitle("Service Reminders")
             .setContentText(text)
             .setGroup(GROUP)
             .setGroupSummary(true)

@@ -141,7 +141,7 @@ fun ProfileSwitcherSheet(
                 .navigationBarsPadding(),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Text("Your bikes", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 4.dp, bottom = 4.dp))
+            Text("Your Bikes", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 4.dp, bottom = 4.dp))
             state.all.orEmpty().forEach { profile ->
                 val active = profile.id == state.active?.id
                 var card by remember { mutableStateOf<LayoutCoordinates?>(null) }
@@ -193,7 +193,7 @@ fun ProfileSwitcherSheet(
                     Icon(Icons.Filled.Add, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary)
                     Spacer(Modifier.width(14.dp))
                     Column {
-                        Text("Add a bike", style = MaterialTheme.typography.titleMedium)
+                        Text("Add a Bike", style = MaterialTheme.typography.titleMedium)
                         Text("Another bike of yours, or a rental", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }

@@ -476,7 +476,7 @@ private fun FloatingTabBar(selected: Int, onSelect: (Int) -> Unit, onAdd: () -> 
                 .clickable(onClick = onAdd),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Filled.Add, contentDescription = "Add fill-up", tint = MaterialTheme.colorScheme.onTertiary)
+            Icon(Icons.Filled.Add, contentDescription = "Add Fill-Up", tint = MaterialTheme.colorScheme.onTertiary)
         }
     }
 }

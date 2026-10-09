@@ -41,7 +41,7 @@ data class AppearanceSettings(
 )
 
 enum class ProgressStyle(val label: String) {
-    STANDARD("Standard"), CHAIN("Chain"), TREAD("Tyre tread"), REV("Rev counter"), STRIPE("Race stripe"), ROAD("On the road");
+    STANDARD("Standard"), CHAIN("Chain"), TREAD("Tyre Tread"), REV("Rev Counter"), STRIPE("Race Stripe"), ROAD("On the Road");
 
     companion object {
         /** The style saved under [name], or Standard for nothing saved or a removed style (Kerb, Chequered, Wave). */

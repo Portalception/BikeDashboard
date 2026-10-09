@@ -21,7 +21,7 @@ fun findNavigationApp(context: Context): NavigationApp? {
     pm.getLaunchIntentForPackage(WAZE)?.let { return NavigationApp("Back to Waze", it) }
     pm.getLaunchIntentForPackage(GOOGLE_MAPS)?.let { return NavigationApp("Back to Maps", it) }
     val anyMap = Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0"))
-    return if (anyMap.resolveActivity(pm) != null) NavigationApp("Open navigation", anyMap) else null
+    return if (anyMap.resolveActivity(pm) != null) NavigationApp("Open Navigation", anyMap) else null
 }
 
 /** Opens [app]; returns false if it couldn't be opened after all (e.g. it was just uninstalled). */

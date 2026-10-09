@@ -220,8 +220,8 @@ fun ProfileSetupScreen(profileId: Long, onDone: () -> Unit) {
             Text(
                 when {
                     state.firstRun -> "Welcome"
-                    state.isNew -> "New bike"
-                    else -> "Edit bike"
+                    state.isNew -> "New Bike"
+                    else -> "Edit Bike"
                 },
                 Modifier.weight(1f),
                 style = MaterialTheme.typography.titleLarge,
@@ -271,7 +271,7 @@ fun ProfileSetupScreen(profileId: Long, onDone: () -> Unit) {
             PillButton(
                 text = when {
                     state.step != SetupStep.REVIEW -> if (state.isNew) "Next" else "Done"
-                    state.isNew -> "Add bike"
+                    state.isNew -> "Add Bike"
                     else -> "Save"
                 },
                 icon = if (state.step == SetupStep.REVIEW) Icons.Filled.Check else Icons.AutoMirrored.Filled.ArrowForward,
@@ -298,7 +298,7 @@ fun ProfileSetupScreen(profileId: Long, onDone: () -> Unit) {
 private fun StepCard(step: SetupStep, state: SetupState, vm: ProfileSetupViewModel) {
     when (step) {
         SetupStep.NAME -> NumberCard(
-            part = if (state.firstRun) "Let's set up your first bike" else null,
+            part = if (state.firstRun) "Let's Set Up Your First Bike" else null,
             question = "What's the bike called?",
             hint = "Shown at the top of every page, e.g. \"Yamaha R3\" or \"Rental Ninja\".",
             value = state.name, error = state.error, text = true,

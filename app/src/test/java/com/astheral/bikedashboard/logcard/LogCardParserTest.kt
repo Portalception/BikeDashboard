@@ -214,9 +214,9 @@ class LogCardParserTest {
     @Test
     fun previewListsWhatWillBeFilled() {
         val rows = LogCardParser.parse(stacked).previewRows().toMap()
-        assertEquals("FAB1234X", rows["Licence plate"])
-        assertEquals("11 Feb 2028", rows["COE expiry"])
-        assertEquals("471 cc", rows["Engine capacity"])
-        assertEquals("S$1,234.00", rows["COE paid"])
+        assertEquals("FAB1234X", rows["Licence Plate"])
+        assertEquals("11 Feb 2028", rows["COE Expiry"])
+        assertEquals("471 cc", rows["Engine Capacity"])
+        assertEquals("S$1,234.00", rows["COE Paid"])
     }
 }

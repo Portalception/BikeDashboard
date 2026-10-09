@@ -70,11 +70,11 @@ import kotlinx.coroutines.launch
 
 /** The numbers on the dashboard that open a detailed overview. */
 enum class Metric(val title: String, val higherIsBetter: Boolean) {
-    ECONOMY("Fuel economy", true),
-    PRICE("Petrol price", false),
+    ECONOMY("Fuel Economy", true),
+    PRICE("Petrol Price", false),
     COST_PER_KM("Cost per km", false),
-    COST_PER_DAY("Cost per day", false),
-    SAVINGS("Saved by pumping in Malaysia", true),
+    COST_PER_DAY("Cost per Day", false),
+    SAVINGS("Saved by Pumping in Malaysia", true),
     SPEND("Spending", false),
     ;
 
@@ -193,9 +193,9 @@ private fun DetailPage(metric: Metric, period: Period, d: DashboardData, unit: D
         GroupCard(contentPadding = 20.dp, edge = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.45f)) {
             Text(
                 when (period) {
-                    Period.LAST -> "Last fill-up"
-                    Period.LIFETIME -> "All time"
-                    else -> "Last ${period.days} days"
+                    Period.LAST -> "Last Fill-Up"
+                    Period.LIFETIME -> "All Time"
+                    else -> "Last ${period.days} Days"
                 },
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -213,7 +213,7 @@ private fun DetailPage(metric: Metric, period: Period, d: DashboardData, unit: D
             )
         }
 
-        SectionHeader(Icons.AutoMirrored.Filled.CompareArrows, "Compared with")
+        SectionHeader(Icons.AutoMirrored.Filled.CompareArrows, "Compared With")
         GroupCard {
             Period.entries.forEachIndexed { i, p ->
                 if (i > 0) GroupDivider()
@@ -231,19 +231,19 @@ private fun DetailPage(metric: Metric, period: Period, d: DashboardData, unit: D
         }
 
         if (perFill.size >= 2) {
-            SectionHeader(Icons.Filled.Analytics, if (period == Period.LAST) "Last ${count(perFill.size, "fill-up")}" else "Per fill-up")
+            SectionHeader(Icons.Filled.Analytics, if (period == Period.LAST) "Last ${count(perFill.size, "Fill-Up")}" else "Per Fill-Up")
             StatsCard(metric, perFill, unit)
         }
 
         if (perFill.isNotEmpty()) {
-            SectionHeader(Icons.AutoMirrored.Filled.ShowChart, "Over time")
+            SectionHeader(Icons.AutoMirrored.Filled.ShowChart, "Over Time")
             if (metric == Metric.SPEND) {
                 SpendChart(chartData(stats), period.chartLabel, byMonth = period == Period.LIFETIME)
             } else {
                 MetricChart(metric, perFill, unit, period.chartLabel)
             }
 
-            SectionHeader(Icons.AutoMirrored.Filled.FormatListBulleted, "Fill-ups")
+            SectionHeader(Icons.AutoMirrored.Filled.FormatListBulleted, "Fill-Ups")
             GroupCard {
                 perFill.reversed().take(30).forEachIndexed { i, (s, v) ->
                     if (i > 0) GroupDivider()

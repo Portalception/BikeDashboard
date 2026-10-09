@@ -251,13 +251,13 @@ private fun date(label: String, icon: ImageVector, get: (BikeDetails) -> LocalDa
 private val BIKE_FIELDS = listOf(
     text("Brand", Icons.Filled.Factory, { it.brand }) { copy(brand = it) },
     text("Model", Icons.Filled.Category, { it.model }) { copy(model = it) },
-    text("Licence plate", Icons.Filled.Pin, { it.plate }) { copy(plate = it?.uppercase()) },
-    text("Chassis number", Icons.Filled.Build, { it.chassisNumber }) { copy(chassisNumber = it?.uppercase()) },
-    text("Engine number", Icons.Filled.Speed, { it.engineNumber }) { copy(engineNumber = it?.uppercase()) },
+    text("Licence Plate", Icons.Filled.Pin, { it.plate }) { copy(plate = it?.uppercase()) },
+    text("Chassis Number", Icons.Filled.Build, { it.chassisNumber }) { copy(chassisNumber = it?.uppercase()) },
+    text("Engine Number", Icons.Filled.Speed, { it.engineNumber }) { copy(engineNumber = it?.uppercase()) },
     text("Registered IU", Icons.Filled.Badge, { it.registeredIu }) { copy(registeredIu = it) },
-    date("Registration date", Icons.Filled.Event, { it.registrationDate }) { copy(registrationDate = it) },
-    number("Year of manufacture", Icons.Filled.History, null, { it.manufactureYear }) { copy(manufactureYear = it) },
-    number("Engine capacity", Icons.Filled.Bolt, "cc", { it.engineCc }) { copy(engineCc = it) },
+    date("Registration Date", Icons.Filled.Event, { it.registrationDate }) { copy(registrationDate = it) },
+    number("Year of Manufacture", Icons.Filled.History, null, { it.manufactureYear }) { copy(manufactureYear = it) },
+    number("Engine Capacity", Icons.Filled.Bolt, "cc", { it.engineCc }) { copy(engineCc = it) },
     text("Colour", Icons.Filled.Palette, { it.colour }) { copy(colour = it) },
 )
 
@@ -325,7 +325,7 @@ fun BikeDetailsScreen(onBack: () -> Unit, viewModel: BikeDetailsViewModel = view
         Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
             Column(Modifier.weight(1f)) {
-                Text("Bike details", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                Text("Bike Details", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
                 Text(s.profile.name, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.tertiary)
             }
             s.details.plate?.let { AccentChip(it) }
@@ -335,7 +335,7 @@ fun BikeDetailsScreen(onBack: () -> Unit, viewModel: BikeDetailsViewModel = view
         GroupCard(edge = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.5f)) {
             SettingRow(
                 icon = Icons.Filled.UploadFile,
-                title = "Import log card",
+                title = "Import Log Card",
                 subtitle = "Fill these in from your LTA Vehicle Log Card PDF",
                 onClick = choosePdf,
                 iconTint = MaterialTheme.colorScheme.tertiary,
@@ -358,7 +358,7 @@ fun BikeDetailsScreen(onBack: () -> Unit, viewModel: BikeDetailsViewModel = view
             }
         }
 
-        SectionHeader(Icons.Filled.Notifications, "Expiry reminders")
+        SectionHeader(Icons.Filled.Notifications, "Expiry Reminders")
         GroupCard {
             LegalItem.entries.forEach { item ->
                 val expiry = item.expiry(s.details)
@@ -379,7 +379,7 @@ fun BikeDetailsScreen(onBack: () -> Unit, viewModel: BikeDetailsViewModel = view
             }
             SettingRow(
                 icon = Icons.Filled.Timer,
-                title = "Start reminding me",
+                title = "Start Reminding Me",
                 subtitle = if (leadDays == 1) "1 day before it expires" else "$leadDays days before it expires",
                 onClick = { editingLead = true },
                 iconTint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -425,9 +425,9 @@ fun BikeDetailsScreen(onBack: () -> Unit, viewModel: BikeDetailsViewModel = view
         CardImport.Reading -> ReadingDialog()
         is CardImport.Failed -> AlertDialog(
             onDismissRequest = viewModel::cancelCard,
-            title = { Text("Couldn't import") },
+            title = { Text("Couldn't Import") },
             text = { Text(c.message) },
-            confirmButton = { TextButton(onClick = { viewModel.cancelCard(); choosePdf() }) { Text("Choose another") } },
+            confirmButton = { TextButton(onClick = { viewModel.cancelCard(); choosePdf() }) { Text("Choose Another") } },
             dismissButton = { TextButton(onClick = viewModel::cancelCard) { Text("Close") } },
         )
         is CardImport.Review -> {
@@ -462,7 +462,7 @@ fun BikeDetailsScreen(onBack: () -> Unit, viewModel: BikeDetailsViewModel = view
     }
     if (editingLead) {
         TextFieldDialog(
-            title = "Start reminding me",
+            title = "Start Reminding Me",
             initial = leadDays.toString(),
             onDismiss = { editingLead = false },
             onSave = { t -> t.toIntOrNull()?.let(viewModel::setLeadDays); editingLead = false },
@@ -542,7 +542,7 @@ private fun LegalDialog(item: LegalItem, details: BikeDetails, onDismiss: () -> 
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
-                Text("Expiry date", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Expiry Date", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 OutlinedButton(onClick = { picking = true }, modifier = Modifier.fillMaxWidth()) {
                     Icon(Icons.Filled.CalendarMonth, contentDescription = null, Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))

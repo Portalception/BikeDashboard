@@ -137,27 +137,27 @@ fun ServicingScreen(
             GroupCard(contentPadding = 28.dp) {
                 Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     Icon(Icons.Filled.Build, contentDescription = null, Modifier.size(48.dp), tint = MaterialTheme.colorScheme.tertiary)
-                    Text("No services yet", style = MaterialTheme.typography.titleLarge)
+                    Text("No Services Yet", style = MaterialTheme.typography.titleLarge)
                     Text(
                         "Add your services, oil changes, repairs and washes, or import the Servicing Record sheet from your spreadsheet (saved as CSV).",
                         textAlign = TextAlign.Center,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Button(onClick = onAdd) { Text("Add a service") }
-                    OutlinedButton(onClick = importSheet) { Text("Import spreadsheet") }
+                    Button(onClick = onAdd) { Text("Add a Service") }
+                    OutlinedButton(onClick = importSheet) { Text("Import Spreadsheet") }
                 }
             }
         } else {
             if (s.due.isNotEmpty()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    SectionHeader(Icons.Filled.NotificationsActive, "Coming up", Modifier.weight(1f).padding(top = 0.dp))
+                    SectionHeader(Icons.Filled.NotificationsActive, "Coming Up", Modifier.weight(1f).padding(top = 0.dp))
                     TextButton(onClick = onOpenIntervals) { Text("Intervals") }
                 }
                 GroupCard(contentPadding = 16.dp, onClick = onOpenIntervals) {
                     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) { s.due.forEach { DueRow(it) } }
                 }
             }
-            SectionHeader(Icons.Filled.History, "Since last", Modifier.padding(top = 0.dp))
+            SectionHeader(Icons.Filled.History, "Since Last", Modifier.padding(top = 0.dp))
             TRACKED.filter { id -> s.categories.any { it.id == id } }.chunked(2).forEach { pair ->
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     pair.forEach { type -> SinceTile(type, s.name(type), s.last(type), s.odometerKm, today, Modifier.weight(1f)) }
@@ -250,7 +250,7 @@ private fun SpendCard(s: ServicingState, today: LocalDate) {
     GroupCard(contentPadding = 16.dp) {
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             Column(Modifier.weight(1f)) {
-                Text("All time", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("All Time", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 CountUpText(s.records.sumOf { s.sgd(it) }, ::sgd, style = MaterialTheme.typography.titleLarge)
                 Text(count(s.records.size, "record"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }

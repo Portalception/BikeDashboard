@@ -98,7 +98,7 @@ fun EditScreen(fillUpId: Long, onDone: () -> Unit, onDeleted: (Long) -> Unit, on
     // When editing, the final check is the starting point, so "back" from it closes.
     val editingReview = !state.isNew && state.step == Step.REVIEW
     StepFlow(
-        title = if (state.isNew) "New fill-up" else "Edit fill-up",
+        title = if (state.isNew) "New Fill-Up" else "Edit Fill-Up",
         step = state.step,
         index = state.index,
         count = state.steps.size,
@@ -108,7 +108,7 @@ fun EditScreen(fillUpId: Long, onDone: () -> Unit, onDeleted: (Long) -> Unit, on
         backCloses = state.index == 0 || editingReview,
         onBack = { if (editingReview) onDone() else if (!viewModel.back()) onDone() },
         primaryText = when {
-            state.step == Step.REVIEW && state.warnings.isNotEmpty() -> "Save anyway"
+            state.step == Step.REVIEW && state.warnings.isNotEmpty() -> "Save Anyway"
             state.step == Step.REVIEW -> "Save"
             state.step == Step.FUEL_LEFT && state.form.barsLeft.isBlank() && state.form.reserveKm.isBlank() -> "Skip"
             !state.isNew -> "Done"
@@ -169,7 +169,7 @@ private fun StepCard(step: Step, state: EditState, vm: EditViewModel) {
         Step.WHERE -> WhereCard(state, vm)
         Step.DATE -> DateCard("When did you fill up?", form.date, onPick = { d -> vm.edit { it.copy(date = d) } }, onNext = vm::next)
         Step.RM_PAID -> NumberCard(
-            part = if (mixed) "Malaysia part" else null,
+            part = if (mixed) "Malaysia Part" else null,
             question = "How much did you pay?",
             hint = "The ringgit you paid at the counter or by card.",
             value = form.rmPaid, prefix = "RM", error = state.error,
@@ -177,7 +177,7 @@ private fun StepCard(step: Step, state: EditState, vm: EditViewModel) {
             onChange = { v -> vm.edit { it.copy(rmPaid = v) } }, onNext = vm::next,
         )
         Step.RATE -> NumberCard(
-            part = if (mixed) "Malaysia part" else null,
+            part = if (mixed) "Malaysia Part" else null,
             question = "What's the exchange rate?",
             hint = if (state.rateFromLast && state.isNew) "Your last rate is filled in. Change it if your bank's rate is different today."
             else "Ringgit per Singapore dollar, as your bank converted it.",
@@ -186,50 +186,50 @@ private fun StepCard(step: Step, state: EditState, vm: EditViewModel) {
             selectAll = true,
         )
         Step.RM_CHARGED -> NumberCard(
-            part = if (mixed) "Malaysia part" else null,
+            part = if (mixed) "Malaysia Part" else null,
             question = "How much did the pump charge?",
             hint = state.preview.myCostSgd?.let { "That's ${sgd(it)}." } ?: "Read it off the pump once you're done.",
             value = form.rmCharged, prefix = "RM", error = state.error,
-            quick = parseNumber(form.rmPaid)?.let { listOf("Same as paid (RM ${trim(it)})" to trim(it)) }.orEmpty(),
+            quick = parseNumber(form.rmPaid)?.let { listOf("Same as Paid (RM ${trim(it)})" to trim(it)) }.orEmpty(),
             onChange = { v -> vm.edit { it.copy(rmCharged = v) } }, onNext = vm::next,
         )
         Step.MY_LITRES -> NumberCard(
-            part = if (mixed) "Malaysia part" else null,
+            part = if (mixed) "Malaysia Part" else null,
             question = if (mixed) "How many litres in Malaysia?" else "How many litres did you pump?",
             hint = litreHint(parseNumber(form.rmCharged), state.preview.myCostSgd, parseNumber(form.myLitres), "RM"),
             value = form.myLitres, suffix = "L", error = state.error,
             onChange = { v -> vm.edit { it.copy(myLitres = v) } }, onNext = vm::next,
         )
         Step.LEGACY_MY_COST -> NumberCard(
-            part = "Old spreadsheet fill-up",
+            part = "Old Spreadsheet Fill-Up",
             question = "What did it cost?",
             hint = "This fill-up was recorded in SGD only.",
             value = form.legacyMyCost, prefix = "S$", error = state.error,
             onChange = { v -> vm.edit { it.copy(legacyMyCost = v) } }, onNext = vm::next,
         )
         Step.UNSPLIT_LITRES -> NumberCard(
-            part = "Old spreadsheet fill-up",
+            part = "Old Spreadsheet Fill-Up",
             question = "How many litres in total?",
             hint = "This mixed fill-up has one total for both countries.",
             value = form.unsplitLitres, suffix = "L", error = state.error,
             onChange = { v -> vm.edit { it.copy(unsplitLitres = v) } }, onNext = vm::next,
         )
         Step.UNSPLIT_COST -> NumberCard(
-            part = "Old spreadsheet fill-up",
+            part = "Old Spreadsheet Fill-Up",
             question = "What did it cost in total?",
             hint = "In SGD, for both countries together.",
             value = form.unsplitCost, prefix = "S$", error = state.error,
             onChange = { v -> vm.edit { it.copy(unsplitCost = v) } }, onNext = vm::next,
         )
         Step.SG_PAID -> NumberCard(
-            part = if (mixed) "Singapore part" else null,
+            part = if (mixed) "Singapore Part" else null,
             question = if (mixed) "How much did you pay in Singapore?" else "How much did you pay?",
             hint = "In Singapore dollars.",
             value = form.sgCost, prefix = "S$", error = state.error,
             onChange = { v -> vm.edit { it.copy(sgCost = v) } }, onNext = vm::next,
         )
         Step.SG_LITRES -> NumberCard(
-            part = if (mixed) "Singapore part" else null,
+            part = if (mixed) "Singapore Part" else null,
             question = if (mixed) "How many litres in Singapore?" else "How many litres did you pump?",
             hint = litreHint(null, parseNumber(form.sgCost), parseNumber(form.sgLitres), null),
             value = form.sgLitres, suffix = "L", error = state.error,
@@ -393,7 +393,7 @@ private fun WhereCard(state: EditState, vm: EditViewModel) {
 private fun FuelLeftCard(state: EditState, vm: EditViewModel) {
     val form = state.form
     QuestionCard(null, "How much fuel was left?") {
-        Text("Bars on the gauge", style = MaterialTheme.typography.titleSmall)
+        Text("Bars on the Gauge", style = MaterialTheme.typography.titleSmall)
         Spacer(Modifier.height(10.dp))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             (0..6).forEach { bars ->
@@ -417,7 +417,7 @@ private fun FuelLeftCard(state: EditState, vm: EditViewModel) {
             }
         }
         Spacer(Modifier.height(20.dp))
-        Text("Or km ridden on the fuel light", style = MaterialTheme.typography.titleSmall)
+        Text("Or km Ridden on the Fuel Light", style = MaterialTheme.typography.titleSmall)
         Spacer(Modifier.height(10.dp))
         OutlinedTextField(
             value = form.reserveKm,
@@ -494,7 +494,7 @@ private fun ReviewCard(state: EditState, vm: EditViewModel) {
             GroupCard {
                 Row(Modifier.padding(horizontal = 20.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f).padding(end = 16.dp)) {
-                        Text("No special trip to MY", style = MaterialTheme.typography.titleMedium)
+                        Text("No Special Trip to MY", style = MaterialTheme.typography.titleMedium)
                         Text(
                             "Already in Malaysia, so no trip cost is taken off the savings.",
                             style = MaterialTheme.typography.bodySmall,
@@ -529,17 +529,17 @@ private fun ResultTile(label: String, value: Double?, format: (Double) -> String
 private fun label(step: Step, form: FillUpForm): String {
     val mixed = form.country == Country.MIXED && !form.legacyMixed
     return when (step) {
-        Step.RM_PAID -> "RM paid"
+        Step.RM_PAID -> "RM Paid"
         Step.RATE -> "Rate"
-        Step.RM_CHARGED -> "Pump charged"
+        Step.RM_CHARGED -> "Pump Charged"
         Step.MY_LITRES -> if (mixed) "Litres in MY" else "Litres"
         Step.LEGACY_MY_COST -> "Cost"
-        Step.UNSPLIT_LITRES -> "Total litres"
-        Step.UNSPLIT_COST -> "Total cost"
+        Step.UNSPLIT_LITRES -> "Total Litres"
+        Step.UNSPLIT_COST -> "Total Cost"
         Step.SG_PAID -> if (mixed) "Paid in SG" else "Paid"
         Step.SG_LITRES -> if (mixed) "Litres in SG" else "Litres"
         Step.ODOMETER -> "Odometer"
-        Step.FUEL_LEFT -> "Fuel left"
+        Step.FUEL_LEFT -> "Fuel Left"
         Step.DATE -> "Date"
         Step.WHERE, Step.REVIEW -> ""
     }

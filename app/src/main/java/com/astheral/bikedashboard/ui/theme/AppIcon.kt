@@ -13,7 +13,7 @@ import androidx.compose.ui.graphics.Color
  */
 enum class AppIcon(val label: String, val alias: String, val top: Color, val bottom: Color, val glyph: Color) {
     MONOCHROME("Monochrome", "IconMonochrome", Color(0xFF2E2E2E), Color(0xFF121212), Color(0xFFE0E0E0)),
-    FUEL_LIGHT("Fuel light", "IconFuelLight", Color(0xFF1A1A1A), Color(0xFF050505), Color(0xFFFFB300)),
+    FUEL_LIGHT("Fuel Light", "IconFuelLight", Color(0xFF1A1A1A), Color(0xFF050505), Color(0xFFFFB300)),
     YAMAHA("Yamaha", "IconYamaha", Color(0xFF2A55C4), Color(0xFF132C6E), Color(0xFF00B0FF)),
     HONDA("Honda", "IconHonda", Color(0xFFE01E1E), Color(0xFF8E0000), Color(0xFFFFFFFF)),
     KAWASAKI("Kawasaki", "IconKawasaki", Color(0xFF6CC734), Color(0xFF3D8A17), Color(0xFF1E1E1E)),

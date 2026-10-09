@@ -151,7 +151,7 @@ fun PersonalisationScreen(onBack: () -> Unit, viewModel: PersonalisationViewMode
             )
         }
         GroupCard(contentPadding = 16.dp) {
-            Label("Theme mode")
+            Label("Theme Mode")
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 val icons = mapOf(ThemeMode.SYSTEM to Icons.Filled.PhoneAndroid, ThemeMode.LIGHT to Icons.Filled.LightMode, ThemeMode.DARK to Icons.Filled.DarkMode)
                 ThemeMode.entries.forEach { mode ->
@@ -160,9 +160,9 @@ fun PersonalisationScreen(onBack: () -> Unit, viewModel: PersonalisationViewMode
             }
             if (WallpaperSupported) {
                 Spacer(Modifier.height(16.dp))
-                Label("Colour style")
+                Label("Colour Style")
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    ChoiceTile(Icons.Filled.ColorLens, "Your colours", !appearance.wallpaper, { update { it.copy(wallpaper = false) } }, Modifier.weight(1f))
+                    ChoiceTile(Icons.Filled.ColorLens, "Your Colours", !appearance.wallpaper, { update { it.copy(wallpaper = false) } }, Modifier.weight(1f))
                     ChoiceTile(Icons.Filled.Wallpaper, "Wallpaper", appearance.wallpaper, { update { it.copy(wallpaper = true) } }, Modifier.weight(1f))
                 }
             }
@@ -171,7 +171,7 @@ fun PersonalisationScreen(onBack: () -> Unit, viewModel: PersonalisationViewMode
         GroupCard {
             SettingRow(
                 Icons.Filled.Contrast,
-                "Pure black",
+                "Pure Black",
                 "True black backgrounds in dark mode, for AMOLED screens",
                 onClick = { update { it.copy(pureBlack = !it.pureBlack) } },
             ) {
@@ -181,7 +181,7 @@ fun PersonalisationScreen(onBack: () -> Unit, viewModel: PersonalisationViewMode
 
         Spacer(Modifier.height(12.dp))
         GroupCard(contentPadding = 16.dp) {
-            Label("Progress line", "The line at the top of the dashboard and while adding a fill-up")
+            Label("Progress Line", "The line at the top of the dashboard and while adding a fill-up")
             ProgressStylePicker(appearance.progressStyle) { style -> update { it.copy(progressStyle = style) } }
         }
 
@@ -192,33 +192,33 @@ fun PersonalisationScreen(onBack: () -> Unit, viewModel: PersonalisationViewMode
                     Label("Presets", "Monochrome, or each maker's racing colours")
                     PresetRow(appearance) { preset -> update { it.copy(primary = preset.primary, accent = preset.accent) } }
                     Spacer(Modifier.height(18.dp))
-                    Label("Primary colour", "Buttons, the bottom bar and charts")
+                    Label("Primary Colour", "Buttons, the bottom bar and charts")
                     SwatchPicker(appearance.primary) { c -> update { it.copy(primary = c) } }
                     Spacer(Modifier.height(18.dp))
-                    Label("Accent colour", "Highlights: chips, the selected tab, progress and the + button")
+                    Label("Accent Colour", "Highlights: chips, the selected tab, progress and the + button")
                     SwatchPicker(appearance.accent) { c -> update { it.copy(accent = c) } }
                 }
             }
         }
 
-        SectionHeader(Icons.Filled.Apps, "App icon")
+        SectionHeader(Icons.Filled.Apps, "App Icon")
         GroupCard(contentPadding = 16.dp) {
-            Label("Launcher icon", "Your home screen shows the new one once you leave the app")
+            Label("Launcher Icon", "Your home screen shows the new one once you leave the app")
             IconPicker(appIcon, viewModel::setAppIcon)
         }
 
         SectionHeader(Icons.Filled.Straighten, "Units")
         GroupCard(contentPadding = 16.dp) {
-            Label("Fuel economy")
+            Label("Fuel Economy")
             UnitTiles(EconomyUnit.entries, units.economy, { it.label }) { u -> viewModel.updateUnits { it.copy(economy = u) } }
             Spacer(Modifier.height(16.dp))
-            Label("Cost per distance")
+            Label("Cost per Distance")
             UnitTiles(DistanceCostUnit.entries, units.distanceCost, { it.label }) { u -> viewModel.updateUnits { it.copy(distanceCost = u) } }
             Spacer(Modifier.height(16.dp))
-            Label("Cost over time")
+            Label("Cost over Time")
             UnitTiles(TimeCostUnit.entries, units.timeCost, { it.label }) { u -> viewModel.updateUnits { it.copy(timeCost = u) } }
             Spacer(Modifier.height(16.dp))
-            Label("Petrol price", "Ringgit uses the last exchange rate you entered")
+            Label("Petrol Price", "Ringgit uses the last exchange rate you entered")
             UnitTiles(PriceUnit.entries, units.price, { it.label }) { u -> viewModel.updateUnits { it.copy(price = u) } }
             Spacer(Modifier.height(10.dp))
             Text(
@@ -385,7 +385,7 @@ private fun SwatchPicker(selected: Color, onPick: (Color) -> Unit) {
                 .clickable { custom = true },
             contentAlignment = Alignment.Center,
         ) {
-            Icon(if (isCustom) Icons.Filled.Check else Icons.Filled.Add, contentDescription = "Custom colour", tint = if (isCustom) contentOn(selected) else Color.White)
+            Icon(if (isCustom) Icons.Filled.Check else Icons.Filled.Add, contentDescription = "Custom Colour", tint = if (isCustom) contentOn(selected) else Color.White)
         }
     }
     if (custom) CustomColorDialog(selected, onDismiss = { custom = false }, onPick = { onPick(it); custom = false })
@@ -434,7 +434,7 @@ private fun CustomColorDialog(start: Color, onDismiss: () -> Unit, onPick: (Colo
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Custom colour") },
+        title = { Text("Custom Colour") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Box(Modifier.fillMaxWidth().height(56.dp).clip(RoundedCornerShape(16.dp)).background(color))
@@ -452,7 +452,7 @@ private fun CustomColorDialog(start: Color, onDismiss: () -> Unit, onPick: (Colo
                             value = out[2]
                         }
                     },
-                    label = { Text("Hex code") },
+                    label = { Text("Hex Code") },
                     prefix = { Text("#", fontFamily = NumberFont) },
                     isError = !hexValid,
                     supportingText = if (hexValid) null else ({ Text("Six digits 0–9 or A–F, like 1B3F9A") }),
@@ -472,7 +472,7 @@ private fun CustomColorDialog(start: Color, onDismiss: () -> Unit, onPick: (Colo
                 Slider(value = value, onValueChange = { fromSliders(v = it) }, valueRange = 0f..1f)
             }
         },
-        confirmButton = { TextButton(onClick = { onPick(color) }, enabled = hexValid) { Text("Use colour") } },
+        confirmButton = { TextButton(onClick = { onPick(color) }, enabled = hexValid) { Text("Use Colour") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
 }

@@ -193,10 +193,10 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
 
 /** The dashboard's tabs. Week and month are rolling: the last 7 and 30 days up to today. */
 enum class Period(val label: String, val chartLabel: String, val days: Long? = null) {
-    LAST("Last fill", "Last 10"),
-    WEEK("Week", "7 days", 7),
-    MONTH("Month", "30 days", 30),
-    LIFETIME("Lifetime", "All time"),
+    LAST("Last Fill", "Last 10"),
+    WEEK("Week", "7 Days", 7),
+    MONTH("Month", "30 Days", 30),
+    LIFETIME("Lifetime", "All Time"),
 }
 
 fun DashboardSummary.of(period: Period): PeriodSummary = when (period) {
@@ -326,14 +326,14 @@ private fun Empty(onAddFillUp: () -> Unit, onImport: () -> Unit) {
     GroupCard(contentPadding = 28.dp) {
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Icon(Icons.Filled.TwoWheeler, contentDescription = null, Modifier.size(48.dp), tint = MaterialTheme.colorScheme.tertiary)
-            Text("No fill-ups yet", style = MaterialTheme.typography.titleLarge)
+            Text("No Fill-Ups Yet", style = MaterialTheme.typography.titleLarge)
             Text(
                 "Add your first fill-up, or import your old spreadsheet to see your history straight away.",
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Button(onClick = onAddFillUp) { Text("Add fill-up") }
-            OutlinedButton(onClick = onImport) { Text("Import spreadsheet") }
+            Button(onClick = onAddFillUp) { Text("Add Fill-Up") }
+            OutlinedButton(onClick = onImport) { Text("Import Spreadsheet") }
         }
     }
 }
@@ -368,12 +368,12 @@ private fun PeriodTiles(
         val price = units.price.at(d.rmPerSgd)
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             StatTile(
-                "Fuel economy", summary.kmPerLitre, units.economy, t.kmPerLitre, highlight(t.kmPerLitre), accent, Modifier.weight(1f),
+                "Fuel Economy", summary.kmPerLitre, units.economy, t.kmPerLitre, highlight(t.kmPerLitre), accent, Modifier.weight(1f),
                 onClick = { onOpen(Metric.ECONOMY) },
                 onSwitchUnit = { onUnits { it.copy(economy = it.economy.next()) } },
             )
             StatTile(
-                "Petrol price", summary.pricePerLitre, price, t.pricePerLitre, highlight(t.pricePerLitre), accent, Modifier.weight(1f),
+                "Petrol Price", summary.pricePerLitre, price, t.pricePerLitre, highlight(t.pricePerLitre), accent, Modifier.weight(1f),
                 onClick = { onOpen(Metric.PRICE) },
                 // Ringgit needs a rate, so without one there's nothing to switch to.
                 onSwitchUnit = if (d.rmPerSgd == null) null else ({ onUnits { it.copy(price = it.price.next()) } }),
@@ -386,14 +386,14 @@ private fun PeriodTiles(
                 onSwitchUnit = { onUnits { it.copy(distanceCost = it.distanceCost.next()) } },
             )
             StatTile(
-                "Cost per day", summary.costPerDay, units.timeCost, t.costPerDay, highlight(t.costPerDay), accent, Modifier.weight(1f),
+                "Cost per Day", summary.costPerDay, units.timeCost, t.costPerDay, highlight(t.costPerDay), accent, Modifier.weight(1f),
                 onClick = { onOpen(Metric.COST_PER_DAY) },
                 onSwitchUnit = { onUnits { it.copy(timeCost = it.timeCost.next()) } },
             )
         }
         val saved = summary.savingsSgd
         StatTile(
-            "Saved by pumping in Malaysia",
+            "Saved by Pumping in Malaysia",
             saved,
             SgdUnit,
             t.savings,

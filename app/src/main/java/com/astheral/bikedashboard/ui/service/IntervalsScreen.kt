@@ -134,9 +134,9 @@ class IntervalsViewModel(application: Application) : AndroidViewModel(applicatio
 /** Which number a dialog is changing. */
 private enum class IntervalField(val title: String, val suffix: String, val question: String, val icon: ImageVector) {
     EVERY_KM("Every", "km", "Due every how many km?", Icons.Filled.Speed),
-    EVERY_DAYS("Or every", "days", "Or every how many days?", Icons.Filled.CalendarMonth),
-    WARN_KM("Remind me from", "km before", "Start reminding how many km before?", Icons.Filled.Warning),
-    WARN_DAYS("Or from", "days before", "Or how many days before?", Icons.Filled.Timer),
+    EVERY_DAYS("Or Every", "days", "Or every how many days?", Icons.Filled.CalendarMonth),
+    WARN_KM("Remind Me from", "km before", "Start reminding how many km before?", Icons.Filled.Warning),
+    WARN_DAYS("Or From", "days before", "Or how many days before?", Icons.Filled.Timer),
 }
 
 private fun ServiceInterval.get(f: IntervalField): Int? = when (f) {
@@ -179,7 +179,7 @@ fun IntervalsScreen(onBack: () -> Unit, viewModel: IntervalsViewModel = viewMode
         Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
             Column(Modifier.weight(1f)) {
-                Text("Service intervals", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                Text("Service Intervals", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
                 Text(profile.name, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.tertiary)
             }
         }
@@ -222,7 +222,7 @@ fun IntervalsScreen(onBack: () -> Unit, viewModel: IntervalsViewModel = viewMode
         GroupCard {
             SettingRow(
                 Icons.Filled.Add,
-                "Add an item",
+                "Add an Item",
                 subtitle = "Something else to keep track of, like a chain clean or new tyres",
                 onClick = { adding = true },
             )
@@ -267,7 +267,7 @@ fun IntervalsScreen(onBack: () -> Unit, viewModel: IntervalsViewModel = viewMode
     }
     if (adding) {
         CategoryNameDialog(
-            title = "Add an item",
+            title = "Add an Item",
             initial = "",
             taken = items.map { it.category.name },
             onDismiss = { adding = false },

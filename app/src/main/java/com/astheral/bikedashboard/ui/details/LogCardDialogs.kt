@@ -67,7 +67,7 @@ internal fun ExpiredChip() {
 internal fun ReadingDialog() {
     AlertDialog(
         onDismissRequest = {},
-        title = { Text("Reading the log card…") },
+        title = { Text("Reading the Log Card…") },
         text = { Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator() } },
         confirmButton = {},
     )
@@ -89,7 +89,7 @@ internal fun CardIssueDialog(
     var picking by remember { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = onCancel,
-        title = { Text("Check the ${issue.date.label.lowercase()}") },
+        title = { Text("Check the ${issue.date.label}") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(issue.message)
@@ -101,18 +101,18 @@ internal fun CardIssueDialog(
                 OutlinedButton(onClick = { picking = true }, modifier = Modifier.fillMaxWidth()) {
                     Icon(Icons.Filled.CalendarMonth, contentDescription = null, Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("Enter the date")
+                    Text("Enter the Date")
                 }
                 OutlinedButton(onClick = onUpload, modifier = Modifier.fillMaxWidth()) {
                     Icon(Icons.Filled.UploadFile, contentDescription = null, Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("Upload a newer PDF")
+                    Text("Upload a Newer PDF")
                 }
             }
         },
         confirmButton = {
             TextButton(onClick = onKeep) {
-                Text(if (issue.kind == LogCardIssue.Kind.UNREADABLE) "Skip it" else "Keep this date")
+                Text(if (issue.kind == LogCardIssue.Kind.UNREADABLE) "Skip It" else "Keep This Date")
             }
         },
         dismissButton = { TextButton(onClick = onCancel) { Text("Cancel") } },
@@ -137,7 +137,7 @@ internal fun CardPreviewDialog(
     val theme = logCardTheme(card.primaryColour, card.secondaryColour)
     AlertDialog(
         onDismissRequest = onCancel,
-        title = { Text("Fill in from log card") },
+        title = { Text("Fill In from Log Card") },
         text = {
             Column(
                 Modifier.heightIn(max = 460.dp).verticalScroll(rememberScrollState()),
@@ -174,7 +174,7 @@ internal fun CardPreviewDialog(
                         }
                         Spacer(Modifier.width(6.dp))
                         Column(Modifier.weight(1f)) {
-                            Text("Use as app colours", style = MaterialTheme.typography.titleSmall)
+                            Text("Use as App Colours", style = MaterialTheme.typography.titleSmall)
                             Text("Primary and accent from the bike's colour", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         Switch(checked = review.useColours, onCheckedChange = onUseColours)
@@ -182,7 +182,7 @@ internal fun CardPreviewDialog(
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onApply) { Text("Fill in") } },
+        confirmButton = { TextButton(onClick = onApply) { Text("Fill In") } },
         dismissButton = { TextButton(onClick = onCancel) { Text("Cancel") } },
     )
 }

@@ -45,7 +45,7 @@ enum class DistanceCostUnit(override val label: String) : DisplayUnit {
 }
 
 enum class TimeCostUnit(override val label: String) : DisplayUnit {
-    PER_DAY("S$ per day"), PER_WEEK("S$ per week"), PER_MONTH("S$ per month");
+    PER_DAY("S$ per Day"), PER_WEEK("S$ per Week"), PER_MONTH("S$ per Month");
 
     override fun convert(base: Double) = when (this) {
         PER_DAY -> base
@@ -65,7 +65,7 @@ enum class TimeCostUnit(override val label: String) : DisplayUnit {
  * (no Malaysian fill-ups yet) prices stay in SGD.
  */
 enum class PriceUnit(val label: String) {
-    SGD_PER_L("S$ per litre"), RM_PER_L("RM per litre");
+    SGD_PER_L("S$ per Litre"), RM_PER_L("RM per Litre");
 
     fun at(rmPerSgd: Double?): DisplayUnit = object : DisplayUnit {
         private val rm = this@PriceUnit == RM_PER_L && rmPerSgd != null

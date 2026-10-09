@@ -107,9 +107,9 @@ fun DiagnosticLogsScreen(onBack: () -> Unit, viewModel: DiagnosticLogsViewModel 
     ) {
         Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
-            Text("Diagnostic logs", Modifier.weight(1f), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+            Text("Diagnostic Logs", Modifier.weight(1f), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
             IconButton(onClick = { confirmDeleteAll = true }, enabled = !logs.isNullOrEmpty()) {
-                Icon(Icons.Filled.DeleteSweep, contentDescription = "Delete all")
+                Icon(Icons.Filled.DeleteSweep, contentDescription = "Delete All")
             }
         }
         Row(Modifier.padding(bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -124,7 +124,7 @@ fun DiagnosticLogsScreen(onBack: () -> Unit, viewModel: DiagnosticLogsViewModel 
         val list = logs ?: return@Column
         if (list.isEmpty()) {
             GroupCard(contentPadding = 20.dp) {
-                Text("No logs yet", style = MaterialTheme.typography.titleMedium)
+                Text("No Logs Yet", style = MaterialTheme.typography.titleMedium)
                 Text(
                     "If the app ever closes unexpectedly or hits an error, a report shows up here.",
                     style = MaterialTheme.typography.bodyMedium,
@@ -155,7 +155,7 @@ fun DiagnosticLogsScreen(onBack: () -> Unit, viewModel: DiagnosticLogsViewModel 
         ConfirmDialog(
             title = "Delete all logs?",
             message = "Every saved crash and error report will be removed. This can't be undone.",
-            confirm = "Delete all",
+            confirm = "Delete All",
             onDismiss = { confirmDeleteAll = false },
             onConfirm = { confirmDeleteAll = false; viewModel.deleteAll() },
         )
@@ -219,7 +219,7 @@ private fun LogCard(log: SavedLog, open: Boolean, onToggle: () -> Unit, onDelete
                                 .setType("text/plain")
                                 .putExtra(Intent.EXTRA_SUBJECT, "Bike Dashboard diagnostic log")
                                 .putExtra(Intent.EXTRA_TEXT, log.text)
-                            context.startActivity(Intent.createChooser(send, "Share log"))
+                            context.startActivity(Intent.createChooser(send, "Share Log"))
                         }) {
                             Icon(Icons.Filled.Share, contentDescription = null)
                             Spacer(Modifier.width(6.dp))
@@ -227,7 +227,7 @@ private fun LogCard(log: SavedLog, open: Boolean, onToggle: () -> Unit, onDelete
                         }
                         Spacer(Modifier.weight(1f))
                         IconButton(onClick = onDelete) {
-                            Icon(Icons.Filled.Delete, contentDescription = "Delete log", tint = MaterialTheme.colorScheme.error)
+                            Icon(Icons.Filled.Delete, contentDescription = "Delete Log", tint = MaterialTheme.colorScheme.error)
                         }
                     }
                 }

@@ -104,7 +104,7 @@ fun CategoryNameDialog(
                     modifier = Modifier.fillMaxWidth().focusRequester(focus),
                 )
                 if (suggestions.isNotEmpty()) {
-                    Text("Or pick one you already have", style = MaterialTheme.typography.labelLarge)
+                    Text("Or Pick One You Already Have", style = MaterialTheme.typography.labelLarge)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         suggestions.forEach { c -> FilterPill(c.name, categoryColor(c.id), false) { onPickSuggestion(c) } }
                     }

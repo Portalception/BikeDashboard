@@ -17,7 +17,7 @@ data class ServiceForm(
     val cost: String = "",
     val currency: Currency = Currency.SGD,
     val odometer: String = "",
-    /** The odometer was filled in by "Estimate from fill-ups" (and may have been adjusted since). */
+    /** The odometer was filled in by "Estimate from Fill-Ups" (and may have been adjusted since). */
     val odometerEstimated: Boolean = false,
 ) {
     /** The odometer as a number; commas are thousands here ("12,340"), never decimals. */

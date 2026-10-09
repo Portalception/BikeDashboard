@@ -7,10 +7,10 @@ import java.time.format.DateTimeParseException
 import java.util.Locale
 
 /** The dates a log card can carry, which are checked before they're used. */
-enum class CardDate(val label: String) {
-    REGISTRATION("Registration date"),
-    COE_EXPIRY("COE expiry"),
-    ROAD_TAX_EXPIRY("Road tax expiry"),
+enum class CardDate(val label: String, val inSentence: String) {
+    REGISTRATION("Registration Date", "registration date"),
+    COE_EXPIRY("COE Expiry", "COE expiry"),
+    ROAD_TAX_EXPIRY("Road Tax Expiry", "road tax expiry"),
 }
 
 /**
@@ -82,19 +82,19 @@ data class LogCard(
     fun previewRows(): List<Pair<String, String>> = listOfNotNull(
         brand?.let { "Brand" to it },
         model?.let { "Model" to it },
-        plate?.let { "Licence plate" to it },
-        chassisNumber?.let { "Chassis number" to it },
-        engineNumber?.let { "Engine number" to it },
+        plate?.let { "Licence Plate" to it },
+        chassisNumber?.let { "Chassis Number" to it },
+        engineNumber?.let { "Engine Number" to it },
         iuNumber?.let { "Registered IU" to it },
-        registrationDate?.let { "Registration date" to it.format(SHOWN) },
-        manufactureYear?.let { "Year of manufacture" to it.toString() },
-        engineCc?.let { "Engine capacity" to "$it cc" },
+        registrationDate?.let { "Registration Date" to it.format(SHOWN) },
+        manufactureYear?.let { "Year of Manufacture" to it.toString() },
+        engineCc?.let { "Engine Capacity" to "$it cc" },
         colour?.let { "Colour" to it },
-        coeNumber?.let { "COE number" to it },
-        coeExpiry?.let { "COE expiry" to it.format(SHOWN) },
-        roadTaxExpiry?.let { "Road tax expiry" to it.format(SHOWN) },
-        openMarketValue?.let { "Open market value" to money(it) },
-        coePaid?.let { "COE paid" to money(it) },
+        coeNumber?.let { "COE Number" to it },
+        coeExpiry?.let { "COE Expiry" to it.format(SHOWN) },
+        roadTaxExpiry?.let { "Road Tax Expiry" to it.format(SHOWN) },
+        openMarketValue?.let { "Open Market Value" to money(it) },
+        coePaid?.let { "COE Paid" to money(it) },
     )
 }
 
@@ -123,12 +123,12 @@ fun LogCard.issues(today: LocalDate): List<LogCardIssue> = CardDate.entries.mapN
     val raw = unreadable[which]
     val date = date(which)
     when {
-        raw != null -> LogCardIssue(which, LogCardIssue.Kind.UNREADABLE, "The ${which.label.lowercase()} on the card (\"$raw\") couldn't be read.")
+        raw != null -> LogCardIssue(which, LogCardIssue.Kind.UNREADABLE, "The ${which.inSentence} on the card (\"$raw\") couldn't be read.")
         date == null -> null
         which == CardDate.REGISTRATION && date.isAfter(today) ->
             LogCardIssue(which, LogCardIssue.Kind.IN_FUTURE, "The registration date on the card, ${date.format(SHOWN)}, is in the future.")
         which != CardDate.REGISTRATION && date.isBefore(today) ->
-            LogCardIssue(which, LogCardIssue.Kind.EXPIRED, "The ${which.label} on the card, ${date.format(SHOWN)}, has already passed. The card may be an old copy.")
+            LogCardIssue(which, LogCardIssue.Kind.EXPIRED, "The ${which.inSentence} on the card, ${date.format(SHOWN)}, has already passed. The card may be an old copy.")
         else -> null
     }
 }

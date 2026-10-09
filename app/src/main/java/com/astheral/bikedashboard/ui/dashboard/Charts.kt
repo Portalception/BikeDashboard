@@ -207,7 +207,7 @@ fun PriceChart(data: ChartData, hasOldMixed: Boolean, period: String, onClick: (
         }
     }
     ChartCard(
-        "Petrol price per litre",
+        "Petrol Price per Litre",
         period,
         legend = listOf("Singapore" to sgColor, "Malaysia" to myColor).filter { (name, _) ->
             if (name == "Singapore") data.sgPrice.isNotEmpty() else data.myPrice.isNotEmpty()
@@ -240,7 +240,7 @@ fun EconomyChart(data: ChartData, period: String, unit: EconomyUnit = EconomyUni
             lineSeries { series(data.kmPerLitre.map { it.date.toEpochDay() }, data.kmPerLitre.map { unit.convert(it.value) }) }
         }
     }
-    ChartCard("Fuel economy (${unit.label})", period, onClick = onClick) {
+    ChartCard("Fuel Economy (${unit.label})", period, onClick = onClick) {
         FittedChart(
             rememberCartesianChart(
                 rememberLineCartesianLayer(
@@ -276,7 +276,7 @@ fun SpendChart(data: ChartData, period: String, byMonth: Boolean, onClick: (() -
     val parts = listOf<Triple<String, Color, (SpendSplit) -> Double>>(
         Triple("Singapore", CountryColors.sg, { it.sg }),
         Triple("Malaysia", CountryColors.my, { it.my }),
-        Triple("Old mixed", CountryColors.mixed, { it.unsplit }),
+        Triple("Old Mixed", CountryColors.mixed, { it.unsplit }),
     ).filter { (_, _, part) -> splits.any { part(it) > 0 } }
     if (parts.isEmpty()) return
     val producer = remember { CartesianChartModelProducer() }
@@ -290,7 +290,7 @@ fun SpendChart(data: ChartData, period: String, byMonth: Boolean, onClick: (() -
     val axis = remember(labels) { CartesianValueFormatter { _, x, _ -> labels[x.toInt().coerceIn(0, labels.lastIndex)] } }
     val thickness = if (splits.size > 12) 8.dp else 14.dp
     ChartCard(
-        if (byMonth) "Monthly spend (SGD)" else "Spend per fill-up (SGD)",
+        if (byMonth) "Monthly Spend (SGD)" else "Spend per Fill-Up (SGD)",
         period,
         legend = parts.map { (name, color, _) -> name to color },
         onClick = onClick,

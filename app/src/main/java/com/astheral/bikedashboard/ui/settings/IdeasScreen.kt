@@ -109,12 +109,12 @@ fun IdeasScreen(onBack: () -> Unit, viewModel: IdeasViewModel = viewModel()) {
     ) {
         Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
-            Text("Ideas", Modifier.weight(1f), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+            Text("Ideas Notebook", Modifier.weight(1f), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
             IconButton(onClick = { clipboard.setText(AnnotatedString(current)); copied = true }) {
-                Icon(Icons.Filled.ContentCopy, contentDescription = "Copy all")
+                Icon(Icons.Filled.ContentCopy, contentDescription = "Copy All")
             }
             IconButton(onClick = { confirmErase = true }, enabled = current.isNotEmpty()) {
-                Icon(Icons.Filled.DeleteSweep, contentDescription = "Erase all")
+                Icon(Icons.Filled.DeleteSweep, contentDescription = "Erase All")
             }
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -143,7 +143,7 @@ fun IdeasScreen(onBack: () -> Unit, viewModel: IdeasViewModel = viewModel()) {
         ConfirmDialog(
             title = "Erase all ideas?",
             message = "This clears the whole notebook. Copy it first if you might want it. This can't be undone.",
-            confirm = "Erase all",
+            confirm = "Erase All",
             onDismiss = { confirmErase = false },
             onConfirm = { confirmErase = false; copied = false; viewModel.eraseAll() },
         )

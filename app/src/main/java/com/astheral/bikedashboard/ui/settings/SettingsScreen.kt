@@ -246,7 +246,7 @@ fun SettingsScreen(
                 GroupDivider()
                 SettingRow(
                     Icons.Filled.Description,
-                    "Bike details",
+                    "Bike Details",
                     "Plate, chassis and engine numbers, COE, road tax and insurance",
                     onClick = onOpenDetails,
                 ) { Chevron() }
@@ -260,13 +260,13 @@ fun SettingsScreen(
                 GroupDivider()
                 SettingRow(
                     Icons.Filled.Timer,
-                    "Service intervals",
+                    "Service Intervals",
                     "When oil changes and services are due, and when to start reminding you",
                     onClick = onOpenIntervals,
                 ) { Chevron() }
                 GroupDivider()
             }
-            SettingRow(Icons.Filled.SwapHoriz, "Switch or add a bike", "Your other bikes, or a rental", onClick = onProfileClick) { Chevron() }
+            SettingRow(Icons.Filled.SwapHoriz, "Switch or Add a Bike", "Your other bikes, or a rental", onClick = onProfileClick) { Chevron() }
         }
 
         SectionHeader(Icons.Filled.Palette, "Personalisation")
@@ -282,28 +282,28 @@ fun SettingsScreen(
         SectionHeader(Icons.Filled.Notifications, "Reminders")
         RemindersCard(viewModel)
 
-        SectionHeader(Icons.Filled.Route, "Savings offset")
+        SectionHeader(Icons.Filled.Route, "Savings Offset")
         GroupCard(contentPadding = 16.dp) { TripKmField(tripKm, viewModel::setTripKm) }
 
         SectionHeader(Icons.Filled.Save, "Backup")
         GroupCard {
             SettingRow(
                 Icons.Filled.Save,
-                "Back up everything",
+                "Back Up Everything",
                 exportMessage ?: "Every bike, fill-up and detail, your personalisation and the ideas notebook, in one file",
                 onClick = { backupTo.launch("bike-dashboard-backup-${LocalDate.now()}.json") },
             ) { Chevron() }
             GroupDivider()
             SettingRow(
                 Icons.Filled.Upload,
-                "Export fill-ups as CSV",
+                "Export Fill-Ups as CSV",
                 "${profile?.name ?: "This bike"}'s fill-ups, for a spreadsheet",
                 onClick = { exportTo.launch("bike-dashboard-${fileSafe(profile?.name)}-${LocalDate.now()}.csv") },
             ) { Chevron() }
             GroupDivider()
             SettingRow(
                 Icons.Filled.Download,
-                "Import or restore",
+                "Import or Restore",
                 "Restore a full backup, or load fill-ups from a CSV or your old spreadsheet",
                 onClick = onImport,
             ) { Chevron() }
@@ -495,7 +495,7 @@ private fun PickTimeDialog(initial: LocalTime, onDismiss: () -> Unit, onPick: (L
     val state = rememberTimePickerState(initialHour = initial.hour, initialMinute = initial.minute, is24Hour = false)
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Remind me at") },
+        title = { Text("Remind Me at") },
         text = { TimePicker(state) },
         confirmButton = { TextButton(onClick = { onPick(LocalTime.of(state.hour, state.minute)) }) { Text("OK") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
@@ -522,14 +522,14 @@ private fun TripKmField(saved: Double, onSave: (Double) -> Unit) {
             text = it
             parseNumber(it)?.takeIf { km -> km >= 0 }?.let(onSave)
         },
-        label = { Text("Trip to Malaysia and back") },
+        label = { Text("Trip to Malaysia and Back") },
         suffix = { Text("km") },
         singleLine = true,
         isError = !valid,
         shape = RoundedCornerShape(16.dp),
         supportingText = {
             Text(
-                if (valid) "The same for every bike. The petrol for this ride is taken off the savings, unless you turn on \"No special trip to MY\"."
+                if (valid) "The same for every bike. The petrol for this ride is taken off the savings, unless you turn on \"No Special Trip to MY\"."
                 else "Enter a distance in km, e.g. 48",
             )
         },
@@ -563,9 +563,9 @@ private fun AboutCard(ideasUnlocked: Boolean, onFound: () -> Unit, onOpenIdeas: 
     )
     if (ideasUnlocked) {
         GroupDivider()
-        SettingRow(Icons.Filled.Lightbulb, "Ideas notebook", "Jot down feature ideas in plain text", onClick = onOpenIdeas) { Chevron() }
+        SettingRow(Icons.Filled.Lightbulb, "Ideas Notebook", "Jot down feature ideas in plain text", onClick = onOpenIdeas) { Chevron() }
         GroupDivider()
-        SettingRow(Icons.Filled.BugReport, "Diagnostic logs", "Crash reports to share when something breaks", onClick = onOpenLogs) { Chevron() }
+        SettingRow(Icons.Filled.BugReport, "Diagnostic Logs", "Crash reports to share when something breaks", onClick = onOpenLogs) { Chevron() }
     }
     GroupDivider()
     SettingRow(Icons.Filled.History, "Changelog", "What's new in each version", onClick = { open = !open }) {

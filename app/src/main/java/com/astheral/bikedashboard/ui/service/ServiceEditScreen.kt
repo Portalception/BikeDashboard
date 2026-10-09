@@ -231,7 +231,7 @@ fun ServiceEditScreen(id: Long, onDone: () -> Unit) {
         else -> false
     }
     StepFlow(
-        title = if (s.isNew) "New service" else "Edit service",
+        title = if (s.isNew) "New Service" else "Edit Service",
         step = s.step,
         index = s.index,
         count = s.count,
@@ -314,12 +314,12 @@ private fun CategoryCard(s: ServiceEditState, vm: ServiceEditViewModel) {
     QuestionCard(null, "What was done?") {
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             s.categories.forEach { c -> FilterPill(c.name, categoryColor(c.id), s.form.type == c.id) { vm.chooseCategory(c.id) } }
-            FilterPill("New category", null, false) { adding = true }
+            FilterPill("New Category", null, false) { adding = true }
         }
     }
     if (adding) {
         CategoryNameDialog(
-            title = "New category",
+            title = "New Category",
             initial = "",
             taken = s.categories.map { it.name },
             note = "It's shared by all your bikes. Change or remove categories from the Servicing page.",
@@ -366,13 +366,13 @@ private fun OdometerCard(s: ServiceEditState, vm: ServiceEditViewModel) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.height(10.dp))
-                QuickChip("It's an exact reading") { vm.edit { it.copy(odometerEstimated = false) } }
+                QuickChip("It's an Exact Reading") { vm.edit { it.copy(odometerEstimated = false) } }
             }
         } else {
             FilledTonalButton(onClick = vm::estimate, enabled = estimate != null) {
                 Icon(Icons.Filled.AutoFixHigh, contentDescription = null, Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
-                Text("Estimate from fill-ups")
+                Text("Estimate from Fill-Ups")
             }
             if (estimate == null) {
                 Spacer(Modifier.height(6.dp))

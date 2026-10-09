@@ -12,7 +12,7 @@ import com.astheral.bikedashboard.calc.DEFAULT_TRIP_KM
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.Serializable
 
-enum class ProfileKind(val label: String) { OWN("Own bike"), RENTAL("Rental") }
+enum class ProfileKind(val label: String) { OWN("Own Bike"), RENTAL("Rental") }
 
 /** Usual size of a sports bike tank, e.g. the Yamaha R3's 14 L. */
 const val DEFAULT_TANK_LITRES = 14.0
