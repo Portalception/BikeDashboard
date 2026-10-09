@@ -79,13 +79,17 @@ enum class ColorPreset(val brand: String, val primary: Color, val accent: Color)
     TRIUMPH("Triumph", Color(0xFF2B2B2B), Color(0xFFFFC72C)),
 }
 
-/** Colours offered for primary and accent; any other colour can be picked with "Custom". */
+/**
+ * Colours offered for primary and accent: just the basics, one row with "Custom" at the end.
+ * Any other colour can be picked with Custom.
+ */
 val SwatchColors = listOf(
-    Color(0xFFE53935), Color(0xFFE0103A), Color(0xFFEC407A), Color(0xFF8E24AA),
-    Color(0xFF5E35B1), Color(0xFF3949AB), Color(0xFF1B3F9A), Color(0xFF1E88E5),
-    Color(0xFF00B0FF), Color(0xFF00ACC1), Color(0xFF00897B), Color(0xFF43A047),
-    Color(0xFF9E9D24), Color(0xFFFFB300), Color(0xFFFB8C00), Color(0xFF6D4C41),
-    Color(0xFF546E7A),
+    Color(0xFFE53935), // red
+    Color(0xFFFB8C00), // orange
+    Color(0xFFFFB300), // yellow
+    Color(0xFF43A047), // green
+    Color(0xFF1E88E5), // blue
+    Color(0xFF8E24AA), // purple
 )
 
 val WallpaperSupported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S

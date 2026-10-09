@@ -402,7 +402,8 @@ private fun PresetRow(appearance: AppearanceSettings, onPick: (ColorPreset) -> U
 private fun SwatchPicker(selected: Color, onPick: (Color) -> Unit) {
     var custom by remember { mutableStateOf(false) }
     val isCustom = SwatchColors.none { same(it, selected) }
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    // One row, spread across the card.
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
         SwatchColors.forEach { color ->
             Box(Modifier.clip(CircleShape).clickable(role = Role.RadioButton) { onPick(color) }) {
                 Swatch(Brush.linearGradient(listOf(color, color)), same(selected, color), checkTint = contentOn(color), size = 40)

@@ -357,42 +357,50 @@ private fun DrawScope.drawProgressShape(style: ProgressStyle, end: Float, color:
             drawLine(color, Offset(stroke / 2, mid), Offset(maxOf(stroke / 2, end - stroke / 2), mid), strokeWidth = stroke, cap = StrokeCap.Round)
         }
         ProgressStyle.CHAIN -> {
-            // A motorcycle roller chain seen from the side: rollers joined by plates, with outer
-            // plates (outlined) and inner plates (solid) taking turns, and a pin in each roller.
-            val pitch = 12.dp.toPx()
-            val plateH = size.height * 0.78f
-            val innerH = size.height * 0.56f
-            val roller = size.height * 0.27f
-            val count = ((end - pitch / 2) / pitch).toInt()
-            for (i in 0 until count) {
-                val x0 = pitch / 2 + i * pitch
-                if (i % 2 == 0) {
-                    drawRoundRect(shade, Offset(x0 - roller, mid - plateH / 2), Size(pitch + roller * 2, plateH), CornerRadius(plateH / 2))
-                    drawRoundRect(color, Offset(x0 - roller, mid - plateH / 2), Size(pitch + roller * 2, plateH), CornerRadius(plateH / 2), style = Stroke(stroke * 0.5f))
-                } else {
-                    drawRoundRect(color.copy(alpha = 0.85f), Offset(x0 - roller * 0.6f, mid - innerH / 2), Size(pitch + roller * 1.2f, innerH), CornerRadius(innerH / 2))
-                }
+            // A motorcycle chain seen from the side: straight-sided plates in a steady band, the
+            // outer plates (dark, outlined) over the inner plates (solid), with a pin at each joint.
+            // Nothing sticks out past the plates.
+            val pitch = 10.dp.toPx()
+            val plateH = size.height * 0.6f
+            val innerH = plateH * 0.8f
+            val pin = plateH * 0.2f
+            val count = (end / pitch).toInt()
+            for (i in 0 until count step 2) {
+                val x0 = (i + 1) * pitch
+                if (x0 + pitch > end) break
+                drawRoundRect(color, Offset(x0, mid - innerH / 2), Size(pitch, innerH), CornerRadius(innerH * 0.25f))
+            }
+            for (i in 0 until count step 2) {
+                val x0 = i * pitch
+                val left = maxOf(0f, x0 - pin * 1.3f)
+                val right = minOf(end, x0 + pitch + pin * 1.3f)
+                drawRoundRect(shade, Offset(left, mid - plateH / 2), Size(right - left, plateH), CornerRadius(plateH * 0.3f))
+                drawRoundRect(color, Offset(left, mid - plateH / 2), Size(right - left, plateH), CornerRadius(plateH * 0.3f), style = Stroke(stroke * 0.35f))
             }
             for (i in 0..count) {
-                val x = pitch / 2 + i * pitch
-                if (x - roller > end) break
-                drawCircle(color, radius = roller, center = Offset(x, mid))
-                drawCircle(shade, radius = roller * 0.42f, center = Offset(x, mid))
+                val x = i * pitch
+                if (x > end - pin) break
+                if (x < pin) continue
+                drawCircle(color, radius = pin, center = Offset(x, mid))
             }
         }
         ProgressStyle.TREAD -> {
-            // Tyre tread: a row of chevrons, like the grooves on a sports tyre.
-            val pitch = 10.dp.toPx()
-            val line = Stroke(width = stroke * 0.8f, cap = StrokeCap.Round, join = StrokeJoin.Round)
-            var x = 0f
-            while (x + pitch * 0.6f <= end) {
-                val path = Path().apply {
-                    moveTo(x, mid - amp)
-                    lineTo(x + pitch * 0.6f, mid)
-                    lineTo(x, mid + amp)
-                }
-                drawPath(path, color, style = line)
+            // Tyre tread: a rubber band with staggered grooves slanting in from either edge,
+            // like the sipes on a sports tyre.
+            val bandH = size.height * 0.7f
+            val top = mid - bandH / 2
+            drawRoundRect(color, Offset(0f, top), Size(end, bandH), CornerRadius(bandH * 0.25f))
+            val pitch = 7.dp.toPx()
+            val groove = Stroke(width = stroke * 0.45f, cap = StrokeCap.Round)
+            val reach = bandH * 0.62f
+            val lean = pitch * 0.55f
+            var x = pitch * 0.5f
+            var fromTop = true
+            while (x + lean < end - stroke * 0.5f) {
+                val (y0, y1) = if (fromTop) top + stroke * 0.25f to top + reach else top + bandH - stroke * 0.25f to top + bandH - reach
+                drawPath(Path().apply { moveTo(x, y0); lineTo(x + lean, y1) }, shade, style = groove)
                 x += pitch
+                fromTop = !fromTop
             }
         }
         ProgressStyle.REV -> {
@@ -410,7 +418,7 @@ private fun DrawScope.drawProgressShape(style: ProgressStyle, end: Float, color:
         }
         ProgressStyle.STRIPE -> {
             // Race stripe: a bold livery stripe with a thin pinstripe under it, cut at a slant at
-            // the front. Towards the start it breaks up into speed streaks.
+            // the front. Near the start it breaks into a few speed streaks, which stay clearly visible.
             val top = mid - amp
             val total = amp * 2
             val thickH = total * 0.58f
@@ -418,7 +426,7 @@ private fun DrawScope.drawProgressShape(style: ProgressStyle, end: Float, color:
             val slant = total * 0.6f
             // The right edge leans back, so the stripe and pinstripe share one slanted cut.
             fun edge(y: Float) = end - slant * (y - top) / total
-            val solidFrom = end * 0.45f
+            val solidFrom = minOf(end * 0.3f, 40.dp.toPx())
             fun stripe(x0: Float, y0: Float, y1: Float, alpha: Float, cut: Boolean) {
                 val x1top = if (cut) edge(y0) else x0
                 val x1bottom = if (cut) edge(y1) else x0
@@ -438,15 +446,15 @@ private fun DrawScope.drawProgressShape(style: ProgressStyle, end: Float, color:
             // Speed streaks: short dashes that get longer and stronger towards the solid stripe.
             val streakGap = 3.dp.toPx()
             var x = solidFrom - streakGap
-            var len = 10.dp.toPx()
-            var alpha = 0.8f
-            while (x > 0f && alpha > 0.1f) {
+            var len = 8.dp.toPx()
+            var alpha = 0.9f
+            while (x > 0f) {
                 val x0 = maxOf(0f, x - len)
                 drawRect(color.copy(alpha = alpha), Offset(x0, top), Size(x - x0, thickH))
                 drawRect(color.copy(alpha = alpha * 0.7f), Offset(x0 + len * 0.3f, thinTop), Size(maxOf(0f, x - x0 - len * 0.3f), top + total - thinTop))
                 x = x0 - streakGap
-                len *= 0.7f
-                alpha *= 0.72f
+                len = maxOf(3.dp.toPx(), len * 0.8f)
+                alpha = maxOf(0.45f, alpha * 0.85f)
             }
         }
         ProgressStyle.ROAD -> {

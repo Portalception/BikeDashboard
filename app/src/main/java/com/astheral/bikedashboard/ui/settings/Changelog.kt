@@ -7,6 +7,14 @@ data class Release(val version: String, val date: LocalDate, val changes: List<S
 /** Major changes in each version, newest first. Add an entry here with every version you share. */
 val CHANGELOG = listOf(
     Release(
+        version = "0.6.9",
+        date = LocalDate.of(2026, 10, 9),
+        changes = listOf(
+            "The colour picker shows just the basic colours in one row, plus Custom for anything else.",
+            "Progress lines: Chain looks more like a real motorcycle chain, Tyre Tread looks like tyre grooves instead of arrows, and Race Stripe stays visible all the way to the left.",
+        ),
+    ),
+    Release(
         version = "0.6.8",
         date = LocalDate.of(2026, 10, 9),
         changes = listOf(
