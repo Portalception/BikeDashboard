@@ -40,7 +40,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -49,7 +48,6 @@ import com.astheral.bikedashboard.calc.ChartData
 import com.astheral.bikedashboard.calc.DashboardSummary
 import com.astheral.bikedashboard.calc.DatedValue
 import com.astheral.bikedashboard.calc.FillUpStats
-import com.astheral.bikedashboard.calc.Greetings
 import com.astheral.bikedashboard.calc.PeriodSummary
 import com.astheral.bikedashboard.calc.chartData
 import com.astheral.bikedashboard.calc.computeStats
@@ -103,9 +101,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
-import java.time.LocalTime
 import java.time.temporal.ChronoUnit
-import kotlin.random.Random
 
 /** How many recent fill-ups the little bar charts in the tiles show. */
 private const val TILE_BARS = 16
@@ -144,7 +140,6 @@ private fun recent(stats: List<FillUpStats>, value: (FillUpStats) -> Double?) =
 class DashboardViewModel(application: Application) : AndroidViewModel(application) {
     private val settings = Settings.get(application)
     val units: StateFlow<Units> = settings.units
-    val greetings: StateFlow<Boolean> = settings.greetings
 
     fun updateUnits(change: (Units) -> Units) = settings.updateUnits(change)
 
@@ -228,8 +223,6 @@ fun DashboardScreen(
 ) {
     val data by viewModel.data.collectAsState()
     val units by viewModel.units.collectAsState()
-    val greetingsOn by viewModel.greetings.collectAsState()
-    val greeting = if (greetingsOn) Greetings.fill(sessionGreeting, profile?.name) else null
     val d = data ?: return
     val pager = periodPager
     val scope = rememberCoroutineScope()
@@ -249,10 +242,10 @@ fun DashboardScreen(
     ) {
         val edges = Modifier.padding(horizontal = 16.dp)
         if (d.lastFillUp == null) {
-            Header(null, units, profile, greeting, onProfileClick, edges)
+            Header(null, units, profile, onProfileClick, edges)
             Box(edges) { Empty(onAddFillUp, onImport) }
         } else {
-            Header(d, units, profile, greeting, onProfileClick, edges)
+            Header(d, units, profile, onProfileClick, edges)
             if (d.due.isNotEmpty()) {
                 GroupCard(edges, contentPadding = 16.dp, edge = d.due.first().levelColor().copy(alpha = 0.6f), onClick = onOpenServicing) {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { d.due.forEach { DueRow(it) } }
@@ -294,30 +287,13 @@ private fun PeriodPage(period: Period, d: DashboardData, units: Units, onUnits: 
 }
 
 /**
- * Picked once per app launch, so the greeting stays the same while you move around the app
- * (and doesn't change when the clock passes into the next part of the day).
- */
-private val sessionGreeting: String by lazy { Greetings.pick(LocalTime.now().hour, Random.nextLong()) }
-
-/**
- * An optional greeting, the title, a line about the last fill-up in the accent colour, a
+ * The title, a line about the last fill-up in the accent colour, a
  * couple of chips and the wavy bar.
  */
 @Composable
-private fun Header(d: DashboardData?, units: Units, profile: Profile?, greeting: String?, onProfileClick: () -> Unit, modifier: Modifier = Modifier) {
-    Column(modifier.padding(top = if (greeting != null) 8.dp else 16.dp, start = 4.dp, end = 4.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Column {
-            greeting?.let {
-                Text(
-                    it,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            ProfileTitle(profile, onProfileClick)
-        }
+private fun Header(d: DashboardData?, units: Units, profile: Profile?, onProfileClick: () -> Unit, modifier: Modifier = Modifier) {
+    Column(modifier.padding(top = 16.dp, start = 4.dp, end = 4.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        ProfileTitle(profile, onProfileClick)
         val last = d?.lastFillUp ?: return@Column
         Row(verticalAlignment = Alignment.CenterVertically) {
             val ago = when (d.daysSinceLast) {

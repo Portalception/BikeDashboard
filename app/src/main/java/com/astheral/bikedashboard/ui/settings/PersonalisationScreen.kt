@@ -214,12 +214,12 @@ fun PersonalisationScreen(onBack: () -> Unit, viewModel: PersonalisationViewMode
             }
         }
 
-        SectionHeader(Icons.Filled.WavingHand, "Dashboard")
+        SectionHeader(Icons.Filled.WavingHand, "Start-Up")
         GroupCard {
             SettingRow(
                 Icons.Filled.WavingHand,
                 "Greeting Phrases",
-                "A short hello above the bike's name, for the time of day",
+                "A short hello for the time of day when the app opens",
                 onClick = { viewModel.setGreetings(!greetings) },
             ) {
                 Switch(checked = greetings, onCheckedChange = viewModel::setGreetings)
