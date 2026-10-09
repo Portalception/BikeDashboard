@@ -31,6 +31,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Unarchive
+import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.TwoWheeler
@@ -66,6 +68,7 @@ import com.astheral.bikedashboard.ui.components.GroupCard
 import com.astheral.bikedashboard.ui.components.GroupDivider
 import com.astheral.bikedashboard.ui.components.NumberFont
 import com.astheral.bikedashboard.ui.components.ProgressLine
+import com.astheral.bikedashboard.ui.components.SettingRow
 import com.astheral.bikedashboard.ui.edit.NumberCard
 import com.astheral.bikedashboard.ui.edit.PillButton
 import com.astheral.bikedashboard.ui.edit.QuestionCard
@@ -85,6 +88,7 @@ data class SetupState(
     /** No bikes yet: the app's first screen, which can't be closed. */
     val firstRun: Boolean = false,
     val canDelete: Boolean = false,
+    val archived: Boolean = false,
     val name: String = "",
     val kind: ProfileKind = ProfileKind.OWN,
     val tank: String = trim(DEFAULT_TANK_LITRES),
@@ -122,6 +126,7 @@ class ProfileSetupViewModel(application: Application, private val profileId: Lon
                     loading = false,
                     isNew = false,
                     canDelete = all.size > 1,
+                    archived = p.archived,
                     name = p.name,
                     kind = p.kind,
                     tank = trim(p.tankLitres),
@@ -166,9 +171,19 @@ class ProfileSetupViewModel(application: Application, private val profileId: Lon
             tankLitres = parseNumber(s.tank)!!,
             // No longer used (the trip is one setting for every bike); kept as it was.
             tripKm = existing?.tripKm ?: DEFAULT_TRIP_KM,
+            archived = existing?.archived ?: false,
         )
         viewModelScope.launch {
             if (existing == null) profiles.create(profile) else profiles.update(profile)
+            _state.update { it.copy(done = true) }
+        }
+    }
+
+    /** Archives the bike (or brings it back) and closes the page. */
+    fun setArchived(archived: Boolean) {
+        val p = existing ?: return
+        viewModelScope.launch {
+            profiles.setArchived(getApplication(), p, archived)
             _state.update { it.copy(done = true) }
         }
     }
@@ -195,6 +210,7 @@ fun ProfileSetupScreen(profileId: Long, onDone: () -> Unit) {
     }
     val state by vm.state.collectAsState()
     var confirmDelete by remember { mutableStateOf(false) }
+    var confirmArchive by remember { mutableStateOf(false) }
     LaunchedEffect(state.done) { if (state.done) onDone() }
     // The back gesture steps back a card (or to the summary when editing) before closing.
     BackHandler(enabled = !state.loading && (if (state.isNew) state.step.ordinal > 0 else state.step != SetupStep.REVIEW)) {
@@ -247,7 +263,7 @@ fun ProfileSetupScreen(profileId: Long, onDone: () -> Unit) {
             label = "setupStep",
         ) { step ->
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-                StepCard(step, state, vm)
+                StepCard(step, state, vm, onArchive = { if (state.archived) vm.setArchived(false) else confirmArchive = true })
             }
         }
 
@@ -281,6 +297,21 @@ fun ProfileSetupScreen(profileId: Long, onDone: () -> Unit) {
         }
     }
 
+    if (confirmArchive) {
+        AlertDialog(
+            onDismissRequest = { confirmArchive = false },
+            title = { Text("Archive ${state.name}?") },
+            text = {
+                Text(
+                    "For a bike you no longer ride. Its fill-ups, servicing and details are kept and you can still open it " +
+                        "from the bottom of the bike switcher, but it won't send any more reminders. You can bring it back any time.",
+                )
+            },
+            confirmButton = { TextButton(onClick = { confirmArchive = false; vm.setArchived(true) }) { Text("Archive") } },
+            dismissButton = { TextButton(onClick = { confirmArchive = false }) { Text("Cancel") } },
+        )
+    }
+
     if (confirmDelete) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
@@ -295,7 +326,7 @@ fun ProfileSetupScreen(profileId: Long, onDone: () -> Unit) {
 }
 
 @Composable
-private fun StepCard(step: SetupStep, state: SetupState, vm: ProfileSetupViewModel) {
+private fun StepCard(step: SetupStep, state: SetupState, vm: ProfileSetupViewModel, onArchive: () -> Unit) {
     when (step) {
         SetupStep.NAME -> NumberCard(
             part = if (state.firstRun) "Let's Set Up Your First Bike" else null,
@@ -332,7 +363,7 @@ private fun StepCard(step: SetupStep, state: SetupState, vm: ProfileSetupViewMod
             value = state.tank, suffix = "L", error = state.error, selectAll = true,
             onChange = { v -> vm.change { it.copy(tank = v) } }, onNext = vm::next,
         )
-        SetupStep.REVIEW -> GroupCard {
+        SetupStep.REVIEW -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { GroupCard {
             listOf(
                 Triple(SetupStep.NAME, "Name", state.name),
                 Triple(SetupStep.KIND, "Type", state.kind.label),
@@ -347,6 +378,17 @@ private fun StepCard(step: SetupStep, state: SetupState, vm: ProfileSetupViewMod
                     Text(value, fontFamily = if (s == SetupStep.TANK) NumberFont else null, style = MaterialTheme.typography.titleSmall)
                     Spacer(Modifier.width(10.dp))
                     Icon(Icons.Filled.Edit, contentDescription = "Change", Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+            // Only for a bike that's already saved.
+            if (!state.isNew) {
+                GroupCard {
+                    if (state.archived) {
+                        SettingRow(Icons.Filled.Unarchive, "Bring Back", "Back among your bikes, with its reminders on again", onClick = onArchive)
+                    } else {
+                        SettingRow(Icons.Filled.Archive, "Archive Bike", "No longer riding it? Keep its history but stop its reminders", onClick = onArchive)
+                    }
                 }
             }
         }

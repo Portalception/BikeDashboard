@@ -76,7 +76,7 @@ private object SeedCallback : RoomDatabase.Callback() {
  */
 @Database(
     entities = [FillUp::class, Profile::class, BikeDetails::class, ServiceRecord::class, ServiceInterval::class, ServiceCategory::class],
-    version = 8,
+    version = 9,
     autoMigrations = [
         AutoMigration(from = 2, to = 3),
         AutoMigration(from = 3, to = 4),
@@ -84,6 +84,7 @@ private object SeedCallback : RoomDatabase.Callback() {
         AutoMigration(from = 5, to = 6, spec = SeedServiceCategories::class),
         AutoMigration(from = 6, to = 7),
         AutoMigration(from = 7, to = 8),
+        AutoMigration(from = 8, to = 9),
     ],
 )
 @TypeConverters(Converters::class)

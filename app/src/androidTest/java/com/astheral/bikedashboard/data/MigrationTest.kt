@@ -83,6 +83,23 @@ class MigrationTest {
         }
     }
 
+    /** Version 9 adds archiving; every bike from before is still in use. */
+    @Test
+    fun version8BikesAreNotArchived() {
+        helper.createDatabase(dbName, 8).apply {
+            execSQL("INSERT INTO profiles (id, name, kind, tankLitres, tripKm) VALUES (1, 'R3', 'OWN', 14.0, 48.0)")
+            close()
+        }
+        helper.runMigrationsAndValidate(dbName, 9, true).apply {
+            query("SELECT name, archived FROM profiles").use {
+                it.moveToFirst()
+                assertEquals("R3", it.getString(0))
+                assertEquals(0, it.getInt(1))
+            }
+            close()
+        }
+    }
+
     /** Version 8 adds the log card fields; existing details keep everything and start without them. */
     @Test
     fun version7DetailsKeepTheirValues() {

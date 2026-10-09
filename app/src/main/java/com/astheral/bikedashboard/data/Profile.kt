@@ -1,5 +1,6 @@
 package com.astheral.bikedashboard.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Entity
@@ -31,6 +32,12 @@ data class Profile(
      * The column stays so old databases and backups still load, and its value seeds that setting once.
      */
     val tripKm: Double = DEFAULT_TRIP_KM,
+    /**
+     * A bike no longer ridden: kept so its history can still be looked at, but it sits apart in
+     * the switcher and gets no reminders.
+     */
+    @ColumnInfo(defaultValue = "0")
+    val archived: Boolean = false,
 )
 
 data class ProfileCount(val profileId: Long, val count: Int)

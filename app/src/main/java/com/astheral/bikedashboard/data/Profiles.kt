@@ -2,6 +2,7 @@ package com.astheral.bikedashboard.data
 
 import android.content.Context
 import com.astheral.bikedashboard.calc.DEFAULT_TRIP_KM
+import com.astheral.bikedashboard.reminders.Reminders
 import com.astheral.bikedashboard.ui.theme.AppearanceSettings
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -24,9 +25,12 @@ class Profiles private constructor(context: Context) {
     /** Fill-ups per bike, for the switcher. */
     val counts: Flow<Map<Long, Int>> = dao.observeCounts().map { list -> list.associate { it.profileId to it.count } }
 
-    /** The bike being shown: the one picked last, or the first if that one's gone. Null when there are none yet. */
+    /**
+     * The bike being shown: the one picked last (archived ones can be opened to look back at), or
+     * else the first bike still in use. Null when there are none yet.
+     */
     val active: Flow<Profile?> = combine(all, settings.activeProfileId) { list, id ->
-        list.firstOrNull { it.id == id } ?: list.firstOrNull()
+        list.firstOrNull { it.id == id } ?: list.firstOrNull { !it.archived } ?: list.firstOrNull()
     }.distinctUntilChanged()
 
     /** The active bike together with its fill-ups, oldest first. */
@@ -74,6 +78,22 @@ class Profiles private constructor(context: Context) {
     suspend fun update(profile: Profile) = dao.update(profile)
 
     fun switchTo(id: Long) = settings.setActiveProfile(id)
+
+    /**
+     * Archives the bike (or brings it back). An archived bike gets no reminders, and any of its
+     * reminders already showing are cleared. If it was showing, the app moves to a bike still in use.
+     */
+    suspend fun setArchived(context: Context, profile: Profile, archived: Boolean) {
+        dao.update(profile.copy(archived = archived))
+        if (archived) {
+            Reminders.dismissFor(context, profile.id)
+            if (activeNow()?.id == profile.id) {
+                dao.getAll().firstOrNull { !it.archived }?.let { switchTo(it.id) }
+            }
+        } else {
+            Reminders.check(context)
+        }
+    }
 
     /** Deletes the bike and its fill-ups. The app then shows the first bike left. */
     suspend fun delete(profile: Profile) {

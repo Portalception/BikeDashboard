@@ -46,6 +46,9 @@ import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.material.icons.filled.Inventory2
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -110,6 +113,18 @@ fun ProfileTitle(profile: Profile?, onClick: () -> Unit, modifier: Modifier = Mo
         if (profile != null) {
             Spacer(Modifier.width(4.dp))
             Icon(Icons.Filled.ExpandMore, contentDescription = "Switch bike", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (profile.archived) {
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    "Archived",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                )
+            }
         }
     }
 }
@@ -142,7 +157,9 @@ fun ProfileSwitcherSheet(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text("Your Bikes", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 4.dp, bottom = 4.dp))
-            state.all.orEmpty().forEach { profile ->
+            val (archived, inUse) = state.all.orEmpty().partition { it.archived }
+            // One card per bike: tap to switch, the pencil to edit.
+            val bikeCard: @Composable (Profile) -> Unit = { profile ->
                 val active = profile.id == state.active?.id
                 var card by remember { mutableStateOf<LayoutCoordinates?>(null) }
                 var touch by remember { mutableStateOf(Offset.Unspecified) }
@@ -157,6 +174,8 @@ fun ProfileSwitcherSheet(
                     border = outline(if (active) MaterialTheme.colorScheme.tertiary else null, if (active) 2.dp else 1.dp),
                     modifier = Modifier
                         .fillMaxWidth()
+                        // Archived bikes are dimmed: still there to look back at, but out of the way.
+                        .alpha(if (profile.archived && !active) 0.7f else 1f)
                         .onGloballyPositioned { card = it }
                         .pointerInput(Unit) {
                             awaitEachGesture { touch = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial).position }
@@ -182,6 +201,7 @@ fun ProfileSwitcherSheet(
                     }
                 }
             }
+            inUse.forEach { bikeCard(it) }
             Surface(
                 onClick = onAdd,
                 shape = TileShape,
@@ -197,6 +217,29 @@ fun ProfileSwitcherSheet(
                         Text("Another bike of yours, or a rental", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
+            }
+            if (archived.isNotEmpty()) {
+                // Bikes no longer ridden, folded away unless one of them is showing.
+                var open by remember { mutableStateOf(archived.any { it.id == state.active?.id }) }
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .clickable { open = !open }
+                        .padding(horizontal = 4.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Filled.Inventory2, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(12.dp))
+                    Text("Archived (${archived.size})", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                    Icon(
+                        Icons.Filled.ExpandMore,
+                        contentDescription = if (open) "Hide archived bikes" else "Show archived bikes",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.rotate(if (open) 180f else 0f),
+                    )
+                }
+                if (open) archived.forEach { bikeCard(it) }
             }
         }
     }

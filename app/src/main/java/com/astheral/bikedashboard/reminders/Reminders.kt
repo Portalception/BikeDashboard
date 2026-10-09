@@ -16,6 +16,7 @@ import androidx.core.content.ContextCompat
 import com.astheral.bikedashboard.MainActivity
 import com.astheral.bikedashboard.R
 import com.astheral.bikedashboard.calc.LegalDue
+import com.astheral.bikedashboard.calc.LegalItem
 import com.astheral.bikedashboard.calc.legalDue
 import com.astheral.bikedashboard.data.AppDatabase
 import com.astheral.bikedashboard.data.DueLevel
@@ -89,7 +90,7 @@ object Reminders {
     suspend fun dueNow(context: Context, today: LocalDate = LocalDate.now()): List<Pair<Profile, IntervalStatus>> {
         val db = AppDatabase.get(context)
         val categories = db.categoryDao().getAll()
-        return db.profileDao().getAll().flatMap { profile ->
+        return db.profileDao().getAll().filter { !it.archived }.flatMap { profile ->
             val records = db.serviceDao().getAll(profile.id)
             val odometer = currentOdometer(db.fillUpDao().getAll(profile.id), records)
             withDefaults(profile.id, db.intervalDao().getAll(profile.id), categories)
@@ -104,7 +105,7 @@ object Reminders {
         val settings = Settings.get(context)
         val remind = settings.paperworkReminders.value
         val lead = settings.paperworkLeadDays.value
-        return db.profileDao().getAll().flatMap { profile ->
+        return db.profileDao().getAll().filter { !it.archived }.flatMap { profile ->
             val items = remind[profile.id].orEmpty()
             val details = if (items.isEmpty()) null else db.bikeDetailsDao().get(profile.id)
             details?.let { legalDue(it, items, lead, today) }.orEmpty().map { profile to it }
@@ -147,6 +148,31 @@ object Reminders {
         }
         if (papersToSend.size > 1) notifyPaperworkSummary(context, papersToSend)
     }
+
+    /**
+     * Clears every reminder showing for [profileId] (it's been archived), and the summaries that
+     * may have listed it. The next run brings back the summaries for other bikes if still due.
+     */
+    fun dismissFor(context: Context, profileId: Long) {
+        val sent = context.getSharedPreferences("reminders", Context.MODE_PRIVATE)
+        val manager = NotificationManagerCompat.from(context)
+        val keys = sent.all.keys.filter { it.startsWith("$profileId:") || it.startsWith("paperwork:$profileId:") }
+        keys.forEach { key ->
+            if (key.startsWith("paperwork:")) {
+                val item = LegalItem.entries.firstOrNull { it.name == key.substringAfterLast(':') } ?: return@forEach
+                manager.cancel(PAPERWORK_TAG, (profileId * 10 + item.ordinal + 1).toInt())
+            } else {
+                manager.cancel(serviceId(key))
+            }
+        }
+        if (keys.isNotEmpty()) {
+            manager.cancel(SUMMARY_ID)
+            manager.cancel(PAPERWORK_TAG, PAPERWORK_SUMMARY_ID)
+        }
+        sent.edit().apply { keys.forEach { remove(it) } }.apply()
+    }
+
+    private fun serviceId(key: String) = key.hashCode().let { if (it == SUMMARY_ID) SUMMARY_ID + 1 else it }
 
     private fun key(profile: Profile, s: IntervalStatus) = "${profile.id}:${s.type}"
 
@@ -241,7 +267,7 @@ object Reminders {
     @Suppress("MissingPermission") // checked by allowed() first
     private fun notify(context: Context, profile: Profile, s: IntervalStatus) {
         // The same bike and category always get the same number, so a repeat replaces the last one.
-        val id = key(profile, s).hashCode().let { if (it == SUMMARY_ID) SUMMARY_ID + 1 else it }
+        val id = serviceId(key(profile, s))
         val tap = openServicing(context, profile.id, id)
         val title = if (s.level == DueLevel.OVERDUE) "${s.name} is due · ${profile.name}" else "${s.name} coming up · ${profile.name}"
         val last = s.last?.let { r -> "Last done ${r.date.short()}" + (r.odometerKm?.let { " at ${km(it)}" } ?: "") + "." }
