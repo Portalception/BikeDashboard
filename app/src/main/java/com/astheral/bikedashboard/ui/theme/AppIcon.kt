@@ -14,7 +14,6 @@ import com.astheral.bikedashboard.R
 enum class AppIcon(val label: String, val alias: String, @DrawableRes val background: Int, @DrawableRes val foreground: Int) {
     CLASSIC("Classic", "IconModern", R.drawable.ic_launcher_bg_classic, R.drawable.ic_launcher_fg_classic),
     CLASSIC_YELLOW("Classic Yellow", "IconModernYellow", R.drawable.ic_launcher_bg_classic_yellow, R.drawable.ic_launcher_fg_classic_yellow),
-    FUEL_LIGHT("Fuel Light", "IconFuelLight", R.drawable.ic_launcher_bg_fuel_light, R.drawable.ic_launcher_fg_fuel_light),
     SPEEDO("Speedo", "IconSpeedo", R.drawable.ic_launcher_bg_speedo, R.drawable.ic_launcher_fg_speedo),
     SPEEDO_YELLOW("Speedo Yellow", "IconSpeedoYellow", R.drawable.ic_launcher_bg_speedo_yellow, R.drawable.ic_launcher_fg_speedo_yellow),
 
@@ -25,7 +24,7 @@ enum class AppIcon(val label: String, val alias: String, @DrawableRes val backgr
     companion object {
         /** Aliases of retired icons, still in the manifest so nobody is left without one. */
         private val RETIRED = listOf(
-            "IconMinimal", "IconMinimalYellow", "IconYamaha", "IconHonda", "IconKawasaki", "IconSuzuki", "IconDucati",
+            "IconFuelLight", "IconMinimal", "IconMinimalYellow", "IconYamaha", "IconHonda", "IconKawasaki", "IconSuzuki", "IconDucati",
             "IconBmw", "IconKtm", "IconAprilia", "IconMvAgusta", "IconTriumph",
         )
 
@@ -61,10 +60,10 @@ enum class AppIcon(val label: String, val alias: String, @DrawableRes val backgr
 
 /**
  * The saved icon, by name. Names from before the icons were reworked map to their nearest one now:
- * the old default, Modern and Minimal to Classic (and their yellow ones to Classic Yellow), and the
- * retired brand colours to Classic.
+ * the old default, Modern, Minimal and the retired brand colours to Classic, and the yellow ones
+ * and Fuel Light to Classic Yellow.
  */
 fun appIconNamed(name: String?): AppIcon = when (name) {
-    "MODERN_YELLOW", "MINIMAL_YELLOW" -> AppIcon.CLASSIC_YELLOW
+    "MODERN_YELLOW", "MINIMAL_YELLOW", "FUEL_LIGHT" -> AppIcon.CLASSIC_YELLOW
     else -> AppIcon.entries.firstOrNull { it.name == name } ?: AppIcon.CLASSIC
 }

@@ -48,19 +48,6 @@
             </intent-filter>
         </activity-alias>
         <activity-alias
-            android:name=".IconFuelLight"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/ic_launcher_fuel_light"
-            android:roundIcon="@mipmap/ic_launcher_fuel_light"
-            android:label="@string/app_name"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity-alias>
-        <activity-alias
             android:name=".IconModern"
             android:enabled="true"
             android:exported="true"
@@ -112,8 +99,21 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity-alias>
-        <!-- Retired icons (Minimal, then the brand colours). Kept, showing the Classic icon, so anyone
-             still on one has an icon until the app next switches them to Classic. -->
+        <!-- Retired icons (Fuel Light, Minimal, then the brand colours). Kept, showing a Classic icon, so
+             anyone still on one has an icon until the app next switches them over. -->
+        <activity-alias
+            android:name=".IconFuelLight"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_classic_yellow"
+            android:roundIcon="@mipmap/ic_launcher_classic_yellow"
+            android:label="@string/app_name"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
         <activity-alias
             android:name=".IconMinimal"
             android:enabled="false"
