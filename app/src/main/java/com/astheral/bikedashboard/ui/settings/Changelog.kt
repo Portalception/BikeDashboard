@@ -10,6 +10,14 @@ data class Release(val version: String, val date: LocalDate, val changes: List<S
 /** Major changes in each version, newest first, as short phrases. Add an entry with every version you share. */
 val CHANGELOG = listOf(
     Release(
+        version = "0.8.4",
+        date = LocalDate.of(2026, 11, 15),
+        changes = listOf(
+            "Brand is now a dropdown under Full Tank?, not its own page",
+            "Shell, Esso and SPC first; Caltex and Sinopec under Others",
+        ),
+    ),
+    Release(
         version = "0.8.3",
         date = LocalDate.of(2026, 11, 15),
         changes = listOf(

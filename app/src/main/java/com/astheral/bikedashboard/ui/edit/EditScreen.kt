@@ -23,7 +23,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material.icons.filled.LocalGasStation
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
@@ -111,7 +118,6 @@ fun EditScreen(fillUpId: Long, onDone: () -> Unit, onDeleted: (Long) -> Unit, on
             state.step == Step.REVIEW && state.warnings.isNotEmpty() -> "Save Anyway"
             state.step == Step.REVIEW -> "Save"
             state.step == Step.FUEL_LEFT && state.form.barsLeft.isBlank() && state.form.reserveKm.isBlank() -> "Skip"
-            state.step == Step.BRAND && state.form.brand.isBlank() && state.isNew -> "Skip"
             !state.isNew -> "Done"
             else -> "Next"
         },
@@ -168,7 +174,6 @@ private fun StepCard(step: Step, state: EditState, vm: EditViewModel) {
     val mixed = form.country == Country.MIXED && !form.legacyMixed
     when (step) {
         Step.WHERE -> WhereCard(state, vm)
-        Step.BRAND -> BrandCard(state, vm)
         Step.DATE -> DateCard("When did you fill up?", form.date, onPick = { d -> vm.edit { it.copy(date = d) } }, onNext = vm::next)
         Step.RM_PAID -> NumberCard(
             part = if (mixed) "Malaysia Part" else null,
@@ -238,7 +243,10 @@ private fun StepCard(step: Step, state: EditState, vm: EditViewModel) {
             hint = "Read it off the pump.",
             value = form.sgLitres, suffix = "L", error = state.error,
             onChange = { v -> vm.edit { it.copy(sgLitres = v) } }, onNext = vm::next,
-            extra = { FullTankToggle(step, state, vm) },
+            extra = {
+                FullTankToggle(step, state, vm)
+                if (form.country == Country.SG) BrandMenu(form.brand) { b -> vm.edit { it.copy(brand = b) } }
+            },
         )
         Step.ODOMETER -> NumberCard(
             question = "What's the odometer reading?",
@@ -401,35 +409,74 @@ private fun WhereCard(state: EditState, vm: EditViewModel) {
 }
 
 /**
- * Which petrol brand, as two rows of tiles; tapping one moves on. Optional: "Skip" leaves it
- * blank, and tapping the picked brand again clears it.
+ * "Brand" under "Full Tank?" on a Singapore litres card: an optional pick from a menu of the main
+ * brands, with the smaller ones under "Others" and "None" to clear it.
  */
 @Composable
-private fun BrandCard(state: EditState, vm: EditViewModel) {
-    QuestionCard(null, "Which brand did you use?") {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            SG_BRANDS.chunked(3).forEach { row ->
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    row.forEach { brand ->
-                        ChoiceTile(
-                            icon = Icons.Filled.LocalGasStation,
-                            label = brand,
-                            selected = state.form.brand == brand,
-                            onClick = { vm.chooseBrand(brand) },
-                            tint = CountryColors.sg,
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
-                }
+private fun BrandMenu(brand: String, onPick: (String) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    var others by remember { mutableStateOf(false) }
+    Spacer(Modifier.height(10.dp))
+    Box {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(18.dp))
+                .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f))
+                .border(outline(), RoundedCornerShape(18.dp))
+                .clickable { others = false; open = true }
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f).padding(end = 12.dp)) {
+                Text("Brand", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "Optional. Which petrol station you used.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Text(
+                brand.ifBlank { "None" },
+                style = MaterialTheme.typography.titleMedium,
+                color = if (brand.isBlank()) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+            )
+            Icon(Icons.Filled.ArrowDropDown, contentDescription = null)
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            fun pick(b: String) {
+                onPick(b)
+                open = false
+            }
+            if (!others) {
+                SG_MAIN_BRANDS.forEach { b -> BrandItem(b, b == brand) { pick(b) } }
+                DropdownMenuItem(
+                    text = { Text(if (brand in SG_OTHER_BRANDS) "Others ($brand)" else "Others") },
+                    trailingIcon = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null) },
+                    onClick = { others = true },
+                )
+                HorizontalDivider()
+                BrandItem("None", brand.isBlank()) { pick("") }
+            } else {
+                DropdownMenuItem(
+                    text = { Text("Back") },
+                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = null) },
+                    onClick = { others = false },
+                )
+                HorizontalDivider()
+                SG_OTHER_BRANDS.forEach { b -> BrandItem(b, b == brand) { pick(b) } }
             }
         }
-        Spacer(Modifier.height(12.dp))
-        Text(
-            "Optional. Tap Skip to leave it out.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
     }
+}
+
+@Composable
+private fun BrandItem(label: String, selected: Boolean, onClick: () -> Unit) {
+    DropdownMenuItem(
+        text = { Text(label, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal) },
+        trailingIcon = if (selected) ({ Icon(Icons.Filled.Check, contentDescription = "Picked") }) else null,
+        onClick = onClick,
+    )
 }
 
 /**
@@ -560,6 +607,7 @@ private fun ReviewCard(state: EditState, vm: EditViewModel) {
                 state.steps.forEach { step ->
                     answer(step, form)?.let { add(Triple(step, label(step, form), it)) }
                     if (step == fullStep) add(Triple(step, "Full Tank", if (form.fullTank) "Yes" else "No"))
+                    if (step == Step.SG_LITRES && form.country == Country.SG) add(Triple(step, "Brand", form.brand.ifBlank { "Not recorded" }))
                 }
             }
             rows.forEachIndexed { i, (step, label, value) ->
@@ -628,7 +676,6 @@ private fun label(step: Step, form: FillUpForm): String {
         Step.FUEL_LEFT -> "Fuel Left"
         Step.DATE -> "Date"
         Step.WHERE -> "Where"
-        Step.BRAND -> "Brand"
         Step.REVIEW -> ""
     }
 }
@@ -653,7 +700,6 @@ private fun answer(step: Step, form: FillUpForm): String? {
         }
         Step.DATE -> form.date.long()
         Step.WHERE -> form.country.label()
-        Step.BRAND -> form.brand.ifBlank { "Not recorded" }
         Step.REVIEW -> null
     }
 }

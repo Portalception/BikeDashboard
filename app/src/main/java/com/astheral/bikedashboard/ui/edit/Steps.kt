@@ -7,7 +7,6 @@ import com.astheral.bikedashboard.data.FillUp
 enum class Step(vararg val fields: Field) {
     DATE,
     WHERE,
-    BRAND,
     RM_PAID(Field.RM_PAID),
     RATE(Field.RATE),
     RM_CHARGED(Field.RM_CHARGED),
@@ -23,15 +22,13 @@ enum class Step(vararg val fields: Field) {
 }
 
 /**
- * The cards to show for this form, in pump order: when and where (and in Singapore, which brand),
- * then for Malaysia what you paid,
+ * The cards to show for this form, in pump order: when and where, then for Malaysia what you paid,
  * the rate, what the pump charged and the litres, then Singapore's litres and what you paid, then the odometer,
  * fuel left and a final check. (Only old fill-ups can have both countries.)
  */
 fun stepsFor(form: FillUpForm): List<Step> = buildList {
     add(Step.DATE)
     add(Step.WHERE)
-    if (form.country == Country.SG) add(Step.BRAND)
     if (form.country == Country.MIXED && form.legacyMixed) {
         add(Step.UNSPLIT_LITRES)
         add(Step.UNSPLIT_COST)
@@ -67,8 +64,11 @@ fun FillUpForm.errorFor(step: Step, base: FillUp?): String? {
 fun FillUpForm.firstStepWithError(base: FillUp?): Step? =
     stepsFor(this).firstOrNull { errorFor(it, base) != null }
 
-/** The petrol brands offered in Singapore, in two rows of three with "Other" last. */
-val SG_BRANDS = listOf("Shell", "Esso", "SPC", "Caltex", "Sinopec", "Other")
+/** The main petrol brands in Singapore, offered first in the brand menu. */
+val SG_MAIN_BRANDS = listOf("Shell", "Esso", "SPC")
+
+/** The smaller ones, tucked under "Others" in the brand menu. */
+val SG_OTHER_BRANDS = listOf("Caltex", "Sinopec")
 
 /** RM amounts you pay most often (larger first on a tie), for one-tap buttons on the "How much did you pay?" card. */
 fun commonRmPaid(fillUps: List<FillUp>, count: Int = 4): List<Double> =

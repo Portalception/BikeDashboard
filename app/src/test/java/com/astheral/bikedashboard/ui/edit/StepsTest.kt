@@ -21,7 +21,7 @@ class StepsTest {
     @Test
     fun singapore() {
         assertEquals(
-            listOf(Step.DATE, Step.WHERE, Step.BRAND, Step.SG_LITRES, Step.SG_PAID, Step.ODOMETER, Step.FUEL_LEFT, Step.REVIEW),
+            listOf(Step.DATE, Step.WHERE, Step.SG_LITRES, Step.SG_PAID, Step.ODOMETER, Step.FUEL_LEFT, Step.REVIEW),
             stepsFor(FillUpForm(date = today, country = Country.SG)),
         )
     }
@@ -78,11 +78,9 @@ class StepsTest {
     }
 
     @Test
-    fun brandIsOnlyAskedInSingaporeAndIsOptional() {
-        assertEquals(false, Step.BRAND in stepsFor(FillUpForm(date = today, country = Country.MY)))
-        val sg = FillUpForm(date = today, country = Country.SG, sgLitres = "10", sgCost = "28", odometer = "1000")
-        assertEquals(null, sg.errorFor(Step.BRAND, null))
-        assertEquals(6, SG_BRANDS.size)
+    fun brandMenuHasTheMainThreeAndTheRestUnderOthers() {
+        assertEquals(listOf("Shell", "Esso", "SPC"), SG_MAIN_BRANDS)
+        assertEquals(listOf("Caltex", "Sinopec"), SG_OTHER_BRANDS)
     }
 
     @Test

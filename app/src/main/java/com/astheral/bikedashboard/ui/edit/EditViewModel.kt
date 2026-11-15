@@ -107,19 +107,6 @@ class EditViewModel(application: Application, private val fillUpId: Long) : Andr
         next()
     }
 
-    /**
-     * Picks a petrol brand and moves on; tapping the one already picked clears it instead, since
-     * the brand is optional.
-     */
-    fun chooseBrand(brand: String) {
-        if (_state.value.form.brand == brand) {
-            edit { it.copy(brand = "") }
-            return
-        }
-        edit { it.copy(brand = brand) }
-        next()
-    }
-
     /** Goes to the next card, unless this card's answer is missing or not a number. */
     fun next() {
         val s = _state.value
