@@ -68,6 +68,8 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -247,6 +249,10 @@ fun PersonalisationScreen(onBack: () -> Unit, onOpenBackground: () -> Unit, view
                     Spacer(Modifier.height(18.dp))
                     Label("Accent Colour", "Highlights: chips, the selected tab, progress and the + button")
                     SwatchPicker(appearance.accent) { c -> update { it.copy(accent = c) } }
+                    Spacer(Modifier.height(18.dp))
+                    SwapColoursButton(appearance.primary, appearance.accent) {
+                        update { it.copy(primary = it.accent, accent = it.primary) }
+                    }
                 }
             }
         }
@@ -440,6 +446,20 @@ private fun ProgressStylePicker(selected: ProgressStyle, onPick: (ProgressStyle)
                 }
             }
         }
+    }
+}
+
+/** Swaps the primary and accent colours, showing the two as dots either side of the arrows. */
+@Composable
+private fun SwapColoursButton(primary: Color, accent: Color, onSwap: () -> Unit) {
+    FilledTonalButton(onClick = onSwap, modifier = Modifier.fillMaxWidth()) {
+        Box(Modifier.size(16.dp).clip(CircleShape).background(primary).border(1.dp, MaterialTheme.colorScheme.outline, CircleShape))
+        Spacer(Modifier.width(8.dp))
+        Icon(Icons.Filled.SwapHoriz, contentDescription = null, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(8.dp))
+        Box(Modifier.size(16.dp).clip(CircleShape).background(accent).border(1.dp, MaterialTheme.colorScheme.outline, CircleShape))
+        Spacer(Modifier.width(12.dp))
+        Text("Swap Primary and Accent")
     }
 }
 
