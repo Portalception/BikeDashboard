@@ -61,7 +61,7 @@ private const val FLAT_DEPTH = 0.6f
 @Composable
 fun AnimatedBackground(look: BackgroundLook, modifier: Modifier = Modifier, animate: Boolean = true) {
     if (look.style == BackgroundStyle.NONE) return
-    val scene = remember(look.style) { sceneFor(look.style) }
+    val scene = remember(look.style, look.track) { sceneFor(look) }
     val ink = rememberBackgroundInk()
     val frame = rememberBackgroundFrame(animate, scene.stepMillis, look)
     val sceneTime = remember { SceneTime() }
@@ -94,7 +94,7 @@ fun BackgroundPreview(style: BackgroundStyle, modifier: Modifier = Modifier, ani
     )
 }
 
-private fun sceneFor(style: BackgroundStyle): BackgroundScene = when (style) {
+private fun sceneFor(look: BackgroundLook): BackgroundScene = when (look.style) {
     BackgroundStyle.NONE, BackgroundStyle.RANDOM, BackgroundStyle.CIRCLES -> CirclesScene()
     BackgroundStyle.RINGS -> RingsScene()
     BackgroundStyle.GRID -> GridScene()
@@ -104,7 +104,7 @@ private fun sceneFor(style: BackgroundStyle): BackgroundScene = when (style) {
     BackgroundStyle.SNOW -> SnowScene()
     BackgroundStyle.SPACE -> SpaceScene()
     BackgroundStyle.MATRIX -> MatrixScene()
-    BackgroundStyle.RACETRACK -> RacetrackScene()
+    BackgroundStyle.RACETRACK -> RacetrackScene(look.track)
     BackgroundStyle.NIGHT_RIDE -> NightRideScene()
     BackgroundStyle.SPEED_LINES -> SpeedLinesScene()
     BackgroundStyle.CHEQUERED_FLAG -> ChequeredFlagScene()

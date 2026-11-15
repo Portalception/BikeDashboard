@@ -37,7 +37,24 @@ data class BackgroundLook(
     val movement: Float = 1f,
     /** How fast it runs: 1 normal. */
     val speed: Float = 1f,
+    /** The circuit Racetrack draws (hold its tile to pick). */
+    val track: RaceTrack = RaceTrack.CLASSIC,
 )
+
+/** The circuits the Racetrack background can show. */
+enum class RaceTrack(val label: String) {
+    CLASSIC("Classic"),
+    SPEEDWAY("Speedway"),
+    STREET("Street Circuit"),
+    TWISTY("Twisty"),
+    FIGURE_EIGHT("Figure Eight"),
+    MOUNTAIN("Mountain Pass");
+
+    companion object {
+        /** The track saved under [name], or Classic (the original one) for nothing saved or an unknown one. */
+        fun fromName(name: String?): RaceTrack = entries.firstOrNull { it.name == name } ?: CLASSIC
+    }
+}
 
 const val MIN_MOVEMENT = 0f
 const val MAX_MOVEMENT = 2f

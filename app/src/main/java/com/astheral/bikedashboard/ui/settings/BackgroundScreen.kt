@@ -2,7 +2,8 @@ package com.astheral.bikedashboard.ui.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,7 +29,9 @@ import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Wallpaper
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
@@ -37,6 +40,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,6 +60,7 @@ import com.astheral.bikedashboard.ui.background.MAX_MOVEMENT
 import com.astheral.bikedashboard.ui.background.MAX_SPEED
 import com.astheral.bikedashboard.ui.background.MIN_MOVEMENT
 import com.astheral.bikedashboard.ui.background.MIN_SPEED
+import com.astheral.bikedashboard.ui.background.RaceTrack
 import com.astheral.bikedashboard.ui.background.animationsOn
 import com.astheral.bikedashboard.ui.components.GroupCard
 import com.astheral.bikedashboard.ui.components.GroupDivider
@@ -119,7 +125,26 @@ fun BackgroundScreen(onBack: () -> Unit, viewModel: PersonalisationViewModel = v
                     modifier = Modifier.padding(start = 4.dp, bottom = 12.dp),
                 )
             }
-            StyleTiles(appearance.backgroundStyle, shown) { style -> update { it.copy(backgroundStyle = style) } }
+            var holding by remember { mutableStateOf<BackgroundStyle?>(null) }
+            StyleTiles(
+                appearance.backgroundStyle,
+                shown,
+                hintFor = { style ->
+                    when (style) {
+                        BackgroundStyle.RACETRACK -> "${appearance.backgroundTrack.label} · hold for more"
+                        else -> null
+                    }
+                },
+                onHold = { style -> if (style == BackgroundStyle.RACETRACK) holding = style },
+            ) { style -> update { it.copy(backgroundStyle = style) } }
+            if (holding == BackgroundStyle.RACETRACK) {
+                TrackPicker(
+                    selected = appearance.backgroundTrack,
+                    shown = shown,
+                    onPick = { track -> update { it.copy(backgroundStyle = BackgroundStyle.RACETRACK, backgroundTrack = track) } },
+                    onDismiss = { holding = null },
+                )
+            }
         }
 
         SectionHeader(Icons.Filled.Tune, "Motion")
@@ -204,8 +229,15 @@ private fun PercentSlider(
  * Each background as a small preview; the chosen one is outlined in the accent colour and moves,
  * the others show a still frame. Random's tile shows today's pick under a shuffle badge.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun StyleTiles(selected: BackgroundStyle, shown: BackgroundLook, onPick: (BackgroundStyle) -> Unit) {
+private fun StyleTiles(
+    selected: BackgroundStyle,
+    shown: BackgroundLook,
+    hintFor: (BackgroundStyle) -> String?,
+    onHold: (BackgroundStyle) -> Unit,
+    onPick: (BackgroundStyle) -> Unit,
+) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         BackgroundStyle.entries.chunked(2).forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -224,7 +256,7 @@ private fun StyleTiles(selected: BackgroundStyle, shown: BackgroundLook, onPick:
                                 if (isSelected) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
                                 RoundedCornerShape(18.dp),
                             )
-                            .clickable(role = Role.RadioButton) { onPick(style) }
+                            .combinedClickable(role = Role.RadioButton, onLongClick = { onHold(style) }) { onPick(style) }
                             .padding(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
@@ -257,12 +289,13 @@ private fun StyleTiles(selected: BackgroundStyle, shown: BackgroundLook, onPick:
                                 style = MaterialTheme.typography.labelLarge,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                             )
-                            if (style == BackgroundStyle.RANDOM) {
-                                Text(
-                                    if (isSelected) "Today: ${shown.style.label}" else "A new one each launch",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
+                            val hint = if (style == BackgroundStyle.RANDOM) {
+                                if (isSelected) "Today: ${shown.style.label}" else "A new one each launch"
+                            } else {
+                                hintFor(style)
+                            }
+                            hint?.let {
+                                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     }
@@ -271,5 +304,77 @@ private fun StyleTiles(selected: BackgroundStyle, shown: BackgroundLook, onPick:
                 if (row.size == 1) Spacer(Modifier.weight(1f))
             }
         }
+    }
+}
+
+/** The Racetrack's circuits as small moving previews, opened by holding its tile. Picking one also switches to Racetrack. */
+@Composable
+private fun TrackPicker(selected: RaceTrack, shown: BackgroundLook, onPick: (RaceTrack) -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Done") } },
+        title = { Text("Racetracks") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                RaceTrack.entries.chunked(2).forEach { row ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        row.forEach { track ->
+                            val isSelected = track == selected
+                            PickerTile(track.label, isSelected, Modifier.weight(1f), onClick = { onPick(track) }) {
+                                BackgroundPreview(
+                                    BackgroundStyle.RACETRACK,
+                                    animate = isSelected,
+                                    look = shown.copy(track = track),
+                                )
+                            }
+                        }
+                        if (row.size == 1) Spacer(Modifier.weight(1f))
+                    }
+                }
+            }
+        },
+    )
+}
+
+/** One choice in a hold-to-open picker: a small picture above a label, outlined when chosen. */
+@Composable
+private fun PickerTile(
+    label: String,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+    picture: @Composable () -> Unit,
+) {
+    Column(
+        modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(
+                if (selected) MaterialTheme.colorScheme.tertiary.copy(alpha = 0.16f)
+                else MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.55f),
+            )
+            .border(
+                if (selected) 2.dp else 1.dp,
+                if (selected) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
+                RoundedCornerShape(16.dp),
+            )
+            .combinedClickable(role = Role.RadioButton, onClick = onClick)
+            .padding(6.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(72.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(MaterialTheme.colorScheme.background),
+            contentAlignment = Alignment.Center,
+        ) { picture() }
+        Text(
+            label,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+            modifier = Modifier.padding(start = 4.dp, bottom = 2.dp),
+            maxLines = 1,
+        )
     }
 }
