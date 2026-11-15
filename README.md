@@ -75,4 +75,9 @@ You're still welcome to make changes:
 - **Suggest something:** open an issue with the idea or bug.
 - **Change it yourself:** fork the repo, make your changes in your fork, and open a pull request. The
   owner may merge it, adapt it or decline it.
-- **Keep your own version:** your fork is yours to change however you like for personal use.
+- **Keep your own version:** your fork is yours to change, share and build on, under the licence below.
+
+## Licence
+
+Open source under the [MIT License](LICENSE). You can use, copy, change and share the code, including
+in your own projects, as long as you keep the copyright and licence notice. It comes with no warranty.
