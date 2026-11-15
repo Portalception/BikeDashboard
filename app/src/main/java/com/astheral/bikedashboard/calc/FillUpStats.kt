@@ -16,6 +16,23 @@ val FillUp.totalCostSgd: Double
 val FillUp.sgPricePerLitre: Double?
     get() = perLitre(sgCostSgd, sgLitres)
 
+/** A Singapore discount: how much was taken off, and what share of the pump price that is. */
+data class Discount(val savedSgd: Double, val percent: Double)
+
+/**
+ * The discount between the pump price [beforeSgd] and what was [paidSgd], or null when either is
+ * missing or nothing was taken off.
+ */
+fun discountOf(paidSgd: Double?, beforeSgd: Double?): Discount? {
+    if (paidSgd == null || beforeSgd == null || beforeSgd <= 0 || paidSgd >= beforeSgd) return null
+    val saved = beforeSgd - paidSgd
+    return Discount(saved, saved / beforeSgd * 100)
+}
+
+/** This fill-up's Singapore discount, if the price before discount was recorded. */
+val FillUp.sgDiscount: Discount?
+    get() = discountOf(sgCostSgd, sgBeforeDiscountSgd)
+
 /** SGD per litre for the Malaysia part, or null if there isn't one. */
 val FillUp.myPricePerLitre: Double?
     get() = perLitre(myCostSgd, myLitres)

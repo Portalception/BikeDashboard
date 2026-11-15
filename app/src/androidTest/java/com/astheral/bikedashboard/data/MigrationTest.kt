@@ -117,6 +117,23 @@ class MigrationTest {
         }
     }
 
+    /** Version 12 adds the Singapore price before discount; fill-ups from before have none. */
+    @Test
+    fun version11FillUpsHaveNoPriceBeforeDiscount() {
+        helper.createDatabase(dbName, 11).apply {
+            execSQL("INSERT INTO fill_ups (id, profileId, date, country, odometerKm, sgLitres, sgCostSgd, noSpecialTrip, fullTank, brand) VALUES (1, 1, 20354, 'SG', 162999, 9.713, 26.44, 0, 1, 'Shell')")
+            close()
+        }
+        helper.runMigrationsAndValidate(dbName, 12, true).apply {
+            query("SELECT brand, sgBeforeDiscountSgd FROM fill_ups").use {
+                it.moveToFirst()
+                assertEquals("Shell", it.getString(0))
+                assertEquals(true, it.isNull(1))
+            }
+            close()
+        }
+    }
+
     /** Version 11 adds the petrol brand; fill-ups from before have none. */
     @Test
     fun version10FillUpsHaveNoBrand() {

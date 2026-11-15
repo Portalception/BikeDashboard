@@ -78,6 +78,7 @@ import com.astheral.bikedashboard.ui.km
 import com.astheral.bikedashboard.ui.kmPerLitre
 import com.astheral.bikedashboard.ui.label
 import com.astheral.bikedashboard.ui.long
+import com.astheral.bikedashboard.calc.discountOf
 import com.astheral.bikedashboard.ui.sgd
 import com.astheral.bikedashboard.ui.sgdPerLitre
 import com.astheral.bikedashboard.ui.short
@@ -233,9 +234,14 @@ private fun StepCard(step: Step, state: EditState, vm: EditViewModel) {
         Step.SG_PAID -> NumberCard(
             part = if (mixed) "Singapore Part" else null,
             question = if (mixed) "How much did you pay in Singapore?" else "How much did you pay?",
-            hint = sgPaidHint(parseNumber(form.sgCost), parseNumber(form.sgLitres)),
+            hint = sgPaidHint(parseNumber(form.sgCost), parseNumber(form.sgLitres), parseNumber(form.sgAfterDiscount)),
             value = form.sgCost, prefix = "S$", error = state.error,
             onChange = { v -> vm.edit { it.copy(sgCost = v) } }, onNext = vm::next,
+            extra = {
+                if (form.country == Country.SG) {
+                    AfterDiscountField(form.sgAfterDiscount, onNext = vm::next) { v -> vm.edit { it.copy(sgAfterDiscount = v) } }
+                }
+            },
         )
         Step.SG_LITRES -> NumberCard(
             part = if (mixed) "Singapore Part" else null,
@@ -262,10 +268,41 @@ private fun StepCard(step: Step, state: EditState, vm: EditViewModel) {
     }
 }
 
-/** Under "How much did you pay?" in Singapore: the price per litre once both are in. */
-private fun sgPaidHint(cost: Double?, litres: Double?): String =
-    if (cost != null && cost > 0 && litres != null && litres > 0) "That works out to ${sgdPerLitre(cost / litres)}."
-    else "In Singapore dollars."
+/**
+ * Under "How much did you pay?" in Singapore: the price per litre of what you paid (the discounted
+ * amount if there is one), and the discount when both are filled in.
+ */
+private fun sgPaidHint(full: Double?, litres: Double?, after: Double?): String {
+    val cost = after?.takeIf { it > 0 } ?: full
+    val perLitre = if (cost != null && cost > 0 && litres != null && litres > 0) "That works out to ${sgdPerLitre(cost / litres)}." else null
+    val discount = discountOf(after, full)?.let { "You saved ${sgd(it.savedSgd)} (${String.format(Locale.ENGLISH, "%.0f", it.percent)}% off)." }
+    return listOfNotNull(perLitre, discount).joinToString(" ").ifEmpty { "The full price. Got a discount? Add what you paid below." }
+}
+
+/**
+ * An optional second box under the Singapore amount: what you paid after a card or membership
+ * discount. When it's filled in, it's the cost, and the full price above is kept for tracking.
+ */
+@Composable
+private fun AfterDiscountField(value: String, onNext: () -> Unit, onChange: (String) -> Unit) {
+    Spacer(Modifier.height(16.dp))
+    OutlinedTextField(
+        value = value,
+        onValueChange = onChange,
+        modifier = Modifier.fillMaxWidth(),
+        label = { Text("After discount (optional)") },
+        textStyle = MaterialTheme.typography.titleLarge.copy(fontFamily = NumberFont),
+        prefix = { Text("S$ ", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) },
+        singleLine = true,
+        shape = RoundedCornerShape(18.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = MaterialTheme.colorScheme.tertiary,
+            cursorColor = MaterialTheme.colorScheme.tertiary,
+        ),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Next),
+        keyboardActions = KeyboardActions(onNext = { onNext() }),
+    )
+}
 
 private fun trim(value: Double) = if (value == Math.rint(value)) value.toLong().toString() else value.toString()
 
@@ -608,6 +645,9 @@ private fun ReviewCard(state: EditState, vm: EditViewModel) {
                     answer(step, form)?.let { add(Triple(step, label(step, form), it)) }
                     if (step == fullStep) add(Triple(step, "Full Tank", if (form.fullTank) "Yes" else "No"))
                     if (step == Step.SG_LITRES && form.country == Country.SG) add(Triple(step, "Brand", form.brand.ifBlank { "Not recorded" }))
+                    if (step == Step.SG_PAID && form.country == Country.SG && form.sgAfterDiscount.isNotBlank()) {
+                        add(Triple(step, "After Discount", "S$${form.sgAfterDiscount}"))
+                    }
                 }
             }
             rows.forEachIndexed { i, (step, label, value) ->
@@ -670,7 +710,7 @@ private fun label(step: Step, form: FillUpForm): String {
         Step.LEGACY_MY_COST -> "Cost"
         Step.UNSPLIT_LITRES -> "Total Litres"
         Step.UNSPLIT_COST -> "Total Cost"
-        Step.SG_PAID -> if (mixed) "Paid in SG" else "Paid"
+        Step.SG_PAID -> if (mixed) "Paid in SG" else if (form.sgAfterDiscount.isNotBlank()) "Full Price" else "Paid"
         Step.SG_LITRES -> if (mixed) "Litres in SG" else "Litres"
         Step.ODOMETER -> "Odometer"
         Step.FUEL_LEFT -> "Fuel Left"

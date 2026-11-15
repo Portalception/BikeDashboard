@@ -62,6 +62,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.astheral.bikedashboard.calc.FillUpStats
 import com.astheral.bikedashboard.calc.computeStats
 import com.astheral.bikedashboard.ui.components.AccentChip
+import com.astheral.bikedashboard.calc.sgDiscount
 import com.astheral.bikedashboard.calc.totalCostSgd
 import com.astheral.bikedashboard.calc.totalLitres
 import com.astheral.bikedashboard.data.AppDatabase
@@ -278,6 +279,13 @@ private fun FillUpCard(stats: FillUpStats, countUp: Boolean, onClick: () -> Unit
                     CountUpText(fill.totalLitres, ::litres, style = MaterialTheme.typography.bodyMedium, animate = countUp)
                     Text(" · ", style = MaterialTheme.typography.bodyMedium, fontFamily = NumberFont)
                     CountUpText(fill.totalCostSgd, ::sgd, style = MaterialTheme.typography.bodyMedium, animate = countUp)
+                    fill.sgDiscount?.let {
+                        Text(
+                            " · ${String.format(Locale.ENGLISH, "%.0f", it.percent)}% off",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
                 Text(
                     km(fill.odometerKm) + (stats.distanceKm?.let { " · +${km(it)}" } ?: "") +

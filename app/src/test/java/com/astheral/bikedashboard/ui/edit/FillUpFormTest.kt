@@ -250,4 +250,35 @@ class FillUpFormTest {
     fun duplicate() {
         assertTrue(warningsFor(previous, listOf(previous.copy(id = 99)), today).any { "already" in it })
     }
+
+    private fun sgForm(full: String, after: String = "") = FillUpForm(
+        date = LocalDate.of(2026, 11, 15), country = Country.SG, odometer = "165000",
+        sgLitres = "12", sgCost = full, sgAfterDiscount = after,
+    )
+
+    @Test
+    fun noDiscountMeansTheFullPriceIsTheCost() {
+        val fill = (sgForm("32.80").toFillUp(null) as FormResult.Ok).fillUp
+        assertEquals(32.80, fill.sgCostSgd!!, 1e-9)
+        assertNull(fill.sgBeforeDiscountSgd)
+    }
+
+    @Test
+    fun discountIsTheCostAndFullPriceIsKeptForTracking() {
+        val fill = (sgForm("32.80", "24.60").toFillUp(null) as FormResult.Ok).fillUp
+        assertEquals(24.60, fill.sgCostSgd!!, 1e-9)
+        assertEquals(32.80, fill.sgBeforeDiscountSgd!!, 1e-9)
+        // Editing it again puts the numbers back in the same boxes.
+        val again = FillUpForm.from(fill)
+        assertEquals("32.8", again.sgCost)
+        assertEquals("24.6", again.sgAfterDiscount)
+    }
+
+    @Test
+    fun oldFillUpWithoutDiscountEditsAsFullPrice() {
+        val old = FillUp(date = LocalDate.of(2025, 1, 1), country = Country.SG, odometerKm = 1, sgLitres = 10.0, sgCostSgd = 25.0)
+        val form = FillUpForm.from(old)
+        assertEquals("25", form.sgCost)
+        assertEquals("", form.sgAfterDiscount)
+    }
 }

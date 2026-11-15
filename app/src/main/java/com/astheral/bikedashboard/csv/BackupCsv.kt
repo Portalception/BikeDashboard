@@ -13,7 +13,8 @@ import kotlin.math.abs
  * "bars_left" follows the spreadsheet's rule: a positive number is fuel-gauge bars,
  * a negative one is km ridden on the fuel light. "full_tank" is "N" for a partial fill; backups
  * from before partial fills existed don't have the column, and their fill-ups are full tanks.
- * "brand" is the petrol brand, blank for none (older backups don't have it).
+ * "brand" is the petrol brand, blank for none (older backups don't have it). "sg_before_discount_sgd"
+ * is the Singapore pump price before a discount, blank when not recorded.
  */
 private val REQUIRED_COLUMNS = listOf(
     "date", "country", "odometer_km",
@@ -24,7 +25,8 @@ private val REQUIRED_COLUMNS = listOf(
 )
 private const val FULL_TANK = "full_tank"
 private const val BRAND = "brand"
-private val COLUMNS = REQUIRED_COLUMNS + FULL_TANK + BRAND
+private const val SG_BEFORE_DISCOUNT = "sg_before_discount_sgd"
+private val COLUMNS = REQUIRED_COLUMNS + FULL_TANK + BRAND + SG_BEFORE_DISCOUNT
 
 fun writeBackup(fillUps: List<FillUp>): String = buildString {
     appendLine(COLUMNS.joinToString(","))
@@ -39,6 +41,7 @@ fun writeBackup(fillUps: List<FillUp>): String = buildString {
                 barsOrReserve.orEmpty(), if (f.noSpecialTrip) "Y" else "", num(f.estimatedMax), num(f.importedSavingsSgd),
                 if (f.fullTank) "Y" else "N",
                 f.brand.orEmpty().replace(",", " ").replace("\"", ""),
+                num(f.sgBeforeDiscountSgd),
             ).joinToString(","),
         )
     }
@@ -100,6 +103,7 @@ fun readBackup(text: String): BackupImport {
                 importedSavingsSgd = decimal("imported_savings_sgd"),
                 fullTank = !cell(FULL_TANK).equals("N", ignoreCase = true),
                 brand = cell(BRAND).takeIf { it.isNotEmpty() },
+                sgBeforeDiscountSgd = decimal(SG_BEFORE_DISCOUNT),
             )
         } catch (e: IllegalArgumentException) {
             problems += SheetProblem(line, e.message ?: "Couldn't read this line.")

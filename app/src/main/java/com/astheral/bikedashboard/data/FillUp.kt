@@ -61,6 +61,12 @@ data class FillUp(
     /** The petrol brand (Shell, Esso …), if you picked one. Only asked for in Singapore; optional. */
     val brand: String? = null,
 
+    /**
+     * What the Singapore pump showed before any card or membership discount, if you typed it in.
+     * [sgCostSgd] is always what you actually paid. Only asked for in Singapore; optional.
+     */
+    val sgBeforeDiscountSgd: Double? = null,
+
     /** "Estimated Max" from the spreadsheet. Kept for export only, never shown. */
     val estimatedMax: Double? = null,
     /** Savings from the spreadsheet. Imported rows keep this instead of being recalculated. */

@@ -22,6 +22,7 @@ class BackupCsvTest {
         FillUp(date = LocalDate.of(2026, 4, 2), country = Country.MIXED, odometerKm = 152451, unsplitLitres = 14.588, unsplitCostSgd = 25.78, rmPaid = 60.0),
         FillUp(date = LocalDate.of(2026, 10, 10), country = Country.MIXED, odometerKm = 164300, sgLitres = 4.0, sgCostSgd = 11.0, myLitres = 10.0, myCostSgd = 15.0),
         FillUp(date = LocalDate.of(2026, 10, 12), country = Country.SG, odometerKm = 164400, sgLitres = 4.2, sgCostSgd = 11.5, fullTank = false, brand = "Shell"),
+        FillUp(date = LocalDate.of(2026, 10, 20), country = Country.SG, odometerKm = 164700, sgLitres = 12.0, sgCostSgd = 24.6, brand = "Esso", sgBeforeDiscountSgd = 33.6),
     )
 
     private fun withoutIds(list: List<FillUp>) = list.map { it.copy(id = 0) }.sortedWith(compareBy({ it.date }, { it.odometerKm }))
@@ -44,21 +45,23 @@ class BackupCsvTest {
     @Test
     fun partialFillIsMarkedN() {
         val lines = writeBackup(fillUps).lines()
-        assertTrue(lines[0].endsWith(",full_tank,brand"))
-        assertTrue(lines.single { it.startsWith("2026-10-12") }.endsWith(",N,Shell"))
-        assertTrue(lines.single { it.startsWith("2026-10-03") }.endsWith(",Y,"))
+        assertTrue(lines[0].endsWith(",full_tank,brand,sg_before_discount_sgd"))
+        assertTrue(lines.single { it.startsWith("2026-10-12") }.endsWith(",N,Shell,"))
+        assertTrue(lines.single { it.startsWith("2026-10-20") }.endsWith(",Y,Esso,33.6"))
+        assertTrue(lines.single { it.startsWith("2026-10-03") }.endsWith(",Y,,"))
     }
 
     @Test
     fun olderBackupWithoutFullTankColumnLoadsAsFullTanks() {
-        // Drop the last two columns, as backups from before partial fills were written.
-        val old = writeBackup(fillUps).lines().joinToString("\n") { it.substringBeforeLast(",").substringBeforeLast(",") }
+        // Drop the last three columns, as backups from before partial fills were written.
+        val old = writeBackup(fillUps).lines().joinToString("\n") { it.substringBeforeLast(",").substringBeforeLast(",").substringBeforeLast(",") }
         assertTrue(looksLikeBackup(old))
         val back = readBackup(old)
         assertTrue(back.problems.isEmpty())
         assertEquals(fillUps.size, back.fillUps.size)
         assertTrue(back.fillUps.all { it.fullTank })
         assertTrue(back.fillUps.all { it.brand == null })
+        assertTrue(back.fillUps.all { it.sgBeforeDiscountSgd == null })
     }
 
     @Test

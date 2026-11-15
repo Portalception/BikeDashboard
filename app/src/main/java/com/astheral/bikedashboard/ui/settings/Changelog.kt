@@ -10,6 +10,14 @@ data class Release(val version: String, val date: LocalDate, val changes: List<S
 /** Major changes in each version, newest first, as short phrases. Add an entry with every version you share. */
 val CHANGELOG = listOf(
     Release(
+        version = "1.0.2",
+        date = LocalDate.of(2026, 11, 15),
+        changes = listOf(
+            "Singapore fill-ups have an optional \"After discount\" box under the price. Type the full price, and if you got a card or membership discount, what you actually paid. The discounted amount is what counts, and History shows how much % you got off.",
+            "The full price is kept with each fill-up and in CSV backups.",
+        ),
+    ),
+    Release(
         version = "1.0.1",
         date = LocalDate.of(2026, 11, 15),
         changes = listOf(

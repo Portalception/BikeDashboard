@@ -13,7 +13,7 @@ import java.util.Locale
 import kotlin.math.roundToInt
 
 enum class Field {
-    ODOMETER, SG_LITRES, SG_COST, MY_LITRES, RM_PAID, RATE, RM_CHARGED,
+    ODOMETER, SG_LITRES, SG_COST, SG_AFTER_DISCOUNT, MY_LITRES, RM_PAID, RATE, RM_CHARGED,
     LEGACY_MY_COST, UNSPLIT_LITRES, UNSPLIT_COST, BARS_LEFT, RESERVE_KM,
 }
 
@@ -29,7 +29,10 @@ data class FillUpForm(
     val country: Country,
     val odometer: String = "",
     val sgLitres: String = "",
+    /** In Singapore, the full price the pump showed; with no discount that's what you paid. */
     val sgCost: String = "",
+    /** Optional, Singapore only: what you paid after a card or membership discount. When filled in, it's the cost. */
+    val sgAfterDiscount: String = "",
     val myLitres: String = "",
     val rmPaid: String = "",
     val rate: String = "",
@@ -65,7 +68,9 @@ data class FillUpForm(
                 country = fill.country,
                 odometer = fill.odometerKm.toString(),
                 sgLitres = text(fill.sgLitres),
-                sgCost = text(fill.sgCostSgd),
+                // With a discount, the main box holds the full price and the cost goes in the second box.
+                sgCost = text(fill.sgBeforeDiscountSgd ?: fill.sgCostSgd),
+                sgAfterDiscount = if (fill.sgBeforeDiscountSgd != null) text(fill.sgCostSgd) else "",
                 myLitres = text(fill.myLitres),
                 rmPaid = text(fill.rmPaid),
                 rate = rateText(fill.rmPerSgd),
@@ -132,7 +137,10 @@ fun FillUpForm.toFillUp(base: FillUp?): FormResult {
     }
 
     val sgLitres = if (hasSgPart) required(Field.SG_LITRES, sgLitres) else null
-    val sgCost = if (hasSgPart) required(Field.SG_COST, sgCost) else null
+    val sgFull = if (hasSgPart) required(Field.SG_COST, sgCost) else null
+    // A discounted amount, when given, is what you paid; the full price is then kept just for tracking.
+    val sgAfter = if (country == Country.SG) optional(Field.SG_AFTER_DISCOUNT, sgAfterDiscount)?.takeIf { it > 0 } else null
+    val sgCost = sgAfter ?: sgFull
 
     val myLitres = if (hasMyPart) required(Field.MY_LITRES, myLitres) else null
     val newStyleMy = hasMyPart && !(country == Country.MY && legacyMy)
@@ -176,6 +184,7 @@ fun FillUpForm.toFillUp(base: FillUp?): FormResult {
         fullTank = fullTank,
         // The brand is only asked for in Singapore.
         brand = brand.trim().takeIf { it.isNotEmpty() && country == Country.SG },
+        sgBeforeDiscountSgd = if (sgAfter != null) sgFull else null,
     )
     return FormResult.Ok(fill)
 }
@@ -244,6 +253,11 @@ fun warningsFor(fill: FillUp, others: List<FillUp>, today: LocalDate, tankLitres
     }
     fill.rmPerSgd?.let {
         if (it < 2.5 || it > 4.0) warnings += "A rate of ${fmt(4, it)} RM per SGD is unusual."
+    }
+    val sgBefore = fill.sgBeforeDiscountSgd
+    val sgPaid = fill.sgCostSgd
+    if (sgBefore != null && sgPaid != null && sgBefore < sgPaid) {
+        warnings += "The amount after discount (S$${fmt(2, sgPaid)}) is more than the full price (S$${fmt(2, sgBefore)})."
     }
     val rmPaid = fill.rmPaid
     val rmCharged = fill.rmCharged
