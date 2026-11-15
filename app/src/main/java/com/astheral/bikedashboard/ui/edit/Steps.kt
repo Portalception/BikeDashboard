@@ -14,8 +14,8 @@ enum class Step(vararg val fields: Field) {
     LEGACY_MY_COST(Field.LEGACY_MY_COST),
     UNSPLIT_LITRES(Field.UNSPLIT_LITRES),
     UNSPLIT_COST(Field.UNSPLIT_COST),
-    SG_PAID(Field.SG_COST),
     SG_LITRES(Field.SG_LITRES),
+    SG_PAID(Field.SG_COST),
     ODOMETER(Field.ODOMETER),
     FUEL_LEFT(Field.BARS_LEFT, Field.RESERVE_KM),
     REVIEW,
@@ -23,7 +23,7 @@ enum class Step(vararg val fields: Field) {
 
 /**
  * The cards to show for this form, in pump order: when and where, then for Malaysia what you paid,
- * the rate, what the pump charged and the litres, then Singapore's part, then the odometer,
+ * the rate, what the pump charged and the litres, then Singapore's litres and what you paid, then the odometer,
  * fuel left and a final check. (Only old fill-ups can have both countries.)
  */
 fun stepsFor(form: FillUpForm): List<Step> = buildList {
@@ -41,9 +41,10 @@ fun stepsFor(form: FillUpForm): List<Step> = buildList {
             addAll(listOf(Step.RM_PAID, Step.RATE, Step.RM_CHARGED, Step.MY_LITRES))
         }
     }
+    // In Singapore the pump shows litres and price together; litres comes first, then what you paid.
     if (form.hasSgPart) {
-        add(Step.SG_PAID)
         add(Step.SG_LITRES)
+        add(Step.SG_PAID)
     }
     addAll(listOf(Step.ODOMETER, Step.FUEL_LEFT, Step.REVIEW))
 }

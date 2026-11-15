@@ -226,14 +226,14 @@ private fun StepCard(step: Step, state: EditState, vm: EditViewModel) {
         Step.SG_PAID -> NumberCard(
             part = if (mixed) "Singapore Part" else null,
             question = if (mixed) "How much did you pay in Singapore?" else "How much did you pay?",
-            hint = "In Singapore dollars.",
+            hint = sgPaidHint(parseNumber(form.sgCost), parseNumber(form.sgLitres)),
             value = form.sgCost, prefix = "S$", error = state.error,
             onChange = { v -> vm.edit { it.copy(sgCost = v) } }, onNext = vm::next,
         )
         Step.SG_LITRES -> NumberCard(
             part = if (mixed) "Singapore Part" else null,
             question = if (mixed) "How many litres in Singapore?" else "How many litres did you pump?",
-            hint = litreHint(null, parseNumber(form.sgCost), parseNumber(form.sgLitres), null),
+            hint = "Read it off the pump.",
             value = form.sgLitres, suffix = "L", error = state.error,
             onChange = { v -> vm.edit { it.copy(sgLitres = v) } }, onNext = vm::next,
             extra = { FullTankToggle(step, state, vm) },
@@ -251,6 +251,11 @@ private fun StepCard(step: Step, state: EditState, vm: EditViewModel) {
         Step.REVIEW -> ReviewCard(state, vm)
     }
 }
+
+/** Under "How much did you pay?" in Singapore: the price per litre once both are in. */
+private fun sgPaidHint(cost: Double?, litres: Double?): String =
+    if (cost != null && cost > 0 && litres != null && litres > 0) "That works out to ${sgdPerLitre(cost / litres)}."
+    else "In Singapore dollars."
 
 private fun trim(value: Double) = if (value == Math.rint(value)) value.toLong().toString() else value.toString()
 

@@ -21,7 +21,7 @@ class StepsTest {
     @Test
     fun singapore() {
         assertEquals(
-            listOf(Step.DATE, Step.WHERE, Step.SG_PAID, Step.SG_LITRES, Step.ODOMETER, Step.FUEL_LEFT, Step.REVIEW),
+            listOf(Step.DATE, Step.WHERE, Step.SG_LITRES, Step.SG_PAID, Step.ODOMETER, Step.FUEL_LEFT, Step.REVIEW),
             stepsFor(FillUpForm(date = today, country = Country.SG)),
         )
     }
@@ -31,7 +31,7 @@ class StepsTest {
         assertEquals(
             listOf(
                 Step.DATE, Step.WHERE, Step.RM_PAID, Step.RATE, Step.RM_CHARGED, Step.MY_LITRES,
-                Step.SG_PAID, Step.SG_LITRES, Step.ODOMETER, Step.FUEL_LEFT, Step.REVIEW,
+                Step.SG_LITRES, Step.SG_PAID, Step.ODOMETER, Step.FUEL_LEFT, Step.REVIEW,
             ),
             stepsFor(FillUpForm(date = today, country = Country.MIXED)),
         )
