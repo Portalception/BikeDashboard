@@ -39,7 +39,35 @@ data class BackgroundLook(
     val speed: Float = 1f,
     /** The circuit Racetrack draws (hold its tile to pick). */
     val track: RaceTrack = RaceTrack.CLASSIC,
-)
+    /** Which way Rain on Visor's drops run (hold its tile to pick). */
+    val rain: RainDirection = RainDirection.LEFT,
+) {
+    /** True when the picture needs the phone's gravity sensor beyond parallax: rain that runs downhill. */
+    val followsGravity: Boolean get() = style == BackgroundStyle.RAIN && rain == RainDirection.GRAVITY
+}
+
+/**
+ * Which way the wind blows the drops in Rain on Visor, as a screen angle in degrees (0 is right,
+ * 90 is down), or [GRAVITY] to let them run downhill however the phone is held. In the order
+ * they're laid out in the picker: a 3 by 3 compass with Gravity in the middle.
+ */
+enum class RainDirection(val label: String, val degrees: Float?) {
+    UP_LEFT("Up Left", 225f),
+    UP("Up", 270f),
+    UP_RIGHT("Up Right", 315f),
+    // Left and Right lean a little downwards, like wind and gravity together (Left is the original look).
+    LEFT("Left", 158f),
+    GRAVITY("Gravity", null),
+    RIGHT("Right", 22f),
+    DOWN_LEFT("Down Left", 135f),
+    DOWN("Down", 90f),
+    DOWN_RIGHT("Down Right", 45f);
+
+    companion object {
+        /** The direction saved under [name], or Left (the original) for nothing saved or an unknown one. */
+        fun fromName(name: String?): RainDirection = entries.firstOrNull { it.name == name } ?: LEFT
+    }
+}
 
 /** The circuits the Racetrack background can show. */
 enum class RaceTrack(val label: String) {

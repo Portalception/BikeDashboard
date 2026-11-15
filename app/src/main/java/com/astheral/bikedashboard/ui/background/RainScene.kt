@@ -3,14 +3,19 @@ package com.astheral.bikedashboard.ui.background
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import kotlin.math.atan2
+import kotlin.math.cos
 import kotlin.math.floor
-import kotlin.math.sqrt
+import kotlin.math.sin
 import kotlin.random.Random
 
 /**
  * Rain on your visor: beads of water land, sit for a while, then the wind catches them and
- * they streak sideways across the screen, leaving a thin wet trail with a few tiny beads along
- * it. Fine mist glints in between. Each drop lands somewhere new every time round.
+ * they streak across the screen, leaving a thin wet trail with a few tiny beads along it. Fine
+ * mist glints in between. Each drop lands somewhere new every time round.
+ *
+ * The drops run the way [SceneTime.rainX]/[SceneTime.rainY] point, give or take a little each:
+ * a fixed direction picked on the Background page, or downhill as the phone is held.
  */
 internal class RainScene : BackgroundScene {
     private val drops = 34
@@ -52,27 +57,27 @@ internal class RainScene : BackgroundScene {
             drawCircle(ink.bright, unit * 0.0025f, Offset(mistX[i] * w, mistY[i] * h), alpha = ink.a(0.05f + 0.12f * glint))
         }
 
+        val base = atan2(f.rainY, f.rainX)
         for (i in 0 until drops) {
             val life = f.travel / LOOP_SECONDS * lives[i] + start[i]
             val p = life - floor(life)
             // A new place each time round, from the round's number.
             val seed = i * 131 + floor(life).toInt() * 7
-            val x0 = noise(seed) * w * 1.1f
-            val y0 = noise(seed + 1) * h
+            // Landing spots lean towards where the drops come from, so the screen stays evenly wet.
+            val x0 = (noise(seed) * 1.1f - 0.05f - 0.05f * f.rainX) * w
+            val y0 = (noise(seed + 1) * 1.1f - 0.05f - 0.05f * f.rainY) * h
             val r = unit * (0.008f + 0.014f * noise(seed + 2))
             val letGo = 0.45f + 0.3f * noise(seed + 3)
-            // Wind pushes left and a little down.
-            var dx = -1f
-            var dy = 0.25f + 0.4f * noise(seed + 4)
-            val len = sqrt(dx * dx + dy * dy)
-            dx /= len
-            dy /= len
+            // Each drop strays up to 10 degrees or so either side of the wind.
+            val angle = base + (noise(seed + 4) - 0.5f) * 0.35f
+            val dx = cos(angle)
+            val dy = sin(angle)
 
             val appear = (p / 0.06f).coerceAtMost(1f)
             val q = if (p < letGo) 0f else (p - letGo) / (1f - letGo)
             val gone = if (q < 0.75f) 1f else (1f - q) / 0.25f
             val fade = appear * gone
-            val travel = q * q * unit * (0.7f + 0.6f * noise(seed + 5))
+            val travel = q * q * unit * (0.7f + 0.6f * noise(seed + 5)) * f.rainPull
             val wobble = r * 0.4f * f.motion * wave(f.t, 300, i.toFloat())
             val x = x0 + dx * travel - dy * wobble * q
             val y = y0 + dy * travel + dx * wobble * q

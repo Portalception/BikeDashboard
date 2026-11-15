@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.OpenWith
 import androidx.compose.material.icons.filled.ScreenRotation
 import androidx.compose.material.icons.filled.Shuffle
@@ -46,6 +47,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -61,6 +64,7 @@ import com.astheral.bikedashboard.ui.background.MAX_SPEED
 import com.astheral.bikedashboard.ui.background.MIN_MOVEMENT
 import com.astheral.bikedashboard.ui.background.MIN_SPEED
 import com.astheral.bikedashboard.ui.background.RaceTrack
+import com.astheral.bikedashboard.ui.background.RainDirection
 import com.astheral.bikedashboard.ui.background.animationsOn
 import com.astheral.bikedashboard.ui.components.GroupCard
 import com.astheral.bikedashboard.ui.components.GroupDivider
@@ -132,16 +136,27 @@ fun BackgroundScreen(onBack: () -> Unit, viewModel: PersonalisationViewModel = v
                 hintFor = { style ->
                     when (style) {
                         BackgroundStyle.RACETRACK -> "${appearance.backgroundTrack.label} · hold for more"
+                        BackgroundStyle.RAIN ->
+                            if (appearance.backgroundRain == RainDirection.GRAVITY) "Follows gravity · hold to change"
+                            else "${appearance.backgroundRain.label} · hold to change"
                         else -> null
                     }
                 },
-                onHold = { style -> if (style == BackgroundStyle.RACETRACK) holding = style },
+                onHold = { style -> if (style == BackgroundStyle.RACETRACK || style == BackgroundStyle.RAIN) holding = style },
             ) { style -> update { it.copy(backgroundStyle = style) } }
             if (holding == BackgroundStyle.RACETRACK) {
                 TrackPicker(
                     selected = appearance.backgroundTrack,
                     shown = shown,
                     onPick = { track -> update { it.copy(backgroundStyle = BackgroundStyle.RACETRACK, backgroundTrack = track) } },
+                    onDismiss = { holding = null },
+                )
+            }
+            if (holding == BackgroundStyle.RAIN) {
+                RainPicker(
+                    selected = appearance.backgroundRain,
+                    shown = shown,
+                    onPick = { dir -> update { it.copy(backgroundStyle = BackgroundStyle.RAIN, backgroundRain = dir) } },
                     onDismiss = { holding = null },
                 )
             }
@@ -374,6 +389,83 @@ private fun PickerTile(
             style = MaterialTheme.typography.labelMedium,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
             modifier = Modifier.padding(start = 4.dp, bottom = 2.dp),
+            maxLines = 1,
+        )
+    }
+}
+
+/**
+ * Which way Rain on Visor's drops run, opened by holding its tile: a live preview above a 3 by 3
+ * compass of arrows, with "Gravity" in the middle to let them run downhill as the phone tilts.
+ * Picking one also switches to Rain on Visor.
+ */
+@Composable
+private fun RainPicker(selected: RainDirection, shown: BackgroundLook, onPick: (RainDirection) -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Done") } },
+        title = { Text("Rain Direction") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(120.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(MaterialTheme.colorScheme.background),
+                ) {
+                    BackgroundPreview(BackgroundStyle.RAIN, animate = true, look = shown.copy(style = BackgroundStyle.RAIN, rain = selected))
+                }
+                Text(
+                    if (selected == RainDirection.GRAVITY) "Drops run downhill. Tilt the phone to steer them."
+                    else "The way the wind blows the drops.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                RainDirection.entries.chunked(3).forEach { row ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        row.forEach { dir ->
+                            DirectionTile(dir, dir == selected, Modifier.weight(1f)) { onPick(dir) }
+                        }
+                    }
+                }
+            }
+        },
+    )
+}
+
+/** One square of the rain compass: an arrow pointing [dir]'s way, or a tilting phone for Gravity. */
+@Composable
+private fun DirectionTile(dir: RainDirection, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(14.dp)
+    Column(
+        modifier
+            .aspectRatio(1f)
+            .clip(shape)
+            .background(
+                if (selected) MaterialTheme.colorScheme.tertiary.copy(alpha = 0.16f)
+                else MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.55f),
+            )
+            .border(
+                if (selected) 2.dp else 1.dp,
+                if (selected) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
+                shape,
+            )
+            .combinedClickable(role = Role.RadioButton, onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        val degrees = dir.degrees
+        if (degrees == null) {
+            Icon(Icons.Filled.ScreenRotation, contentDescription = null, modifier = Modifier.size(26.dp))
+        } else {
+            Icon(Icons.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(26.dp).rotate(degrees))
+        }
+        Text(
+            dir.label,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+            modifier = Modifier.padding(top = 4.dp),
             maxLines = 1,
         )
     }

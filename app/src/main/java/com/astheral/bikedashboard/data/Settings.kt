@@ -25,6 +25,7 @@ import com.astheral.bikedashboard.ui.background.MAX_SPEED
 import com.astheral.bikedashboard.ui.background.MIN_MOVEMENT
 import com.astheral.bikedashboard.ui.background.MIN_SPEED
 import com.astheral.bikedashboard.ui.background.RaceTrack
+import com.astheral.bikedashboard.ui.background.RainDirection
 import com.astheral.bikedashboard.ui.theme.AppIcon
 import com.astheral.bikedashboard.ui.theme.appIconNamed
 import com.astheral.bikedashboard.ui.theme.AppearanceSettings
@@ -316,6 +317,7 @@ class Settings private constructor(context: Context) {
             .putFloat(k(KEY_BACKGROUND_MOVEMENT), a.backgroundMovement)
             .putFloat(k(KEY_BACKGROUND_SPEED), a.backgroundSpeed)
             .putString(k(KEY_BACKGROUND_TRACK), a.backgroundTrack.name)
+            .putString(k(KEY_BACKGROUND_RAIN), a.backgroundRain.name)
             .apply()
         _appearances.update { it.copy(perBike = it.perBike + (profileId to a)) }
     }
@@ -362,6 +364,7 @@ class Settings private constructor(context: Context) {
             backgroundMovement = prefs.getFloat(k(KEY_BACKGROUND_MOVEMENT), 1f).coerceIn(MIN_MOVEMENT, MAX_MOVEMENT),
             backgroundSpeed = prefs.getFloat(k(KEY_BACKGROUND_SPEED), 1f).coerceIn(MIN_SPEED, MAX_SPEED),
             backgroundTrack = RaceTrack.fromName(prefs.getString(k(KEY_BACKGROUND_TRACK), null)),
+            backgroundRain = RainDirection.fromName(prefs.getString(k(KEY_BACKGROUND_RAIN), null)),
         )
     }
 
@@ -442,6 +445,7 @@ class Settings private constructor(context: Context) {
         private const val KEY_BACKGROUND_MOVEMENT = "background_movement"
         private const val KEY_BACKGROUND_SPEED = "background_speed"
         private const val KEY_BACKGROUND_TRACK = "background_track"
+        private const val KEY_BACKGROUND_RAIN = "background_rain"
         /** Random's pick on the last launch, so the next one picks something else. */
         private const val KEY_RANDOM_BACKGROUND_LAST = "random_background_last"
         private const val KEY_OLD_COLOR_THEME = "color_theme"
@@ -449,7 +453,7 @@ class Settings private constructor(context: Context) {
         /** The settings saved per bike, as "<key>@<bike id>". */
         private val APPEARANCE_KEYS = setOf(
             KEY_THEME_MODE, KEY_PURE_BLACK, KEY_WALLPAPER, KEY_PRIMARY, KEY_ACCENT, KEY_PROGRESS_STYLE, KEY_BACKGROUND_STYLE,
-            KEY_BACKGROUND_PARALLAX, KEY_BACKGROUND_MOVEMENT, KEY_BACKGROUND_SPEED, KEY_BACKGROUND_TRACK,
+            KEY_BACKGROUND_PARALLAX, KEY_BACKGROUND_MOVEMENT, KEY_BACKGROUND_SPEED, KEY_BACKGROUND_TRACK, KEY_BACKGROUND_RAIN,
         )
         private const val KEY_UNIT_ECONOMY = "unit_economy"
         private const val KEY_UNIT_DISTANCE_COST = "unit_distance_cost"

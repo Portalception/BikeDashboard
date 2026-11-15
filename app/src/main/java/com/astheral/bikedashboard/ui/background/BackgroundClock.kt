@@ -10,12 +10,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import android.view.Surface
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import kotlin.math.floor
 import kotlin.math.sin
+import kotlin.math.sqrt
 
 /**
  * Background time runs from 0 to this many seconds, then starts again. Every movement repeats a
@@ -43,6 +46,11 @@ internal class BackgroundFrameState {
     val shiftX = mutableFloatStateOf(0f)
     val shiftY = mutableFloatStateOf(0f)
 
+    /** Which way is down on screen, from the gravity sensor (straight down until it's read), and how steeply. */
+    val downX = mutableFloatStateOf(0f)
+    val downY = mutableFloatStateOf(1f)
+    val downPull = mutableFloatStateOf(1f)
+
     fun showStill() {
         time.floatValue = STILL_SECONDS
         travel.floatValue = STILL_SECONDS
@@ -50,11 +58,16 @@ internal class BackgroundFrameState {
         shiftY.floatValue = 0f
     }
 
-    fun copyFrom(clock: LoopClock, ease: TiltEase?) {
+    fun copyFrom(clock: LoopClock, ease: TiltEase?, down: DownEase? = null) {
         time.floatValue = clock.time.toFloat()
         travel.floatValue = clock.travel.toFloat()
         shiftX.floatValue = ease?.x ?: 0f
         shiftY.floatValue = ease?.y ?: 0f
+        if (down != null) {
+            downX.floatValue = down.x
+            downY.floatValue = down.y
+            downPull.floatValue = down.pull
+        }
     }
 }
 
@@ -69,7 +82,9 @@ internal fun rememberBackgroundFrame(animate: Boolean, stepMillis: Long, look: B
     val context = LocalContext.current
     val running = animate && remember(context) { animationsOn(context) }
     val frame = remember { BackgroundFrameState().also { if (running) it.copyFrom(sharedClock, null) } }
-    val tilt = rememberTilt(running && look.parallax)
+    val tilt = rememberTilt(running && (look.parallax || look.followsGravity))
+    val view = LocalView.current
+    val gravity by rememberUpdatedState(look.followsGravity)
     val speed by rememberUpdatedState(look.speed)
     val movement by rememberUpdatedState(look.movement)
     val parallax by rememberUpdatedState(look.parallax)
@@ -82,15 +97,20 @@ internal fun rememberBackgroundFrame(animate: Boolean, stepMillis: Long, look: B
         lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             var lastStep = Long.MIN_VALUE
             val ease = TiltEase()
+            val down = DownEase()
             val stepNanos = stepMillis * 1_000_000L
             while (true) {
                 withInfiniteAnimationFrameNanos { now ->
                     sharedClock.advance(now, speed, movement)
                     ease.advance(now, if (parallax) tilt.x else 0f, if (parallax) tilt.y else 0f)
+                    if (gravity && tilt.hasGravity) {
+                        val (sx, sy) = screenDown(tilt.gx, tilt.gy, view.display?.rotation ?: Surface.ROTATION_0)
+                        down.advance(sx, sy)
+                    }
                     val step = now / stepNanos
                     if (step != lastStep) {
                         lastStep = step
-                        frame.copyFrom(sharedClock, ease)
+                        frame.copyFrom(sharedClock, ease, down)
                     }
                 }
             }
@@ -124,4 +144,48 @@ internal fun noise(seed: Int): Float {
     x = (x xor (x ushr 12)) * 0x297a2d39
     x = x xor (x ushr 15)
     return (x ushr 8) / 16777216f
+}
+
+/**
+ * Which way is down on screen, from a gravity reading along the phone's own sideways ([gx]) and
+ * up-down ([gy]) axes (as a share of full gravity), allowing for the screen being turned
+ * ([rotation], a Surface.ROTATION_ value). Gives x to the right and y down the screen.
+ */
+internal fun screenDown(gx: Float, gy: Float, rotation: Int): Pair<Float, Float> {
+    // The reading turned to line up with the screen.
+    val (x, y) = when (rotation) {
+        Surface.ROTATION_90 -> -gy to gx
+        Surface.ROTATION_180 -> -gx to -gy
+        Surface.ROTATION_270 -> gy to -gx
+        else -> gx to gy
+    }
+    // The sensor feels the push holding the phone up, so down is the other way; and screen y
+    // points down where the sensor's points up.
+    return -x to y
+}
+
+/**
+ * Down on screen, eased so rain swings round smoothly rather than snapping as the phone turns.
+ * Lying flat there's no clear down, so it keeps the last one and [pull] drops, letting the
+ * drops crawl rather than run.
+ */
+internal class DownEase {
+    var x = 0f
+        private set
+    var y = 1f
+        private set
+    var pull = 1f
+        private set
+
+    /** One frame's reading: [sx], [sy] is down on screen, as long as full gravity when the phone is upright. */
+    fun advance(sx: Float, sy: Float) {
+        val m = sqrt(sx * sx + sy * sy)
+        pull += ((m / 0.6f).coerceIn(0.25f, 1f) - pull) * 0.05f
+        if (m < 0.12f) return
+        x += (sx / m - x) * 0.06f
+        y += (sy / m - y) * 0.06f
+        val len = sqrt(x * x + y * y).coerceAtLeast(1e-4f)
+        x /= len
+        y /= len
+    }
 }

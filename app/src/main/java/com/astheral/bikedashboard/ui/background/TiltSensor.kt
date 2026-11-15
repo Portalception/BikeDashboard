@@ -25,6 +25,15 @@ internal class Tilt {
     @Volatile var y = 0f
         private set
 
+    /** The smoothed gravity reading itself, as a share of full gravity along the phone's sideways and up-down axes. */
+    @Volatile var gx = 0f
+        private set
+    @Volatile var gy = 1f
+        private set
+
+    /** False until the first reading arrives. */
+    val hasGravity: Boolean get() = !smoothX.isNaN()
+
     private var smoothX = Float.NaN
     private var smoothY = 0f
     private var restX = 0f
@@ -36,10 +45,13 @@ internal class Tilt {
         val ny = gy / SensorManager.GRAVITY_EARTH
         if (smoothX.isNaN()) {
             smoothX = nx; smoothY = ny; restX = nx; restY = ny
+            this.gx = nx; this.gy = ny
             return
         }
         smoothX += (nx - smoothX) * SMOOTH
         smoothY += (ny - smoothY) * SMOOTH
+        this.gx = smoothX
+        this.gy = smoothY
         restX += (smoothX - restX) * REST
         restY += (smoothY - restY) * REST
         // Tilting the right edge down moves the picture right, towards the low side.

@@ -9,6 +9,8 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.unit.dp
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
  * What a scene draws from on one frame. Filled in afresh each frame (never reallocated).
@@ -26,6 +28,11 @@ internal class SceneTime {
     /** The parallax shift in pixels for the nearest layer; further layers take a share of it. */
     var shiftX = 0f
     var shiftY = 0f
+
+    /** Which way rain runs on screen (a unit vector), and how hard it's pulled: 1 normally, less with the phone lying flat. */
+    var rainX = -1f
+    var rainY = 0f
+    var rainPull = 1f
 }
 
 /**
@@ -62,6 +69,7 @@ private const val FLAT_DEPTH = 0.6f
 fun AnimatedBackground(look: BackgroundLook, modifier: Modifier = Modifier, animate: Boolean = true) {
     if (look.style == BackgroundStyle.NONE) return
     val scene = remember(look.style, look.track) { sceneFor(look) }
+    val fixedRain = remember(look.rain) { look.rain.degrees?.let { Math.toRadians(it.toDouble()).toFloat() } }
     val ink = rememberBackgroundInk()
     val frame = rememberBackgroundFrame(animate, scene.stepMillis, look)
     val sceneTime = remember { SceneTime() }
@@ -74,6 +82,15 @@ fun AnimatedBackground(look: BackgroundLook, modifier: Modifier = Modifier, anim
         sceneTime.motion = motion
         sceneTime.shiftX = frame.shiftX.floatValue * shift
         sceneTime.shiftY = frame.shiftY.floatValue * shift
+        if (fixedRain != null) {
+            sceneTime.rainX = cos(fixedRain)
+            sceneTime.rainY = sin(fixedRain)
+            sceneTime.rainPull = 1f
+        } else {
+            sceneTime.rainX = frame.downX.floatValue
+            sceneTime.rainY = frame.downY.floatValue
+            sceneTime.rainPull = frame.downPull.floatValue
+        }
         if (scene.layered) {
             with(scene) { paint(sceneTime, ink) }
         } else {

@@ -25,6 +25,7 @@ import com.astheral.bikedashboard.ui.background.BackgroundLook
 import com.astheral.bikedashboard.ui.background.BackgroundStyle
 import com.astheral.bikedashboard.ui.background.RandomBackground
 import com.astheral.bikedashboard.ui.background.RaceTrack
+import com.astheral.bikedashboard.ui.background.RainDirection
 import com.materialkolor.contrast.Contrast
 import com.materialkolor.hct.Hct
 import com.materialkolor.palettes.TonalPalette
@@ -53,6 +54,8 @@ data class AppearanceSettings(
     val backgroundSpeed: Float = 1f,
     /** The circuit the Racetrack background shows. */
     val backgroundTrack: RaceTrack = RaceTrack.CLASSIC,
+    /** Which way Rain on Visor's drops run. */
+    val backgroundRain: RainDirection = RainDirection.LEFT,
 )
 
 enum class ProgressStyle(val label: String) {
@@ -160,8 +163,11 @@ private fun rememberBackgroundLook(appearance: AppearanceSettings, bikeId: Long?
             RandomBackground.resolve(bikeId ?: settings.activeProfileId.value, settings::lastRandomBackground, settings::setLastRandomBackground)
         }
     }
-    return remember(style, appearance.backgroundParallax, appearance.backgroundMovement, appearance.backgroundSpeed, appearance.backgroundTrack) {
-        BackgroundLook(style, appearance.backgroundParallax, appearance.backgroundMovement, appearance.backgroundSpeed, appearance.backgroundTrack)
+    return remember(style, appearance.backgroundParallax, appearance.backgroundMovement, appearance.backgroundSpeed, appearance.backgroundTrack, appearance.backgroundRain) {
+        BackgroundLook(
+            style, appearance.backgroundParallax, appearance.backgroundMovement, appearance.backgroundSpeed,
+            appearance.backgroundTrack, appearance.backgroundRain,
+        )
     }
 }
 
