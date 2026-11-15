@@ -17,7 +17,7 @@ Get the latest APK from [Releases](https://github.com/Portalception/BikeDashboar
 
 | Version | File | Virus scan | SHA-256 |
 |---|---|---|---|
-| 1.0.2 | [BikeDashboard-1.0.2.apk](https://github.com/Portalception/BikeDashboard/releases/download/v1.0.2/BikeDashboard-1.0.2.apk) | [VirusTotal](https://www.virustotal.com/gui/file/7444059c8c8fa89be85bffb8296126af08acdc83b9d27eb6e8619ea3b3f9a8e1) | `7444059c8c8fa89be85bffb8296126af08acdc83b9d27eb6e8619ea3b3f9a8e1` |
+| 1.0.2 | [BikeDashboard-1.0.2.apk](https://github.com/Portalception/BikeDashboard/releases/download/v1.0.2/BikeDashboard-1.0.2.apk) | [VirusTotal: 0/59 clean](https://www.virustotal.com/gui/file/7444059c8c8fa89be85bffb8296126af08acdc83b9d27eb6e8619ea3b3f9a8e1) | `7444059c8c8fa89be85bffb8296126af08acdc83b9d27eb6e8619ea3b3f9a8e1` |
 
 To install, open the APK on your phone and allow installing from that source when Android asks. To check
 your download matches, compare its SHA-256 with the one above.
