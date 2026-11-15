@@ -413,8 +413,7 @@ private fun Header(d: DashboardData?, units: Units, profile: Profile?, onProfile
         d.usualDays?.let { usual ->
             ProgressLine(d.daysSinceLastFull.toFloat() / usual)
             Text(
-                if (d.partialsWaiting > 0) "Day ${d.daysSinceLastFull} of about $usual between full tanks"
-                else "Day ${d.daysSinceLastFull} of about $usual between fill-ups",
+                fillGapText(d.daysSinceLastFull, usual, sinceFullTank = d.partialsWaiting > 0),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -639,4 +638,20 @@ private fun StatTile(
         Modifier.clip(TileShape).combinedClickable(onLongClick = onLongClick, onClick = onClick ?: {})
     }
     Surface(modifier.then(press), shape = TileShape, color = fill, border = outline(), content = body)
+}
+
+/**
+ * Under the progress line: how far into the usual gap between fill-ups (or full tanks, when
+ * partial fills are waiting) you are, e.g. "Day 3 of about 5 between fill-ups". Past the usual
+ * gap it says how long it's been instead, since "Day 43 of about 5" reads oddly.
+ */
+internal fun fillGapText(days: Long, usual: Long, sinceFullTank: Boolean): String {
+    val what = if (sinceFullTank) "full tanks" else "fill-ups"
+    val last = if (sinceFullTank) "full tank" else "fill-up"
+    val usually = if (usual == 1L) "about a day" else "about $usual days"
+    return when {
+        days <= 0L -> "Filled today · usually $usually between $what"
+        days > usual -> "${if (days == 1L) "1 day" else "$days days"} since your last $last · usually $usually"
+        else -> "Day $days of about $usual between $what"
+    }
 }

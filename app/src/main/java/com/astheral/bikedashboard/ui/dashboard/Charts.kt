@@ -184,10 +184,24 @@ internal fun line(color: Color, points: Int) = LineCartesianLayer.rememberLine(
 @Composable
 internal fun fittedRange(values: List<Double>): CartesianLayerRangeProvider = remember(values) {
     if (values.isEmpty()) return@remember CartesianLayerRangeProvider.auto()
-    val lo = values.min()
-    val hi = values.max()
+    val (minY, maxY) = niceRange(values.min(), values.max())
+    CartesianLayerRangeProvider.fixed(minY = minY, maxY = maxY)
+}
+
+/**
+ * A y range a little wider than [lo] to [hi], with both ends on a round step (1, 2 or 5 times a
+ * power of ten), so the axis labels read 0.04, 0.06 … rather than 0.039, 0.059 …. It doesn't
+ * dip below zero when the data doesn't.
+ */
+internal fun niceRange(lo: Double, hi: Double): Pair<Double, Double> {
     val pad = if (hi > lo) (hi - lo) * 0.15 else maxOf(kotlin.math.abs(hi) * 0.05, 0.01)
-    CartesianLayerRangeProvider.fixed(minY = lo - pad, maxY = hi + pad)
+    val rough = (hi - lo + 2 * pad) / 5
+    val power = Math.pow(10.0, kotlin.math.floor(kotlin.math.log10(rough)))
+    val step = listOf(1.0, 2.0, 5.0, 10.0).map { it * power }.first { it >= rough }
+    var minY = kotlin.math.floor((lo - pad) / step) * step
+    if (lo >= 0 && minY < 0) minY = 0.0
+    val maxY = kotlin.math.ceil((hi + pad) / step) * step
+    return minY to maxY
 }
 
 @Composable
