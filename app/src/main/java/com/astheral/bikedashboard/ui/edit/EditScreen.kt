@@ -111,6 +111,7 @@ fun EditScreen(fillUpId: Long, onDone: () -> Unit, onDeleted: (Long) -> Unit, on
             state.step == Step.REVIEW && state.warnings.isNotEmpty() -> "Save Anyway"
             state.step == Step.REVIEW -> "Save"
             state.step == Step.FUEL_LEFT && state.form.barsLeft.isBlank() && state.form.reserveKm.isBlank() -> "Skip"
+            state.step == Step.BRAND && state.form.brand.isBlank() && state.isNew -> "Skip"
             !state.isNew -> "Done"
             else -> "Next"
         },
@@ -167,6 +168,7 @@ private fun StepCard(step: Step, state: EditState, vm: EditViewModel) {
     val mixed = form.country == Country.MIXED && !form.legacyMixed
     when (step) {
         Step.WHERE -> WhereCard(state, vm)
+        Step.BRAND -> BrandCard(state, vm)
         Step.DATE -> DateCard("When did you fill up?", form.date, onPick = { d -> vm.edit { it.copy(date = d) } }, onNext = vm::next)
         Step.RM_PAID -> NumberCard(
             part = if (mixed) "Malaysia Part" else null,
@@ -399,6 +401,38 @@ private fun WhereCard(state: EditState, vm: EditViewModel) {
 }
 
 /**
+ * Which petrol brand, as two rows of tiles; tapping one moves on. Optional: "Skip" leaves it
+ * blank, and tapping the picked brand again clears it.
+ */
+@Composable
+private fun BrandCard(state: EditState, vm: EditViewModel) {
+    QuestionCard(null, "Which brand did you use?") {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            SG_BRANDS.chunked(3).forEach { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    row.forEach { brand ->
+                        ChoiceTile(
+                            icon = Icons.Filled.LocalGasStation,
+                            label = brand,
+                            selected = state.form.brand == brand,
+                            onClick = { vm.chooseBrand(brand) },
+                            tint = CountryColors.sg,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+        Text(
+            "Optional. Tap Skip to leave it out.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/**
  * "Full Tank?" under the litres answer, on the last card that asks for litres. Yes unless you
  * only put some fuel in; a partial fill's economy is worked out at the next full tank.
  */
@@ -594,6 +628,7 @@ private fun label(step: Step, form: FillUpForm): String {
         Step.FUEL_LEFT -> "Fuel Left"
         Step.DATE -> "Date"
         Step.WHERE -> "Where"
+        Step.BRAND -> "Brand"
         Step.REVIEW -> ""
     }
 }
@@ -618,6 +653,7 @@ private fun answer(step: Step, form: FillUpForm): String? {
         }
         Step.DATE -> form.date.long()
         Step.WHERE -> form.country.label()
+        Step.BRAND -> form.brand.ifBlank { "Not recorded" }
         Step.REVIEW -> null
     }
 }

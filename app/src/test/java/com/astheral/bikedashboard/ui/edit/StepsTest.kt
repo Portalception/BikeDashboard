@@ -21,7 +21,7 @@ class StepsTest {
     @Test
     fun singapore() {
         assertEquals(
-            listOf(Step.DATE, Step.WHERE, Step.SG_LITRES, Step.SG_PAID, Step.ODOMETER, Step.FUEL_LEFT, Step.REVIEW),
+            listOf(Step.DATE, Step.WHERE, Step.BRAND, Step.SG_LITRES, Step.SG_PAID, Step.ODOMETER, Step.FUEL_LEFT, Step.REVIEW),
             stepsFor(FillUpForm(date = today, country = Country.SG)),
         )
     }
@@ -75,5 +75,22 @@ class StepsTest {
         fun fill(rm: Double?) = FillUp(date = today, country = Country.MY, odometerKm = 1, rmPaid = rm)
         val fills = listOf(70.0, 70.0, 70.0, 60.0, 60.0, 80.0, 80.0, 50.0, 30.0, null).map(::fill)
         assertEquals(listOf(50.0, 60.0, 70.0, 80.0), commonRmPaid(fills))
+    }
+
+    @Test
+    fun brandIsOnlyAskedInSingaporeAndIsOptional() {
+        assertEquals(false, Step.BRAND in stepsFor(FillUpForm(date = today, country = Country.MY)))
+        val sg = FillUpForm(date = today, country = Country.SG, sgLitres = "10", sgCost = "28", odometer = "1000")
+        assertEquals(null, sg.errorFor(Step.BRAND, null))
+        assertEquals(6, SG_BRANDS.size)
+    }
+
+    @Test
+    fun brandIsSavedForSingaporeOnly() {
+        val sg = FillUpForm(date = today, country = Country.SG, sgLitres = "10", sgCost = "28", odometer = "1000", brand = "Shell")
+        assertEquals("Shell", (sg.toFillUp(null) as FormResult.Ok).fillUp.brand)
+        assertEquals(null, (sg.copy(brand = " ").toFillUp(null) as FormResult.Ok).fillUp.brand)
+        val my = sg.withCountry(Country.MY).copy(myLitres = "10", rate = "3.2", rmCharged = "30")
+        assertEquals(null, (my.toFillUp(null) as FormResult.Ok).fillUp.brand)
     }
 }

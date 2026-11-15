@@ -266,6 +266,9 @@ private fun FillUpCard(stats: FillUpStats, countUp: Boolean, onClick: () -> Unit
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(fill.date.long(), style = MaterialTheme.typography.titleSmall)
+                    fill.brand?.let {
+                        Text(" · $it", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                     if (!fill.fullTank) {
                         Spacer(Modifier.width(8.dp))
                         AccentChip("Partial")

@@ -117,6 +117,23 @@ class MigrationTest {
         }
     }
 
+    /** Version 11 adds the petrol brand; fill-ups from before have none. */
+    @Test
+    fun version10FillUpsHaveNoBrand() {
+        helper.createDatabase(dbName, 10).apply {
+            execSQL("INSERT INTO fill_ups (id, profileId, date, country, odometerKm, sgLitres, sgCostSgd, noSpecialTrip, fullTank) VALUES (1, 1, 20354, 'SG', 162999, 9.713, 26.44, 0, 1)")
+            close()
+        }
+        helper.runMigrationsAndValidate(dbName, 11, true).apply {
+            query("SELECT odometerKm, brand FROM fill_ups").use {
+                it.moveToFirst()
+                assertEquals(162999, it.getInt(0))
+                assertEquals(true, it.isNull(1))
+            }
+            close()
+        }
+    }
+
     /** Version 8 adds the log card fields; existing details keep everything and start without them. */
     @Test
     fun version7DetailsKeepTheirValues() {

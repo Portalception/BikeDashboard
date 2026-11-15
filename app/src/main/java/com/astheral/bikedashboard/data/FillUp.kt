@@ -58,6 +58,9 @@ data class FillUp(
      */
     @ColumnInfo(defaultValue = "1") val fullTank: Boolean = true,
 
+    /** The petrol brand (Shell, Esso …), if you picked one. Only asked for in Singapore; optional. */
+    val brand: String? = null,
+
     /** "Estimated Max" from the spreadsheet. Kept for export only, never shown. */
     val estimatedMax: Double? = null,
     /** Savings from the spreadsheet. Imported rows keep this instead of being recalculated. */

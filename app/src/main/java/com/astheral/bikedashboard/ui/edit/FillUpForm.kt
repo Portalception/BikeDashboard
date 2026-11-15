@@ -37,6 +37,8 @@ data class FillUpForm(
     val noSpecialTrip: Boolean = false,
     /** Filled to full. A partial fill's economy is worked out at the next full tank. */
     val fullTank: Boolean = true,
+    /** The petrol brand picked in Singapore, or blank for none. */
+    val brand: String = "",
     val barsLeft: String = "",
     val reserveKm: String = "",
     /** Old MY fill-up with no RM amounts: its SGD cost is edited directly. */
@@ -70,6 +72,7 @@ data class FillUpForm(
                 rmCharged = text(fill.rmCharged),
                 noSpecialTrip = fill.noSpecialTrip,
                 fullTank = fill.fullTank,
+                brand = fill.brand.orEmpty(),
                 barsLeft = fill.barsLeft?.toString().orEmpty(),
                 reserveKm = text(fill.reserveKm),
                 legacyMy = legacyMy,
@@ -171,6 +174,8 @@ fun FillUpForm.toFillUp(base: FillUp?): FormResult {
         reserveKm = reserve?.takeIf { it > 0 },
         noSpecialTrip = if (country == Country.SG) false else noSpecialTrip,
         fullTank = fullTank,
+        // The brand is only asked for in Singapore.
+        brand = brand.trim().takeIf { it.isNotEmpty() && country == Country.SG },
     )
     return FormResult.Ok(fill)
 }
