@@ -18,8 +18,8 @@ android {
         applicationId = "com.astheral.bikedashboard"
         minSdk = 26
         targetSdk = 37
-        versionCode = 64
-        versionName = "1.0"
+        versionCode = 65
+        versionName = "1.0.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -42,10 +42,21 @@ android {
     buildTypes {
         release {
             signingConfig = releaseSigning
+            // Shrinks and optimises the whole app (R8), not just the libraries: a smaller APK
+            // that starts and runs faster. Extra keep rules are in proguard-rules.pro.
             optimization {
                 enable = true
-                packageScope = setOf("androidx.**", "kotlin.**", "kotlinx.**")
+                keepRules {
+                    files.add(file("proguard-rules.pro"))
+                }
             }
+        }
+    }
+    packaging {
+        resources {
+            // Data for post-quantum encryption schemes in Bouncy Castle (pulled in by the PDF
+            // reader for the log card import). Reading a PDF never uses them; they're 4 MB.
+            excludes += setOf("org/bouncycastle/pqc/crypto/sike/**", "org/bouncycastle/pqc/crypto/picnic/**")
         }
     }
     compileOptions {
